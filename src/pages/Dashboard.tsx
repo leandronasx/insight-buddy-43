@@ -43,7 +43,7 @@ export default function Dashboard() {
       const endYear = month === 12 ? year + 1 : year;
       const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
 
-      // Fetch leads for this month
+      // Fetch leads for this month (by data_mensagem)
       const { data: leads } = await supabase
         .from('leads')
         .select('*')
@@ -54,10 +54,30 @@ export default function Dashboard() {
       // Fetch vendas for this month
       const { data: vendas } = await supabase
         .from('vendas')
-        .select('*')
+        .select('*, lead_id')
         .eq('empresa_id', empresa.id)
         .gte('data_venda', startDate)
         .lt('data_venda', endDate);
+
+      // Also fetch leads that have vendas in this month but messaged in a different month
+      const vendaLeadIds = (vendas ?? [])
+        .filter(v => v.lead_id)
+        .map(v => v.lead_id as string);
+
+      const existingLeadIds = new Set((leads ?? []).map(l => l.id));
+      const missingLeadIds = vendaLeadIds.filter(id => !existingLeadIds.has(id));
+
+      let allLeads = leads ?? [];
+      if (missingLeadIds.length > 0) {
+        const { data: extraLeads } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('empresa_id', empresa.id)
+          .in('id', missingLeadIds);
+        if (extraLeads) {
+          allLeads = [...allLeads, ...extraLeads];
+        }
+      }
 
       // Fetch financeiro
       const { data: fin } = await supabase
@@ -68,13 +88,13 @@ export default function Dashboard() {
         .eq('ano_referencia', year)
         .maybeSingle();
 
-      const totalLeads = leads?.length ?? 0;
-      const leadsTrafego = leads?.filter(l => l.origem === 'Tráfego').length ?? 0;
-      const leadsOrganico = leads?.filter(l => l.origem === 'Orgânico').length ?? 0;
-      const leadsIndicacao = leads?.filter(l => l.origem === 'Indicação').length ?? 0;
-      const leadsFechados = leads?.filter(l => l.status === 'Fechado').length ?? 0;
+      const totalLeads = allLeads.length;
+      const leadsTrafego = allLeads.filter(l => l.origem === 'Tráfego').length;
+      const leadsOrganico = allLeads.filter(l => l.origem === 'Orgânico').length;
+      const leadsIndicacao = allLeads.filter(l => l.origem === 'Indicação').length;
+      const leadsFechados = allLeads.filter(l => l.status === 'Fechado').length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = vendas?.reduce((acc, v) => acc + Number(v.valor_final), 0) ?? 0;
+      const faturamento = (vendas ?? []).reduce((acc, v) => acc + Number(v.valor_final), 0);
       const investimentoTrafego = Number(fin?.investimento_trafego ?? 0);
       const custoOperacional = Number(fin?.custo_operacional ?? 0);
       const metaFaturamento = Number(fin?.meta_faturamento ?? 0);
@@ -88,7 +108,7 @@ export default function Dashboard() {
         custoOperacional, metaFaturamento, roi, cac, lucroLiquido,
       });
 
-      // Fetch annual chart data
+      // Fetch annual chart data using the SELECTED year
       const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       const annualStart = `${year}-01-01`;
       const annualEnd = `${year + 1}-01-01`;

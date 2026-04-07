@@ -17,24 +17,33 @@ export type Database = {
       empresas: {
         Row: {
           created_at: string
+          data_inicio: string | null
+          data_termino: string | null
           empresa_nome: string
           id: string
+          nome_dono: string | null
           status: Database["public"]["Enums"]["empresa_status"]
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          data_inicio?: string | null
+          data_termino?: string | null
           empresa_nome: string
           id?: string
+          nome_dono?: string | null
           status?: Database["public"]["Enums"]["empresa_status"]
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          data_inicio?: string | null
+          data_termino?: string | null
           empresa_nome?: string
           id?: string
+          nome_dono?: string | null
           status?: Database["public"]["Enums"]["empresa_status"]
           updated_at?: string
           user_id?: string
@@ -187,6 +196,24 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       vendas: {
         Row: {
           created_at: string
@@ -243,9 +270,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "user"
       empresa_status: "ativo" | "inativo"
       lead_origem: "Tráfego" | "Orgânico" | "Indicação"
       lead_status: "Agendado" | "Sem Interesse" | "Fechado" | "Reabordar"
@@ -380,6 +414,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       empresa_status: ["ativo", "inativo"],
       lead_origem: ["Tráfego", "Orgânico", "Indicação"],
       lead_status: ["Agendado", "Sem Interesse", "Fechado", "Reabordar"],

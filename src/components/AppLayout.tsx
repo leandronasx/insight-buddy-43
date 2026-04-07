@@ -1,8 +1,9 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ShoppingCart, Settings, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, Settings, LogOut, Menu, X, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { MonthSelector } from './MonthSelector';
 
 const navItems = [
@@ -15,8 +16,13 @@ const navItems = [
 export function AppLayout({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
   const { empresa } = useEmpresa();
+  const { isAdmin } = useIsAdmin();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const allNavItems = isAdmin
+    ? [...navItems, { to: '/admin', icon: Building2, label: 'Empresas' }]
+    : navItems;
 
   return (
     <div className="min-h-screen flex">
@@ -31,7 +37,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           )}
         </div>
         <nav className="flex-1 space-y-1">
-          {navItems.map(item => {
+          {allNavItems.map(item => {
             const active = location.pathname === item.to;
             return (
               <Link
@@ -70,7 +76,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-background/95 pt-16 px-4">
           <nav className="space-y-1">
-            {navItems.map(item => {
+            {allNavItems.map(item => {
               const active = location.pathname === item.to;
               return (
                 <Link
