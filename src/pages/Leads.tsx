@@ -168,7 +168,7 @@ export default function Leads() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Origem</label>
-              <Select value={form.origem} onValueChange={v => setForm({ ...form, origem: v })}>
+              <Select value={form.origem} onValueChange={v => setForm({ ...form, origem: v as LeadOrigem })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGENS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -177,7 +177,7 @@ export default function Leads() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
-              <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+              <Select value={form.status} onValueChange={v => setForm({ ...form, status: v as LeadStatus })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
