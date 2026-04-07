@@ -1,16 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useAuth } from '@/hooks/useAuth';
+import { useEmpresa } from '@/hooks/useEmpresa';
+import Login from './Login';
+import Dashboard from './Dashboard';
+import { AppLayout } from '@/components/AppLayout';
+import { MonthProvider } from '@/contexts/MonthContext';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+export default function Index() {
+  const { user, loading: authLoading } = useAuth();
+  const { empresa, loading: empLoading } = useEmpresa();
+
+  if (authLoading || (user && empLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground animate-pulse font-display text-lg">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!user) return <Login />;
+
+  if (empresa?.status === 'inativo') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="glass-card p-8 text-center max-w-md">
+          <h2 className="font-display text-xl font-bold text-foreground mb-2">Acesso Bloqueado</h2>
+          <p className="text-muted-foreground">Sua empresa está inativa. Entre em contato com o administrador.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
+    <MonthProvider>
+      <AppLayout>
+        <Dashboard />
+      </AppLayout>
+    </MonthProvider>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}
