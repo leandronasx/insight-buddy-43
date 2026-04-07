@@ -14,7 +14,230 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      empresas: {
+        Row: {
+          created_at: string
+          empresa_nome: string
+          id: string
+          status: Database["public"]["Enums"]["empresa_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_nome: string
+          id?: string
+          status?: Database["public"]["Enums"]["empresa_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          empresa_nome?: string
+          id?: string
+          status?: Database["public"]["Enums"]["empresa_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financeiro_mensal: {
+        Row: {
+          ano_referencia: number
+          created_at: string
+          custo_operacional: number
+          empresa_id: string
+          id: string
+          investimento_trafego: number
+          mes_referencia: number
+          meta_faturamento: number
+          updated_at: string
+        }
+        Insert: {
+          ano_referencia: number
+          created_at?: string
+          custo_operacional?: number
+          empresa_id: string
+          id?: string
+          investimento_trafego?: number
+          mes_referencia: number
+          meta_faturamento?: number
+          updated_at?: string
+        }
+        Update: {
+          ano_referencia?: number
+          created_at?: string
+          custo_operacional?: number
+          empresa_id?: string
+          id?: string
+          investimento_trafego?: number
+          mes_referencia?: number
+          meta_faturamento?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_mensal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          created_at: string
+          data_mensagem: string
+          empresa_id: string
+          id: string
+          nome_lead: string
+          origem: Database["public"]["Enums"]["lead_origem"]
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_mensagem?: string
+          empresa_id: string
+          id?: string
+          nome_lead: string
+          origem?: Database["public"]["Enums"]["lead_origem"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_mensagem?: string
+          empresa_id?: string
+          id?: string
+          nome_lead?: string
+          origem?: Database["public"]["Enums"]["lead_origem"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      servicos: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          estofado: string | null
+          id: string
+          lead_id: string | null
+          tipo_servico: Database["public"]["Enums"]["tipo_servico"]
+          updated_at: string
+          valor: number
+          venda_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          estofado?: string | null
+          id?: string
+          lead_id?: string | null
+          tipo_servico?: Database["public"]["Enums"]["tipo_servico"]
+          updated_at?: string
+          valor?: number
+          venda_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          estofado?: string | null
+          id?: string
+          lead_id?: string | null
+          tipo_servico?: Database["public"]["Enums"]["tipo_servico"]
+          updated_at?: string
+          valor?: number
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicos_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas: {
+        Row: {
+          created_at: string
+          data_venda: string
+          desconto: number
+          empresa_id: string
+          id: string
+          lead_id: string | null
+          updated_at: string
+          valor_cheio: number
+          valor_final: number
+        }
+        Insert: {
+          created_at?: string
+          data_venda?: string
+          desconto?: number
+          empresa_id: string
+          id?: string
+          lead_id?: string | null
+          updated_at?: string
+          valor_cheio?: number
+          valor_final?: number
+        }
+        Update: {
+          created_at?: string
+          data_venda?: string
+          desconto?: number
+          empresa_id?: string
+          id?: string
+          lead_id?: string | null
+          updated_at?: string
+          valor_cheio?: number
+          valor_final?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +246,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      empresa_status: "ativo" | "inativo"
+      lead_origem: "Tráfego" | "Orgânico" | "Indicação"
+      lead_status: "Agendado" | "Sem Interesse" | "Fechado" | "Reabordar"
+      tipo_servico:
+        | "higienização"
+        | "impermeabilização"
+        | "higienização e impermeabilização"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +379,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      empresa_status: ["ativo", "inativo"],
+      lead_origem: ["Tráfego", "Orgânico", "Indicação"],
+      lead_status: ["Agendado", "Sem Interesse", "Fechado", "Reabordar"],
+      tipo_servico: [
+        "higienização",
+        "impermeabilização",
+        "higienização e impermeabilização",
+      ],
+    },
   },
 } as const
