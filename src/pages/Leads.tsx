@@ -1,25 +1,29 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, Phone, Calendar } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Database } from '@/integrations/supabase/types';
+
+type LeadOrigem = Database['public']['Enums']['lead_origem'];
+type LeadStatus = Database['public']['Enums']['lead_status'];
 
 interface Lead {
   id: string;
   nome_lead: string;
-  telefone: string;
-  origem: string;
-  status: string;
+  telefone: string | null;
+  origem: LeadOrigem;
+  status: LeadStatus;
   data_mensagem: string;
 }
 
-const ORIGENS = ['Tráfego', 'Orgânico', 'Indicação'];
-const STATUSES = ['Agendado', 'Sem Interesse', 'Fechado', 'Reabordar'];
+const ORIGENS: LeadOrigem[] = ['Tráfego', 'Orgânico', 'Indicação'];
+const STATUSES: LeadStatus[] = ['Agendado', 'Sem Interesse', 'Fechado', 'Reabordar'];
 
 const statusColors: Record<string, string> = {
   'Agendado': 'bg-info/20 text-info',
@@ -35,7 +39,7 @@ export default function Leads() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [form, setForm] = useState({ nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '' });
+  const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string }>({ nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '' });
 
   const fetchLeads = async () => {
     if (!empresa) return;
@@ -164,7 +168,7 @@ export default function Leads() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Origem</label>
-              <Select value={form.origem} onValueChange={v => setForm({ ...form, origem: v })}>
+              <Select value={form.origem} onValueChange={v => setForm({ ...form, origem: v as LeadOrigem })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGENS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -173,7 +177,7 @@ export default function Leads() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
-              <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+              <Select value={form.status} onValueChange={v => setForm({ ...form, status: v as LeadStatus })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
