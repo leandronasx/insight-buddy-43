@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, Phone, Calendar } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { Button } from '@/components/ui/button';
