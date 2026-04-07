@@ -5,11 +5,9 @@ import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
 
 export default function Login() {
-  const { signIn, signUp } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [empresaNome, setEmpresaNome] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,10 +16,7 @@ export default function Login() {
     setError('');
     setLoading(true);
 
-    const result = isSignUp
-      ? await signUp(email, password, empresaNome)
-      : await signIn(email, password);
-
+    const result = await signIn(email, password);
     if (result.error) {
       setError(result.error.message);
     }
@@ -42,18 +37,6 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Nome da Empresa</label>
-                <Input
-                  value={empresaNome}
-                  onChange={e => setEmpresaNome(e.target.value)}
-                  placeholder="Sua empresa"
-                  required
-                  className="bg-secondary border-border"
-                />
-              </div>
-            )}
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">E-mail</label>
               <Input
@@ -80,16 +63,9 @@ export default function Login() {
             {error && <p className="text-destructive text-sm">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Carregando...' : isSignUp ? 'Criar Conta' : 'Entrar'}
+              {loading ? 'Carregando...' : 'Entrar'}
             </Button>
           </form>
-
-          <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            className="w-full text-center text-sm text-muted-foreground mt-4 hover:text-foreground transition-colors"
-          >
-            {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Criar uma'}
-          </button>
         </div>
       </motion.div>
     </div>
