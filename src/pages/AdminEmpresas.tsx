@@ -97,6 +97,7 @@ export default function AdminEmpresas() {
       status: emp.status,
     });
     setError('');
+    setConfirmDelete(false);
     setEditOpen(true);
   };
 
