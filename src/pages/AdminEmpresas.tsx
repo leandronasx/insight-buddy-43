@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -22,20 +22,31 @@ interface Empresa {
   created_at: string;
 }
 
+const emptyForm = {
+  empresa_nome: '',
+  nome_dono: '',
+  email: '',
+  password: '',
+  data_inicio: new Date().toISOString().split('T')[0],
+  data_termino: '',
+};
+
 export default function AdminEmpresas() {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({
+  const [form, setForm] = useState({ ...emptyForm });
+  const [editForm, setEditForm] = useState({
     empresa_nome: '',
     nome_dono: '',
-    email: '',
-    password: '',
-    data_inicio: new Date().toISOString().split('T')[0],
+    data_inicio: '',
     data_termino: '',
+    status: 'ativo' as 'ativo' | 'inativo',
   });
 
   const fetchEmpresas = async () => {
@@ -53,8 +64,6 @@ export default function AdminEmpresas() {
   const handleCreate = async () => {
     setError('');
     setSaving(true);
-
-    const { data: { session } } = await supabase.auth.getSession();
     const res = await supabase.functions.invoke('create-empresa', {
       body: {
         email: form.email,
@@ -65,28 +74,56 @@ export default function AdminEmpresas() {
         data_termino: form.data_termino || null,
       },
     });
-
     if (res.error || res.data?.error) {
       setError(res.error?.message || res.data?.error || 'Erro ao criar empresa');
       setSaving(false);
       return;
     }
-
-    setModalOpen(false);
-    setForm({ empresa_nome: '', nome_dono: '', email: '', password: '', data_inicio: new Date().toISOString().split('T')[0], data_termino: '' });
+    setCreateOpen(false);
+    setForm({ ...emptyForm });
     setSaving(false);
     fetchEmpresas();
   };
 
-  const toggleStatus = async (empresa: Empresa) => {
-    const newStatus = empresa.status === 'ativo' ? 'inativo' : 'ativo';
-    await supabase.functions.invoke('update-empresa-status', {
-      body: {
-        empresa_id: empresa.id,
-        status: newStatus,
-        data_termino: newStatus === 'inativo' ? new Date().toISOString().split('T')[0] : null,
-      },
+  const openEdit = (emp: Empresa) => {
+    setEditingEmpresa(emp);
+    setEditForm({
+      empresa_nome: emp.empresa_nome,
+      nome_dono: emp.nome_dono || '',
+      data_inicio: emp.data_inicio || '',
+      data_termino: emp.data_termino || '',
+      status: emp.status,
     });
+    setError('');
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editingEmpresa) return;
+    setError('');
+    setSaving(true);
+
+    // Update empresa fields
+    const { error: updateErr } = await supabase
+      .from('empresas')
+      .update({
+        empresa_nome: editForm.empresa_nome,
+        nome_dono: editForm.nome_dono || null,
+        data_inicio: editForm.data_inicio || null,
+        data_termino: editForm.data_termino || null,
+        status: editForm.status,
+      })
+      .eq('id', editingEmpresa.id);
+
+    if (updateErr) {
+      setError(updateErr.message);
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
+    setEditOpen(false);
+    setEditingEmpresa(null);
     fetchEmpresas();
   };
 
@@ -117,7 +154,7 @@ export default function AdminEmpresas() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
-            <Button onClick={() => setModalOpen(true)} size="sm">
+            <Button onClick={() => { setError(''); setCreateOpen(true); }} size="sm">
               <Plus className="h-4 w-4 mr-1" /> Nova Empresa
             </Button>
           </div>
@@ -131,13 +168,15 @@ export default function AdminEmpresas() {
                 key={emp.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="metric-card"
+                className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+                onClick={() => openEdit(emp)}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Building2 className="h-4 w-4 text-primary shrink-0" />
                       <p className="font-display font-bold text-foreground truncate">{emp.empresa_nome}</p>
+                      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
                     </div>
                     {emp.nome_dono && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -153,9 +192,8 @@ export default function AdminEmpresas() {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => toggleStatus(emp)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  <div
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${
                       emp.status === 'ativo'
                         ? 'bg-primary/20 text-primary'
                         : 'bg-destructive/20 text-destructive'
@@ -163,13 +201,14 @@ export default function AdminEmpresas() {
                   >
                     {emp.status === 'ativo' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                     {emp.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                  </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
 
-          <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          {/* Create Dialog */}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogContent className="bg-card border-border">
               <DialogHeader>
                 <DialogTitle className="font-display">Nova Empresa</DialogTitle>
@@ -201,11 +240,63 @@ export default function AdminEmpresas() {
                     <Input type="date" value={form.data_termino} onChange={e => setForm({ ...form, data_termino: e.target.value })} className="bg-secondary border-border" />
                   </div>
                 </div>
-
                 {error && <p className="text-destructive text-sm">{error}</p>}
-
                 <Button onClick={handleCreate} className="w-full" disabled={saving || !form.empresa_nome || !form.email || !form.password}>
                   {saving ? 'Criando...' : 'Criar Empresa'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Dialog */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="font-display">Editar Empresa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
+                  <Input value={editForm.empresa_nome} onChange={e => setEditForm({ ...editForm, empresa_nome: e.target.value })} className="bg-secondary border-border" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
+                  <Input value={editForm.nome_dono} onChange={e => setEditForm({ ...editForm, nome_dono: e.target.value })} className="bg-secondary border-border" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Início</label>
+                    <Input type="date" value={editForm.data_inicio} onChange={e => setEditForm({ ...editForm, data_inicio: e.target.value })} className="bg-secondary border-border" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Término</label>
+                    <Input type="date" value={editForm.data_termino} onChange={e => setEditForm({ ...editForm, data_termino: e.target.value })} className="bg-secondary border-border" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={editForm.status === 'ativo' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setEditForm({ ...editForm, status: 'ativo' })}
+                    >
+                      <ToggleRight className="h-4 w-4 mr-1" /> Ativo
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={editForm.status === 'inativo' ? 'destructive' : 'outline'}
+                      size="sm"
+                      onClick={() => setEditForm({ ...editForm, status: 'inativo' })}
+                    >
+                      <ToggleLeft className="h-4 w-4 mr-1" /> Inativo
+                    </Button>
+                  </div>
+                </div>
+                {error && <p className="text-destructive text-sm">{error}</p>}
+                <Button onClick={handleEdit} className="w-full" disabled={saving || !editForm.empresa_nome}>
+                  {saving ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
               </div>
             </DialogContent>

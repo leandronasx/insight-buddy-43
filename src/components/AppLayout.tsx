@@ -111,7 +111,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <h2 className="font-display text-2xl font-bold text-foreground">{empresa.empresa_nome}</h2>
             )}
           </div>
-          <MonthSelector />
+          {location.pathname !== '/admin' && <MonthSelector />}
         </div>
         {children}
       </main>
