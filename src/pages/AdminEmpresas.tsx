@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
+import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -39,6 +39,8 @@ export default function AdminEmpresas() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ ...emptyForm });
   const [editForm, setEditForm] = useState({
@@ -95,6 +97,7 @@ export default function AdminEmpresas() {
       status: emp.status,
     });
     setError('');
+    setConfirmDelete(false);
     setEditOpen(true);
   };
 
@@ -123,6 +126,28 @@ export default function AdminEmpresas() {
 
     setSaving(false);
     setEditOpen(false);
+    setEditingEmpresa(null);
+    fetchEmpresas();
+  };
+
+  const handleDelete = async () => {
+    if (!editingEmpresa) return;
+    setError('');
+    setDeleting(true);
+
+    const res = await supabase.functions.invoke('delete-empresa', {
+      body: { empresa_id: editingEmpresa.id },
+    });
+
+    if (res.error || res.data?.error) {
+      setError(res.error?.message || res.data?.error || 'Erro ao excluir empresa');
+      setDeleting(false);
+      return;
+    }
+
+    setDeleting(false);
+    setEditOpen(false);
+    setConfirmDelete(false);
     setEditingEmpresa(null);
     fetchEmpresas();
   };
@@ -295,9 +320,46 @@ export default function AdminEmpresas() {
                   </div>
                 </div>
                 {error && <p className="text-destructive text-sm">{error}</p>}
-                <Button onClick={handleEdit} className="w-full" disabled={saving || !editForm.empresa_nome}>
+                <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !editForm.empresa_nome}>
                   {saving ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
+
+                <div className="border-t border-border pt-4 mt-2">
+                  {!confirmDelete ? (
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={saving || deleting}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-destructive font-medium text-center">
+                        Tem certeza? Todos os dados (leads, vendas, serviços, financeiro) serão removidos permanentemente.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setConfirmDelete(false)}
+                          disabled={deleting}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={handleDelete}
+                          disabled={deleting}
+                        >
+                          {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>
