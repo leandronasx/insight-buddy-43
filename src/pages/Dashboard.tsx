@@ -104,11 +104,12 @@ export default function Dashboard() {
       const roi = investimentoTrafego > 0 ? (faturamento / investimentoTrafego) : 0;
       const cac = leadsFechados > 0 ? (investimentoTrafego / leadsFechados) : 0;
       const lucroLiquido = faturamento - (investimentoTrafego + custoOperacional);
+      const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
       setData({
         totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, conversao, faturamento, investimentoTrafego,
-        custoOperacional, metaFaturamento, roi, cac, lucroLiquido,
+        leadsFechados, totalVendas, conversao, faturamento, investimentoTrafego,
+        custoOperacional, metaFaturamento, roi, cac, lucroLiquido, ticketMedio,
       });
 
       // Fetch annual chart data using the SELECTED year
