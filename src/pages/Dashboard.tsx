@@ -93,6 +93,7 @@ export default function Dashboard() {
       const leadsOrganico = allLeads.filter(l => l.origem === 'Orgânico').length;
       const leadsIndicacao = allLeads.filter(l => l.origem === 'Indicação').length;
       const leadsFechados = allLeads.filter(l => l.status === 'Fechado').length;
+      const totalVendas = (vendas ?? []).length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
       const faturamento = (vendas ?? []).reduce((acc, v) => acc + Number(v.valor_final), 0);
       const investimentoTrafego = Number(fin?.investimento_trafego ?? 0);
