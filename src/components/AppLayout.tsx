@@ -30,7 +30,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border p-4">
         <div className="mb-8">
           <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
-            📊 TrackROI
+            💰 Higi$Controle
           </h1>
           {empresa && (
             <p className="text-sm text-muted-foreground mt-1 truncate">{empresa.empresa_nome}</p>
@@ -66,7 +66,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-        <h1 className="font-display text-lg font-bold text-foreground">📊 TrackROI</h1>
+        <h1 className="font-display text-lg font-bold text-foreground">💰 Higi$Controle</h1>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground">
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>

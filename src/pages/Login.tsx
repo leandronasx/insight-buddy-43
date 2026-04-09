@@ -32,8 +32,8 @@ export default function Login() {
       >
         <div className="glass-card p-8">
           <div className="text-center mb-8">
-            <h1 className="font-display text-3xl font-bold text-foreground mb-2">📊 TrackROI</h1>
-            <p className="text-muted-foreground">Gestão de tráfego pago inteligente</p>
+            <h1 className="font-display text-3xl font-bold text-foreground mb-2">💰 Higi$Controle</h1>
+            <p className="text-muted-foreground">GTL gestão comercial</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
