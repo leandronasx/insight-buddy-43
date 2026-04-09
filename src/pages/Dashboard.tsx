@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, DollarSign, Target, BarChart3 } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Target, BarChart3, Wallet, Receipt, Tag } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -12,6 +12,7 @@ interface DashboardData {
   leadsOrganico: number;
   leadsIndicacao: number;
   leadsFechados: number;
+  totalVendas: number;
   conversao: number;
   faturamento: number;
   investimentoTrafego: number;
@@ -20,12 +21,13 @@ interface DashboardData {
   roi: number;
   cac: number;
   lucroLiquido: number;
+  ticketMedio: number;
 }
 
 const initialData: DashboardData = {
   totalLeads: 0, leadsTrafego: 0, leadsOrganico: 0, leadsIndicacao: 0,
-  leadsFechados: 0, conversao: 0, faturamento: 0, investimentoTrafego: 0,
-  custoOperacional: 0, metaFaturamento: 0, roi: 0, cac: 0, lucroLiquido: 0,
+  leadsFechados: 0, totalVendas: 0, conversao: 0, faturamento: 0, investimentoTrafego: 0,
+  custoOperacional: 0, metaFaturamento: 0, roi: 0, cac: 0, lucroLiquido: 0, ticketMedio: 0,
 };
 
 export default function Dashboard() {
@@ -93,6 +95,7 @@ export default function Dashboard() {
       const leadsOrganico = allLeads.filter(l => l.origem === 'Orgânico').length;
       const leadsIndicacao = allLeads.filter(l => l.origem === 'Indicação').length;
       const leadsFechados = allLeads.filter(l => l.status === 'Fechado').length;
+      const totalVendas = (vendas ?? []).length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
       const faturamento = (vendas ?? []).reduce((acc, v) => acc + Number(v.valor_final), 0);
       const investimentoTrafego = Number(fin?.investimento_trafego ?? 0);
@@ -101,11 +104,12 @@ export default function Dashboard() {
       const roi = investimentoTrafego > 0 ? (faturamento / investimentoTrafego) : 0;
       const cac = leadsFechados > 0 ? (investimentoTrafego / leadsFechados) : 0;
       const lucroLiquido = faturamento - (investimentoTrafego + custoOperacional);
+      const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
       setData({
         totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, conversao, faturamento, investimentoTrafego,
-        custoOperacional, metaFaturamento, roi, cac, lucroLiquido,
+        leadsFechados, totalVendas, conversao, faturamento, investimentoTrafego,
+        custoOperacional, metaFaturamento, roi, cac, lucroLiquido, ticketMedio,
       });
 
       // Fetch annual chart data using the SELECTED year
@@ -198,6 +202,36 @@ export default function Dashboard() {
               <p className="font-display text-lg font-bold text-warning">{data.leadsIndicacao}</p>
             </div>
           </div>
+        </motion.div>
+      </div>
+
+      {/* Faturamento, Tráfego, Ticket Médio */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div variants={item} className="metric-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Wallet className="h-5 w-5 text-primary" />
+            <span className="text-xs text-muted-foreground">Faturamento do Mês</span>
+          </div>
+          <p className="font-display text-2xl font-bold text-primary">{formatCurrency(data.faturamento)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{data.totalVendas} venda{data.totalVendas !== 1 ? 's' : ''} realizada{data.totalVendas !== 1 ? 's' : ''}</p>
+        </motion.div>
+
+        <motion.div variants={item} className="metric-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Receipt className="h-5 w-5 text-destructive" />
+            <span className="text-xs text-muted-foreground">Investimento em Tráfego</span>
+          </div>
+          <p className="font-display text-2xl font-bold text-destructive">{formatCurrency(data.investimentoTrafego)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Custo operacional: {formatCurrency(data.custoOperacional)}</p>
+        </motion.div>
+
+        <motion.div variants={item} className="metric-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Tag className="h-5 w-5 text-info" />
+            <span className="text-xs text-muted-foreground">Ticket Médio</span>
+          </div>
+          <p className="font-display text-2xl font-bold text-foreground">{formatCurrency(data.ticketMedio)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Valor médio por venda</p>
         </motion.div>
       </div>
 
