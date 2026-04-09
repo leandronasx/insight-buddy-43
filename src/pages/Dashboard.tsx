@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, TrendingUp, DollarSign, Target, BarChart3 } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Target, BarChart3, Wallet, Receipt, Tag } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
