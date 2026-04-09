@@ -12,6 +12,7 @@ interface DashboardData {
   leadsOrganico: number;
   leadsIndicacao: number;
   leadsFechados: number;
+  totalVendas: number;
   conversao: number;
   faturamento: number;
   investimentoTrafego: number;
@@ -20,12 +21,13 @@ interface DashboardData {
   roi: number;
   cac: number;
   lucroLiquido: number;
+  ticketMedio: number;
 }
 
 const initialData: DashboardData = {
   totalLeads: 0, leadsTrafego: 0, leadsOrganico: 0, leadsIndicacao: 0,
-  leadsFechados: 0, conversao: 0, faturamento: 0, investimentoTrafego: 0,
-  custoOperacional: 0, metaFaturamento: 0, roi: 0, cac: 0, lucroLiquido: 0,
+  leadsFechados: 0, totalVendas: 0, conversao: 0, faturamento: 0, investimentoTrafego: 0,
+  custoOperacional: 0, metaFaturamento: 0, roi: 0, cac: 0, lucroLiquido: 0, ticketMedio: 0,
 };
 
 export default function Dashboard() {
