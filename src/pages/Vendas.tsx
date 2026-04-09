@@ -55,7 +55,7 @@ export default function Vendas() {
       .from('leads')
       .select('id, nome_lead')
       .eq('empresa_id', empresa.id)
-      .eq('status', 'Fechado');
+      .order('nome_lead');
 
     setLeads(leadsData ?? []);
   };
