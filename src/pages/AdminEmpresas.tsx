@@ -178,7 +178,18 @@ export default function AdminEmpresas() {
   return (
     <MonthProvider>
       <AppLayout>
-        <div className="space-y-4">
+        <Tabs defaultValue="painel" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="painel">Painel Geral</TabsTrigger>
+            <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="painel">
+            <AdminOverview />
+          </TabsContent>
+
+          <TabsContent value="empresas">
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
             <Button onClick={() => { setError(''); setCreateOpen(true); }} size="sm">
