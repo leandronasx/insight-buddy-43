@@ -377,6 +377,8 @@ export default function AdminEmpresas() {
             </DialogContent>
           </Dialog>
         </div>
+          </TabsContent>
+        </Tabs>
       </AppLayout>
     </MonthProvider>
   );
