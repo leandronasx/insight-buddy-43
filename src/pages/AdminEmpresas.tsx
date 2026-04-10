@@ -7,8 +7,10 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/AppLayout';
 import { MonthProvider } from '@/contexts/MonthContext';
+import { AdminOverview } from '@/components/AdminOverview';
 import Login from './Login';
 
 interface Empresa {
@@ -176,7 +178,18 @@ export default function AdminEmpresas() {
   return (
     <MonthProvider>
       <AppLayout>
-        <div className="space-y-4">
+        <Tabs defaultValue="painel" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="painel">Painel Geral</TabsTrigger>
+            <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="painel">
+            <AdminOverview />
+          </TabsContent>
+
+          <TabsContent value="empresas">
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
             <Button onClick={() => { setError(''); setCreateOpen(true); }} size="sm">
@@ -364,6 +377,8 @@ export default function AdminEmpresas() {
             </DialogContent>
           </Dialog>
         </div>
+          </TabsContent>
+        </Tabs>
       </AppLayout>
     </MonthProvider>
   );
