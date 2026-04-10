@@ -7,8 +7,10 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/AppLayout';
 import { MonthProvider } from '@/contexts/MonthContext';
+import { AdminOverview } from '@/components/AdminOverview';
 import Login from './Login';
 
 interface Empresa {
