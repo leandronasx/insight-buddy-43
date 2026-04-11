@@ -42,6 +42,7 @@ export function AdminOverview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user?.id) return;
     const fetchAll = async () => {
       setLoading(true);
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -49,12 +50,12 @@ export function AdminOverview() {
       const endYear = month === 12 ? year + 1 : year;
       const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
 
-      // Fetch active empresas
+      // Fetch active empresas (excluding admin's own)
       const { data: allEmpresas } = await supabase
         .from('empresas')
         .select('*')
         .eq('status', 'ativo')
-        .neq('user_id', user?.id ?? '')
+        .neq('user_id', user.id)
         .order('empresa_nome');
 
       if (!allEmpresas || allEmpresas.length === 0) {
@@ -133,7 +134,7 @@ export function AdminOverview() {
     };
 
     fetchAll();
-  }, [month, year]);
+  }, [month, year, user?.id]);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
