@@ -1,9 +1,8 @@
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import Login from './Login';
 import Dashboard from './Dashboard';
 import { AppLayout } from '@/components/AppLayout';
-import { MonthProvider } from '@/contexts/MonthContext';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
@@ -31,10 +30,8 @@ export default function Index() {
   }
 
   return (
-    <MonthProvider>
-      <AppLayout>
-        <Dashboard />
-      </AppLayout>
-    </MonthProvider>
+    <AppLayout>
+      <Dashboard />
+    </AppLayout>
   );
 }
