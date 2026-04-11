@@ -78,6 +78,10 @@ export default function Vendas() {
   const handleSave = async () => {
     if (!empresa) return;
     const valorCheio = parseFloat(form.valor_cheio) || 0;
+    if (valorCheio <= 0) {
+      alert('Informe um valor cheio válido.');
+      return;
+    }
     const desconto = parseFloat(form.desconto) || 0;
     const valorFinal = valorCheio - desconto;
 
@@ -90,10 +94,15 @@ export default function Vendas() {
       data_venda: form.data_venda,
     };
 
+    let error;
     if (editingVenda) {
-      await supabase.from('vendas').update(payload).eq('id', editingVenda.id);
+      ({ error } = await supabase.from('vendas').update(payload).eq('id', editingVenda.id));
     } else {
-      await supabase.from('vendas').insert(payload);
+      ({ error } = await supabase.from('vendas').insert(payload));
+    }
+    if (error) {
+      alert('Erro ao salvar: ' + error.message);
+      return;
     }
     setModalOpen(false);
     setSelectedId(null);
@@ -101,7 +110,12 @@ export default function Vendas() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('vendas').delete().eq('id', id);
+    if (!confirm('Tem certeza que deseja excluir esta venda?')) return;
+    const { error } = await supabase.from('vendas').delete().eq('id', id);
+    if (error) {
+      alert('Erro ao excluir: ' + error.message);
+      return;
+    }
     setSelectedId(null);
     fetchVendas();
   };
