@@ -102,7 +102,7 @@ export default function Dashboard() {
       const custoOperacional = Number(fin?.custo_operacional ?? 0);
       const metaFaturamento = Number(fin?.meta_faturamento ?? 0);
       const roi = investimentoTrafego > 0 ? (faturamento / investimentoTrafego) : 0;
-      const cac = leadsFechados > 0 ? (investimentoTrafego / leadsFechados) : 0;
+      const cac = totalVendas > 0 ? (investimentoTrafego / totalVendas) : 0;
       const lucroLiquido = faturamento - (investimentoTrafego + custoOperacional);
       const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 

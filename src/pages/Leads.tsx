@@ -75,11 +75,16 @@ export default function Leads() {
   };
 
   const handleSave = async () => {
-    if (!empresa) return;
+    if (!empresa || !form.nome_lead.trim()) return;
+    let error;
     if (editingLead) {
-      await supabase.from('leads').update(form).eq('id', editingLead.id);
+      ({ error } = await supabase.from('leads').update(form).eq('id', editingLead.id));
     } else {
-      await supabase.from('leads').insert({ ...form, empresa_id: empresa.id });
+      ({ error } = await supabase.from('leads').insert({ ...form, empresa_id: empresa.id }));
+    }
+    if (error) {
+      alert('Erro ao salvar: ' + error.message);
+      return;
     }
     setModalOpen(false);
     setSelectedId(null);
@@ -87,7 +92,12 @@ export default function Leads() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('leads').delete().eq('id', id);
+    if (!confirm('Tem certeza que deseja excluir este lead?')) return;
+    const { error } = await supabase.from('leads').delete().eq('id', id);
+    if (error) {
+      alert('Erro ao excluir: ' + error.message);
+      return;
+    }
     setSelectedId(null);
     fetchLeads();
   };
@@ -114,7 +124,7 @@ export default function Leads() {
                     {lead.telefone && (
                       <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.telefone}</span>
                     )}
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(lead.data_mensagem).toLocaleDateString('pt-BR')}</span>
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(lead.data_mensagem + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
