@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Building2, Users, TrendingUp, Wallet, Receipt, Tag, DollarSign, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonth } from '@/contexts/MonthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface EmpresaMetrics {
   id: string;
@@ -30,6 +31,7 @@ interface Totals {
 }
 
 export function AdminOverview() {
+  const { user } = useAuth();
   const { month, year } = useMonth();
   const [empresas, setEmpresas] = useState<EmpresaMetrics[]>([]);
   const [totals, setTotals] = useState<Totals>({
@@ -52,6 +54,7 @@ export function AdminOverview() {
         .from('empresas')
         .select('*')
         .eq('status', 'ativo')
+        .neq('user_id', user?.id ?? '')
         .order('empresa_nome');
 
       if (!allEmpresas || allEmpresas.length === 0) {
