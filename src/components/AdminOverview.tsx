@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Building2, Users, TrendingUp, Wallet, Receipt, Tag, DollarSign, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonth } from '@/contexts/MonthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface EmpresaMetrics {
   id: string;
