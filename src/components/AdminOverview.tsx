@@ -113,11 +113,6 @@ export function AdminOverview() {
       const leadsTotal = metrics.reduce((a, m) => a + m.totalLeads, 0);
       const leadsFechadosTotal = metrics.reduce((a, m) => a + m.leadsFechados, 0);
 
-      const empresasComFat = metrics.filter(m => m.faturamento > 0);
-      const empresasComCac = metrics.filter(m => m.cac > 0);
-      const empresasComTicket = metrics.filter(m => m.ticketMedio > 0);
-      const empresasComInv = metrics.filter(m => m.investimentoTrafego > 0);
-
       setEmpresas(metrics);
       setTotals({
         empresasAtivas,
@@ -125,10 +120,10 @@ export function AdminOverview() {
         investimentoTotal,
         leadsTotal,
         leadsFechadosTotal,
-        mediaFaturamento: empresasComFat.length > 0 ? faturamentoTotal / empresasComFat.length : 0,
-        mediaCac: empresasComCac.length > 0 ? empresasComCac.reduce((a, m) => a + m.cac, 0) / empresasComCac.length : 0,
-        mediaInvestimento: empresasComInv.length > 0 ? investimentoTotal / empresasComInv.length : 0,
-        mediaTicketMedio: empresasComTicket.length > 0 ? empresasComTicket.reduce((a, m) => a + m.ticketMedio, 0) / empresasComTicket.length : 0,
+        mediaFaturamento: empresasAtivas > 0 ? faturamentoTotal / empresasAtivas : 0,
+        mediaCac: empresasAtivas > 0 ? (metrics.reduce((a, m) => a + m.cac, 0)) / empresasAtivas : 0,
+        mediaInvestimento: empresasAtivas > 0 ? investimentoTotal / empresasAtivas : 0,
+        mediaTicketMedio: empresasAtivas > 0 ? (metrics.reduce((a, m) => a + m.ticketMedio, 0)) / empresasAtivas : 0,
       });
       setLoading(false);
     };
