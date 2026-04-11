@@ -121,9 +121,9 @@ export function AdminOverview() {
         leadsTotal,
         leadsFechadosTotal,
         mediaFaturamento: empresasAtivas > 0 ? faturamentoTotal / empresasAtivas : 0,
-        mediaCac: empresasAtivas > 0 ? (metrics.reduce((a, m) => a + m.cac, 0)) / empresasAtivas : 0,
+        mediaCac: leadsFechadosTotal > 0 ? investimentoTotal / leadsFechadosTotal : 0,
         mediaInvestimento: empresasAtivas > 0 ? investimentoTotal / empresasAtivas : 0,
-        mediaTicketMedio: empresasAtivas > 0 ? (metrics.reduce((a, m) => a + m.ticketMedio, 0)) / empresasAtivas : 0,
+        mediaTicketMedio: leadsFechadosTotal > 0 ? faturamentoTotal / leadsFechadosTotal : 0,
       });
       setLoading(false);
     };
