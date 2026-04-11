@@ -54,6 +54,7 @@ export function AdminOverview() {
         .from('empresas')
         .select('*')
         .eq('status', 'ativo')
+        .neq('user_id', user?.id ?? '')
         .order('empresa_nome');
 
       if (!allEmpresas || allEmpresas.length === 0) {
