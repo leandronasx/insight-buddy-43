@@ -1,152 +1,26 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, DollarSign, Target, BarChart3, Wallet, Receipt, Tag } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
-import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
-
-interface DashboardData {
-  totalLeads: number;
-  leadsTrafego: number;
-  leadsOrganico: number;
-  leadsIndicacao: number;
-  leadsFechados: number;
-  totalVendas: number;
-  conversao: number;
-  faturamento: number;
-  investimentoTrafego: number;
-  custoOperacional: number;
-  metaFaturamento: number;
-  roi: number;
-  cac: number;
-  lucroLiquido: number;
-  ticketMedio: number;
-}
-
-const initialData: DashboardData = {
-  totalLeads: 0, leadsTrafego: 0, leadsOrganico: 0, leadsIndicacao: 0,
-  leadsFechados: 0, totalVendas: 0, conversao: 0, faturamento: 0, investimentoTrafego: 0,
-  custoOperacional: 0, metaFaturamento: 0, roi: 0, cac: 0, lucroLiquido: 0, ticketMedio: 0,
-};
+import { useDashboardData, useChartData } from '@/hooks/useDashboardData';
 
 export default function Dashboard() {
-  const { empresa } = useEmpresa();
-  const { month, year } = useMonth();
-  const [data, setData] = useState<DashboardData>(initialData);
-  const [chartData, setChartData] = useState<{ mes: string; faturamento: number }[]>([]);
-
-  useEffect(() => {
-    if (!empresa) return;
-
-    const fetchData = async () => {
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const endMonth = month === 12 ? 1 : month + 1;
-      const endYear = month === 12 ? year + 1 : year;
-      const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
-
-      // Fetch leads for this month (by data_mensagem)
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('empresa_id', empresa.id)
-        .gte('data_mensagem', startDate)
-        .lt('data_mensagem', endDate);
-
-      // Fetch vendas for this month
-      const { data: vendas } = await supabase
-        .from('vendas')
-        .select('*, lead_id')
-        .eq('empresa_id', empresa.id)
-        .gte('data_venda', startDate)
-        .lt('data_venda', endDate);
-
-      // Also fetch leads that have vendas in this month but messaged in a different month
-      const vendaLeadIds = (vendas ?? [])
-        .filter(v => v.lead_id)
-        .map(v => v.lead_id as string);
-
-      const existingLeadIds = new Set((leads ?? []).map(l => l.id));
-      const missingLeadIds = vendaLeadIds.filter(id => !existingLeadIds.has(id));
-
-      let allLeads = leads ?? [];
-      if (missingLeadIds.length > 0) {
-        const { data: extraLeads } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('empresa_id', empresa.id)
-          .in('id', missingLeadIds);
-        if (extraLeads) {
-          allLeads = [...allLeads, ...extraLeads];
-        }
-      }
-
-      // Fetch financeiro
-      const { data: fin } = await supabase
-        .from('financeiro_mensal')
-        .select('*')
-        .eq('empresa_id', empresa.id)
-        .eq('mes_referencia', month)
-        .eq('ano_referencia', year)
-        .maybeSingle();
-
-      const totalLeads = allLeads.length;
-      const leadsTrafego = allLeads.filter(l => l.origem === 'Tráfego').length;
-      const leadsOrganico = allLeads.filter(l => l.origem === 'Orgânico').length;
-      const leadsIndicacao = allLeads.filter(l => l.origem === 'Indicação').length;
-      const leadsFechados = allLeads.filter(l => l.status === 'Fechado').length;
-      const totalVendas = (vendas ?? []).length;
-      const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = (vendas ?? []).reduce((acc, v) => acc + Number(v.valor_final), 0);
-      const investimentoTrafego = Number(fin?.investimento_trafego ?? 0);
-      const custoOperacional = Number(fin?.custo_operacional ?? 0);
-      const metaFaturamento = Number(fin?.meta_faturamento ?? 0);
-      const roi = investimentoTrafego > 0 ? (faturamento / investimentoTrafego) : 0;
-      const cac = totalVendas > 0 ? (investimentoTrafego / totalVendas) : 0;
-      const lucroLiquido = faturamento - (investimentoTrafego + custoOperacional);
-      const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
-
-      setData({
-        totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, totalVendas, conversao, faturamento, investimentoTrafego,
-        custoOperacional, metaFaturamento, roi, cac, lucroLiquido, ticketMedio,
-      });
-
-      // Fetch annual chart data using the SELECTED year
-      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      const annualStart = `${year}-01-01`;
-      const annualEnd = `${year + 1}-01-01`;
-
-      const { data: allVendas } = await supabase
-        .from('vendas')
-        .select('valor_final, data_venda')
-        .eq('empresa_id', empresa.id)
-        .gte('data_venda', annualStart)
-        .lt('data_venda', annualEnd);
-
-      const chart = months.map((mes, i) => {
-        const monthVendas = allVendas?.filter(v => {
-          const d = new Date(v.data_venda);
-          return d.getMonth() === i;
-        }) ?? [];
-        const fat = monthVendas.reduce((acc, v) => acc + Number(v.valor_final), 0);
-        return { mes, faturamento: fat };
-      });
-
-      setChartData(chart);
-    };
-
-    fetchData();
-  }, [empresa, month, year]);
+  const { year } = useMonth();
+  const { data, isLoading } = useDashboardData();
+  const { data: chartData = [] } = useChartData();
 
   const formatCurrency = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const metaBatida = data.faturamento >= data.metaFaturamento && data.metaFaturamento > 0;
-  const faltaMeta = data.metaFaturamento > 0 ? data.metaFaturamento - data.faturamento : 0;
-
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
   const item = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0 } };
+
+  if (isLoading || !data) {
+    return <p className="text-muted-foreground animate-pulse text-center py-8">Carregando dashboard...</p>;
+  }
+
+  const metaBatida = data.faturamento >= data.metaFaturamento && data.metaFaturamento > 0;
+  const faltaMeta = data.metaFaturamento > 0 ? data.metaFaturamento - data.faturamento : 0;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">

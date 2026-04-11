@@ -3,14 +3,13 @@ import { motion } from 'framer-motion';
 import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil, Trash2 } from 'lucide-react';
 import { MonthSelector } from '@/components/MonthSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/AppLayout';
-import { MonthProvider } from '@/contexts/MonthContext';
 import { AdminOverview } from '@/components/AdminOverview';
 import Login from './Login';
 
@@ -109,7 +108,6 @@ export default function AdminEmpresas() {
     setError('');
     setSaving(true);
 
-    // Update empresa fields
     const { error: updateErr } = await supabase
       .from('empresas')
       .update({
@@ -177,214 +175,212 @@ export default function AdminEmpresas() {
   }
 
   return (
-    <MonthProvider>
-      <AppLayout>
-        <Tabs defaultValue="painel" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="painel">Painel Geral</TabsTrigger>
-            <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
-          </TabsList>
+    <AppLayout>
+      <Tabs defaultValue="painel" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="painel">Painel Geral</TabsTrigger>
+          <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="painel">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-xl font-bold text-foreground">Painel Geral</h2>
-              <MonthSelector />
-            </div>
-            <AdminOverview />
-          </TabsContent>
-
-          <TabsContent value="empresas">
-          <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
-            <Button onClick={() => { setError(''); setCreateOpen(true); }} size="sm">
-              <Plus className="h-4 w-4 mr-1" /> Nova Empresa
-            </Button>
+        <TabsContent value="painel">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-bold text-foreground">Painel Geral</h2>
+            <MonthSelector />
           </div>
+          <AdminOverview />
+        </TabsContent>
 
-          <div className="space-y-3">
-            {empresas.length === 0 && (
-              <p className="text-muted-foreground text-center py-8">Nenhuma empresa cadastrada.</p>
-            )}
-            {empresas.map(emp => (
-              <motion.div
-                key={emp.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
-                onClick={() => openEdit(emp)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Building2 className="h-4 w-4 text-primary shrink-0" />
-                      <p className="font-display font-bold text-foreground truncate">{emp.empresa_nome}</p>
-                      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+        <TabsContent value="empresas">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
+              <Button onClick={() => { setError(''); setCreateOpen(true); }} size="sm">
+                <Plus className="h-4 w-4 mr-1" /> Nova Empresa
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {empresas.length === 0 && (
+                <p className="text-muted-foreground text-center py-8">Nenhuma empresa cadastrada.</p>
+              )}
+              {empresas.map(emp => (
+                <motion.div
+                  key={emp.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+                  onClick={() => openEdit(emp)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Building2 className="h-4 w-4 text-primary shrink-0" />
+                        <p className="font-display font-bold text-foreground truncate">{emp.empresa_nome}</p>
+                        <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+                      </div>
+                      {emp.nome_dono && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          <span>{emp.nome_dono}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          {emp.data_inicio ? new Date(emp.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                          {emp.data_termino ? ` → ${new Date(emp.data_termino + 'T00:00:00').toLocaleDateString('pt-BR')}` : ' → Sem término'}
+                        </span>
+                      </div>
                     </div>
-                    {emp.nome_dono && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="h-3 w-3" />
-                        <span>{emp.nome_dono}</span>
+                    <div
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${
+                        emp.status === 'ativo'
+                          ? 'bg-primary/20 text-primary'
+                          : 'bg-destructive/20 text-destructive'
+                      }`}
+                    >
+                      {emp.status === 'ativo' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                      {emp.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Create Dialog */}
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Nova Empresa</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
+                    <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" placeholder="Ex: Estofados Premium" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
+                    <Input value={form.nome_dono} onChange={e => setForm({ ...form, nome_dono: e.target.value })} className="bg-secondary border-border" placeholder="João Silva" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">E-mail de Login *</label>
+                    <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-secondary border-border" placeholder="cliente@email.com" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Senha *</label>
+                    <Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-secondary border-border" placeholder="Mínimo 6 caracteres" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Data de Início</label>
+                      <Input type="date" value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value })} className="bg-secondary border-border" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Data de Término</label>
+                      <Input type="date" value={form.data_termino} onChange={e => setForm({ ...form, data_termino: e.target.value })} className="bg-secondary border-border" />
+                    </div>
+                  </div>
+                  {error && <p className="text-destructive text-sm">{error}</p>}
+                  <Button onClick={handleCreate} className="w-full" disabled={saving || !form.empresa_nome || !form.email || !form.password}>
+                    {saving ? 'Criando...' : 'Criar Empresa'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Dialog */}
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Editar Empresa</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
+                    <Input value={editForm.empresa_nome} onChange={e => setEditForm({ ...editForm, empresa_nome: e.target.value })} className="bg-secondary border-border" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
+                    <Input value={editForm.nome_dono} onChange={e => setEditForm({ ...editForm, nome_dono: e.target.value })} className="bg-secondary border-border" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Data de Início</label>
+                      <Input type="date" value={editForm.data_inicio} onChange={e => setEditForm({ ...editForm, data_inicio: e.target.value })} className="bg-secondary border-border" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-1 block">Data de Término</label>
+                      <Input type="date" value={editForm.data_termino} onChange={e => setEditForm({ ...editForm, data_termino: e.target.value })} className="bg-secondary border-border" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={editForm.status === 'ativo' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setEditForm({ ...editForm, status: 'ativo' })}
+                      >
+                        <ToggleRight className="h-4 w-4 mr-1" /> Ativo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={editForm.status === 'inativo' ? 'destructive' : 'outline'}
+                        size="sm"
+                        onClick={() => setEditForm({ ...editForm, status: 'inativo' })}
+                      >
+                        <ToggleLeft className="h-4 w-4 mr-1" /> Inativo
+                      </Button>
+                    </div>
+                  </div>
+                  {error && <p className="text-destructive text-sm">{error}</p>}
+                  <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !editForm.empresa_nome}>
+                    {saving ? 'Salvando...' : 'Salvar Alterações'}
+                  </Button>
+
+                  <div className="border-t border-border pt-4 mt-2">
+                    {!confirmDelete ? (
+                      <Button
+                        variant="outline"
+                        className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={saving || deleting}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-destructive font-medium text-center">
+                          Tem certeza? Todos os dados (leads, vendas, serviços, financeiro) serão removidos permanentemente.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setConfirmDelete(false)}
+                            disabled={deleting}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                          >
+                            {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+                          </Button>
+                        </div>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>
-                        {emp.data_inicio ? new Date(emp.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                        {emp.data_termino ? ` → ${new Date(emp.data_termino + 'T00:00:00').toLocaleDateString('pt-BR')}` : ' → Sem término'}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${
-                      emp.status === 'ativo'
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-destructive/20 text-destructive'
-                    }`}
-                  >
-                    {emp.status === 'ativo' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                    {emp.status === 'ativo' ? 'Ativo' : 'Inativo'}
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              </DialogContent>
+            </Dialog>
           </div>
-
-          {/* Create Dialog */}
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle className="font-display">Nova Empresa</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
-                  <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" placeholder="Ex: Estofados Premium" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
-                  <Input value={form.nome_dono} onChange={e => setForm({ ...form, nome_dono: e.target.value })} className="bg-secondary border-border" placeholder="João Silva" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">E-mail de Login *</label>
-                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="bg-secondary border-border" placeholder="cliente@email.com" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Senha *</label>
-                  <Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="bg-secondary border-border" placeholder="Mínimo 6 caracteres" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Início</label>
-                    <Input type="date" value={form.data_inicio} onChange={e => setForm({ ...form, data_inicio: e.target.value })} className="bg-secondary border-border" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Término</label>
-                    <Input type="date" value={form.data_termino} onChange={e => setForm({ ...form, data_termino: e.target.value })} className="bg-secondary border-border" />
-                  </div>
-                </div>
-                {error && <p className="text-destructive text-sm">{error}</p>}
-                <Button onClick={handleCreate} className="w-full" disabled={saving || !form.empresa_nome || !form.email || !form.password}>
-                  {saving ? 'Criando...' : 'Criar Empresa'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Dialog */}
-          <Dialog open={editOpen} onOpenChange={setEditOpen}>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle className="font-display">Editar Empresa</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
-                  <Input value={editForm.empresa_nome} onChange={e => setEditForm({ ...editForm, empresa_nome: e.target.value })} className="bg-secondary border-border" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
-                  <Input value={editForm.nome_dono} onChange={e => setEditForm({ ...editForm, nome_dono: e.target.value })} className="bg-secondary border-border" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Início</label>
-                    <Input type="date" value={editForm.data_inicio} onChange={e => setEditForm({ ...editForm, data_inicio: e.target.value })} className="bg-secondary border-border" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-1 block">Data de Término</label>
-                    <Input type="date" value={editForm.data_termino} onChange={e => setEditForm({ ...editForm, data_termino: e.target.value })} className="bg-secondary border-border" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={editForm.status === 'ativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setEditForm({ ...editForm, status: 'ativo' })}
-                    >
-                      <ToggleRight className="h-4 w-4 mr-1" /> Ativo
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={editForm.status === 'inativo' ? 'destructive' : 'outline'}
-                      size="sm"
-                      onClick={() => setEditForm({ ...editForm, status: 'inativo' })}
-                    >
-                      <ToggleLeft className="h-4 w-4 mr-1" /> Inativo
-                    </Button>
-                  </div>
-                </div>
-                {error && <p className="text-destructive text-sm">{error}</p>}
-                <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !editForm.empresa_nome}>
-                  {saving ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-
-                <div className="border-t border-border pt-4 mt-2">
-                  {!confirmDelete ? (
-                    <Button
-                      variant="outline"
-                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => setConfirmDelete(true)}
-                      disabled={saving || deleting}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
-                    </Button>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm text-destructive font-medium text-center">
-                        Tem certeza? Todos os dados (leads, vendas, serviços, financeiro) serão removidos permanentemente.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => setConfirmDelete(false)}
-                          disabled={deleting}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          className="flex-1"
-                          onClick={handleDelete}
-                          disabled={deleting}
-                        >
-                          {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-          </TabsContent>
-        </Tabs>
-      </AppLayout>
-    </MonthProvider>
+        </TabsContent>
+      </Tabs>
+    </AppLayout>
   );
 }
