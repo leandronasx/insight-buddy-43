@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit, Trash2, Phone, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, Edit, Trash2, Phone, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
+import { useLeads, type Lead } from '@/hooks/useLeads';
+import { downloadCSV } from '@/lib/csv-export';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,15 +13,6 @@ import type { Database } from '@/integrations/supabase/types';
 
 type LeadOrigem = Database['public']['Enums']['lead_origem'];
 type LeadStatus = Database['public']['Enums']['lead_status'];
-
-interface Lead {
-  id: string;
-  nome_lead: string;
-  telefone: string | null;
-  origem: LeadOrigem;
-  status: LeadStatus;
-  data_mensagem: string;
-}
 
 const ORIGENS: LeadOrigem[] = ['Tráfego', 'Orgânico', 'Indicação'];
 const STATUSES: LeadStatus[] = ['Agendado', 'Sem Interesse', 'Fechado', 'Reabordar'];
@@ -35,31 +27,25 @@ const statusColors: Record<string, string> = {
 export default function Leads() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const { leads, saveLead, deleteLead } = useLeads();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string }>({ nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '' });
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string }>({
+    nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '',
+  });
 
-  const fetchLeads = async () => {
-    if (!empresa) return;
-    const start = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endM = month === 12 ? 1 : month + 1;
-    const endY = month === 12 ? year + 1 : year;
-    const end = `${endY}-${String(endM).padStart(2, '0')}-01`;
-
-    const { data } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('empresa_id', empresa.id)
-      .gte('data_mensagem', start)
-      .lt('data_mensagem', end)
-      .order('data_mensagem', { ascending: false });
-
-    setLeads(data ?? []);
-  };
-
-  useEffect(() => { fetchLeads(); }, [empresa, month, year]);
+  const filtered = useMemo(() => {
+    if (!search.trim()) return leads;
+    const q = search.toLowerCase();
+    return leads.filter(l =>
+      l.nome_lead.toLowerCase().includes(q) ||
+      l.telefone?.toLowerCase().includes(q) ||
+      l.origem.toLowerCase().includes(q) ||
+      l.status.toLowerCase().includes(q)
+    );
+  }, [leads, search]);
 
   const openNew = () => {
     setEditingLead(null);
@@ -76,41 +62,67 @@ export default function Leads() {
 
   const handleSave = async () => {
     if (!empresa || !form.nome_lead.trim()) return;
-    let error;
-    if (editingLead) {
-      ({ error } = await supabase.from('leads').update(form).eq('id', editingLead.id));
-    } else {
-      ({ error } = await supabase.from('leads').insert({ ...form, empresa_id: empresa.id }));
-    }
-    if (error) {
+    try {
+      await saveLead.mutateAsync({
+        ...(editingLead ? { id: editingLead.id } : {}),
+        ...form,
+        empresa_id: empresa.id,
+      });
+      setModalOpen(false);
+      setSelectedId(null);
+    } catch (error: any) {
       alert('Erro ao salvar: ' + error.message);
-      return;
     }
-    setModalOpen(false);
-    setSelectedId(null);
-    fetchLeads();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este lead?')) return;
-    const { error } = await supabase.from('leads').delete().eq('id', id);
-    if (error) {
+    try {
+      await deleteLead.mutateAsync(id);
+      setSelectedId(null);
+    } catch (error: any) {
       alert('Erro ao excluir: ' + error.message);
-      return;
     }
-    setSelectedId(null);
-    fetchLeads();
+  };
+
+  const handleExport = () => {
+    downloadCSV(
+      `leads_${year}-${String(month).padStart(2, '0')}.csv`,
+      ['Nome', 'Telefone', 'Origem', 'Status', 'Data'],
+      filtered.map(l => [l.nome_lead, l.telefone, l.origem, l.status, l.data_mensagem])
+    );
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-xl font-bold text-foreground">Leads</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold text-foreground">Leads</h2>
+        {leads.length > 0 && (
+          <Button size="sm" variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+        )}
+      </div>
+
+      {leads.length > 3 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar lead..."
+            className="pl-9 bg-secondary border-border"
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
-        {leads.length === 0 && (
-          <p className="text-muted-foreground text-center py-8">Nenhum lead neste mês. Clique em + para adicionar.</p>
+        {filtered.length === 0 && (
+          <p className="text-muted-foreground text-center py-8">
+            {search ? 'Nenhum lead encontrado.' : 'Nenhum lead neste mês. Clique em + para adicionar.'}
+          </p>
         )}
-        {leads.map(lead => (
+        {filtered.map(lead => (
           <div key={lead.id}>
             <motion.div
               layout
@@ -156,12 +168,10 @@ export default function Leads() {
         ))}
       </div>
 
-      {/* FAB */}
       <button onClick={openNew} className="fab-button">
         <Plus className="h-6 w-6" />
       </button>
 
-      {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -198,7 +208,9 @@ export default function Leads() {
               <label className="text-sm font-medium text-foreground mb-1 block">Data</label>
               <Input type="date" value={form.data_mensagem} onChange={e => setForm({ ...form, data_mensagem: e.target.value })} className="bg-secondary border-border" />
             </div>
-            <Button onClick={handleSave} className="w-full">Salvar</Button>
+            <Button onClick={handleSave} className="w-full" disabled={saveLead.isPending}>
+              {saveLead.isPending ? 'Salvando...' : 'Salvar'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
