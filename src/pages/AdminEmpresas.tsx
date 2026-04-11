@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil, Trash2 } from 'lucide-react';
+import { MonthSelector } from '@/components/MonthSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -185,6 +186,10 @@ export default function AdminEmpresas() {
           </TabsList>
 
           <TabsContent value="painel">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-bold text-foreground">Painel Geral</h2>
+              <MonthSelector />
+            </div>
             <AdminOverview />
           </TabsContent>
 
