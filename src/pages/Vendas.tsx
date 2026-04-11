@@ -128,7 +128,7 @@ export default function Vendas() {
                 <div>
                   <p className="font-medium text-foreground">{getLeadName(v.lead_id)}</p>
                   <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                    <Calendar className="h-3 w-3" />{new Date(v.data_venda).toLocaleDateString('pt-BR')}
+                    <Calendar className="h-3 w-3" />{new Date(v.data_venda + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </span>
                 </div>
                 <div className="text-right">

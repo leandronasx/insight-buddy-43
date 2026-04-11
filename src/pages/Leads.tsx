@@ -114,7 +114,7 @@ export default function Leads() {
                     {lead.telefone && (
                       <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.telefone}</span>
                     )}
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(lead.data_mensagem).toLocaleDateString('pt-BR')}</span>
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(lead.data_mensagem + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
