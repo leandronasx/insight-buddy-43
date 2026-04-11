@@ -31,6 +31,7 @@ interface Totals {
 }
 
 export function AdminOverview() {
+  const { user } = useAuth();
   const { month, year } = useMonth();
   const [empresas, setEmpresas] = useState<EmpresaMetrics[]>([]);
   const [totals, setTotals] = useState<Totals>({
