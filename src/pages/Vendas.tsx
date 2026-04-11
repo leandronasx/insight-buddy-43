@@ -1,66 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit, Trash2, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, Edit, Trash2, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
+import { useVendas, type Venda } from '@/hooks/useVendas';
+import { downloadCSV } from '@/lib/csv-export';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface Venda {
-  id: string;
-  lead_id: string | null;
-  valor_cheio: number;
-  desconto: number;
-  valor_final: number;
-  data_venda: string;
-}
-
-interface LeadOption {
-  id: string;
-  nome_lead: string;
-}
-
 export default function Vendas() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
-  const [vendas, setVendas] = useState<Venda[]>([]);
-  const [leads, setLeads] = useState<LeadOption[]>([]);
+  const { vendas, leadOptions, saveVenda, deleteVenda } = useVendas();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({ lead_id: '', valor_cheio: '', desconto: '0', data_venda: '' });
 
-  const fetchVendas = async () => {
-    if (!empresa) return;
-    const start = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endM = month === 12 ? 1 : month + 1;
-    const endY = month === 12 ? year + 1 : year;
-    const end = `${endY}-${String(endM).padStart(2, '0')}-01`;
+  const getLeadName = (leadId: string | null) => leadOptions.find(l => l.id === leadId)?.nome_lead || '—';
+  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-    const { data } = await supabase
-      .from('vendas')
-      .select('*')
-      .eq('empresa_id', empresa.id)
-      .gte('data_venda', start)
-      .lt('data_venda', end)
-      .order('data_venda', { ascending: false });
-
-    setVendas(data ?? []);
-
-    // Fetch leads for dropdown
-    const { data: leadsData } = await supabase
-      .from('leads')
-      .select('id, nome_lead')
-      .eq('empresa_id', empresa.id)
-      .order('nome_lead');
-
-    setLeads(leadsData ?? []);
-  };
-
-  useEffect(() => { fetchVendas(); }, [empresa, month, year]);
+  const filtered = useMemo(() => {
+    if (!search.trim()) return vendas;
+    const q = search.toLowerCase();
+    return vendas.filter(v =>
+      getLeadName(v.lead_id).toLowerCase().includes(q) ||
+      v.valor_final.toString().includes(q)
+    );
+  }, [vendas, search, leadOptions]);
 
   const openNew = () => {
     setEditingVenda(null);
@@ -85,53 +55,71 @@ export default function Vendas() {
     const desconto = parseFloat(form.desconto) || 0;
     const valorFinal = valorCheio - desconto;
 
-    const payload = {
-      lead_id: form.lead_id || null,
-      empresa_id: empresa.id,
-      valor_cheio: valorCheio,
-      desconto,
-      valor_final: valorFinal,
-      data_venda: form.data_venda,
-    };
-
-    let error;
-    if (editingVenda) {
-      ({ error } = await supabase.from('vendas').update(payload).eq('id', editingVenda.id));
-    } else {
-      ({ error } = await supabase.from('vendas').insert(payload));
-    }
-    if (error) {
+    try {
+      await saveVenda.mutateAsync({
+        ...(editingVenda ? { id: editingVenda.id } : {}),
+        lead_id: form.lead_id || null,
+        empresa_id: empresa.id,
+        valor_cheio: valorCheio,
+        desconto,
+        valor_final: valorFinal,
+        data_venda: form.data_venda,
+      });
+      setModalOpen(false);
+      setSelectedId(null);
+    } catch (error: any) {
       alert('Erro ao salvar: ' + error.message);
-      return;
     }
-    setModalOpen(false);
-    setSelectedId(null);
-    fetchVendas();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta venda?')) return;
-    const { error } = await supabase.from('vendas').delete().eq('id', id);
-    if (error) {
+    try {
+      await deleteVenda.mutateAsync(id);
+      setSelectedId(null);
+    } catch (error: any) {
       alert('Erro ao excluir: ' + error.message);
-      return;
     }
-    setSelectedId(null);
-    fetchVendas();
   };
 
-  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const getLeadName = (leadId: string | null) => leads.find(l => l.id === leadId)?.nome_lead || '—';
+  const handleExport = () => {
+    downloadCSV(
+      `vendas_${year}-${String(month).padStart(2, '0')}.csv`,
+      ['Lead', 'Valor Cheio', 'Desconto', 'Valor Final', 'Data'],
+      filtered.map(v => [getLeadName(v.lead_id), v.valor_cheio, v.desconto, v.valor_final, v.data_venda])
+    );
+  };
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-xl font-bold text-foreground">Vendas</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold text-foreground">Vendas</h2>
+        {vendas.length > 0 && (
+          <Button size="sm" variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+        )}
+      </div>
+
+      {vendas.length > 3 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar venda..."
+            className="pl-9 bg-secondary border-border"
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
-        {vendas.length === 0 && (
-          <p className="text-muted-foreground text-center py-8">Nenhuma venda neste mês. Clique em + para adicionar.</p>
+        {filtered.length === 0 && (
+          <p className="text-muted-foreground text-center py-8">
+            {search ? 'Nenhuma venda encontrada.' : 'Nenhuma venda neste mês. Clique em + para adicionar.'}
+          </p>
         )}
-        {vendas.map(v => (
+        {filtered.map(v => (
           <div key={v.id}>
             <motion.div
               layout
@@ -189,7 +177,7 @@ export default function Vendas() {
               <Select value={form.lead_id} onValueChange={v => setForm({ ...form, lead_id: v })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecionar lead" /></SelectTrigger>
                 <SelectContent>
-                  {leads.map(l => <SelectItem key={l.id} value={l.id}>{l.nome_lead}</SelectItem>)}
+                  {leadOptions.map(l => <SelectItem key={l.id} value={l.id}>{l.nome_lead}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -211,7 +199,9 @@ export default function Vendas() {
               <label className="text-sm font-medium text-foreground mb-1 block">Data da Venda</label>
               <Input type="date" value={form.data_venda} onChange={e => setForm({ ...form, data_venda: e.target.value })} className="bg-secondary border-border" />
             </div>
-            <Button onClick={handleSave} className="w-full">Salvar</Button>
+            <Button onClick={handleSave} className="w-full" disabled={saveVenda.isPending}>
+              {saveVenda.isPending ? 'Salvando...' : 'Salvar'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
