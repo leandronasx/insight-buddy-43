@@ -90,7 +90,7 @@ export function AdminOverview() {
         const totalLeads = empLeads.length;
         const leadsFechados = empLeads.filter(l => l.status === 'Fechado').length;
         const totalVendas = empVendas.length;
-        const cac = leadsFechados > 0 ? investimentoTrafego / leadsFechados : 0;
+        const cac = totalVendas > 0 ? investimentoTrafego / totalVendas : 0;
         const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
         return {
