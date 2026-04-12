@@ -9,6 +9,7 @@ import { downloadCSV } from '@/lib/csv-export';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -32,6 +33,7 @@ export default function Leads() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string }>({
     nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '',
@@ -77,14 +79,16 @@ export default function Leads() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este lead?')) return;
+  const confirmDeleteLead = async () => {
+    if (!deleteId) return;
     try {
-      await deleteLead.mutateAsync(id);
+      await deleteLead.mutateAsync(deleteId);
       setSelectedId(null);
       toast.success('Lead excluído com sucesso!');
     } catch (error: any) {
       toast.error('Erro ao excluir lead: ' + error.message);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -161,7 +165,7 @@ export default function Leads() {
                   <Button size="sm" variant="outline" onClick={() => openEdit(lead)}>
                     <Edit className="h-4 w-4 mr-1" /> Editar
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => setDeleteId(lead.id)}>
                     <Trash2 className="h-4 w-4 mr-1" /> Excluir
                   </Button>
                 </motion.div>
