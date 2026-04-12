@@ -9,6 +9,7 @@ import { downloadCSV } from '@/lib/csv-export';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Vendas() {
@@ -18,6 +19,7 @@ export default function Vendas() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ lead_id: '', valor_cheio: '', desconto: '0', data_venda: '' });
 
@@ -74,14 +76,16 @@ export default function Vendas() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta venda?')) return;
+  const confirmDeleteVenda = async () => {
+    if (!deleteId) return;
     try {
-      await deleteVenda.mutateAsync(id);
+      await deleteVenda.mutateAsync(deleteId);
       setSelectedId(null);
       toast.success('Venda excluída com sucesso!');
     } catch (error: any) {
       toast.error('Erro ao excluir venda: ' + error.message);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -155,7 +159,7 @@ export default function Vendas() {
                   <Button size="sm" variant="outline" onClick={() => openEdit(v)}>
                     <Edit className="h-4 w-4 mr-1" /> Editar
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDelete(v.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => setDeleteId(v.id)}>
                     <Trash2 className="h-4 w-4 mr-1" /> Excluir
                   </Button>
                 </motion.div>
@@ -208,6 +212,26 @@ export default function Vendas() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Excluir Venda</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteVenda}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
