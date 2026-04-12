@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
@@ -67,8 +68,9 @@ export default function Vendas() {
       });
       setModalOpen(false);
       setSelectedId(null);
+      toast.success(editingVenda ? 'Venda atualizada com sucesso!' : 'Venda criada com sucesso!');
     } catch (error: any) {
-      alert('Erro ao salvar: ' + error.message);
+      toast.error('Erro ao salvar venda: ' + error.message);
     }
   };
 
@@ -77,8 +79,9 @@ export default function Vendas() {
     try {
       await deleteVenda.mutateAsync(id);
       setSelectedId(null);
+      toast.success('Venda excluída com sucesso!');
     } catch (error: any) {
-      alert('Erro ao excluir: ' + error.message);
+      toast.error('Erro ao excluir venda: ' + error.message);
     }
   };
 

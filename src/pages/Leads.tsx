@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Phone, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
@@ -70,8 +71,9 @@ export default function Leads() {
       });
       setModalOpen(false);
       setSelectedId(null);
+      toast.success(editingLead ? 'Lead atualizado com sucesso!' : 'Lead criado com sucesso!');
     } catch (error: any) {
-      alert('Erro ao salvar: ' + error.message);
+      toast.error('Erro ao salvar lead: ' + error.message);
     }
   };
 
@@ -80,8 +82,9 @@ export default function Leads() {
     try {
       await deleteLead.mutateAsync(id);
       setSelectedId(null);
+      toast.success('Lead excluído com sucesso!');
     } catch (error: any) {
-      alert('Erro ao excluir: ' + error.message);
+      toast.error('Erro ao excluir lead: ' + error.message);
     }
   };
 

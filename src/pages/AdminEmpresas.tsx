@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil, Trash2 } from 'lucide-react';
 import { MonthSelector } from '@/components/MonthSelector';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,13 +80,16 @@ export default function AdminEmpresas() {
       },
     });
     if (res.error || res.data?.error) {
-      setError(res.error?.message || res.data?.error || 'Erro ao criar empresa');
+      const msg = res.error?.message || res.data?.error || 'Erro ao criar empresa';
+      setError(msg);
+      toast.error(msg);
       setSaving(false);
       return;
     }
     setCreateOpen(false);
     setForm({ ...emptyForm });
     setSaving(false);
+    toast.success('Empresa criada com sucesso!');
     fetchEmpresas();
   };
 
@@ -121,6 +125,7 @@ export default function AdminEmpresas() {
 
     if (updateErr) {
       setError(updateErr.message);
+      toast.error('Erro ao salvar: ' + updateErr.message);
       setSaving(false);
       return;
     }
@@ -128,6 +133,7 @@ export default function AdminEmpresas() {
     setSaving(false);
     setEditOpen(false);
     setEditingEmpresa(null);
+    toast.success('Empresa atualizada com sucesso!');
     fetchEmpresas();
   };
 
@@ -141,7 +147,9 @@ export default function AdminEmpresas() {
     });
 
     if (res.error || res.data?.error) {
-      setError(res.error?.message || res.data?.error || 'Erro ao excluir empresa');
+      const msg = res.error?.message || res.data?.error || 'Erro ao excluir empresa';
+      setError(msg);
+      toast.error(msg);
       setDeleting(false);
       return;
     }
@@ -150,6 +158,7 @@ export default function AdminEmpresas() {
     setEditOpen(false);
     setConfirmDelete(false);
     setEditingEmpresa(null);
+    toast.success('Empresa excluída com sucesso!');
     fetchEmpresas();
   };
 
