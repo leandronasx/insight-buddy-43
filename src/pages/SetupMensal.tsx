@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { Save, DollarSign, Target, Briefcase } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/hooks/use-toast';
 
 export default function SetupMensal() {
   const { empresa } = useEmpresa();
@@ -56,14 +56,20 @@ export default function SetupMensal() {
       meta_faturamento: parseFloat(metaFaturamento) || 0,
     };
 
-    if (existingId) {
-      await supabase.from('financeiro_mensal').update(payload).eq('id', existingId);
-    } else {
-      await supabase.from('financeiro_mensal').insert(payload);
+    try {
+      if (existingId) {
+        const { error } = await supabase.from('financeiro_mensal').update(payload).eq('id', existingId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('financeiro_mensal').insert(payload);
+        if (error) throw error;
+      }
+      toast.success(`Setup de ${label} salvo com sucesso!`);
+    } catch (error: any) {
+      toast.error('Erro ao salvar setup: ' + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    toast({ title: 'Salvo!', description: `Setup de ${label} atualizado com sucesso.` });
-    setLoading(false);
   };
 
   return (
