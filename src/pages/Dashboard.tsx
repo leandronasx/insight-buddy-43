@@ -3,14 +3,15 @@ import { Users, TrendingUp, DollarSign, Target, BarChart3, Wallet, Receipt, Tag 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMonth } from '@/contexts/MonthContext';
 import { useDashboardData, useChartData } from '@/hooks/useDashboardData';
+import { formatCurrency } from '@/lib/date-utils';
 
 export default function Dashboard() {
   const { year } = useMonth();
   const { data, isLoading } = useDashboardData();
   const { data: chartData = [] } = useChartData();
 
-  const formatCurrency = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+
 
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
   const item = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0 } };

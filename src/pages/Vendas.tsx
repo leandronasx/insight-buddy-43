@@ -6,6 +6,7 @@ import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { useVendas, type Venda } from '@/hooks/useVendas';
 import { downloadCSV } from '@/lib/csv-export';
+import { formatCurrency } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,7 +25,6 @@ export default function Vendas() {
   const [form, setForm] = useState({ lead_id: '', valor_cheio: '', desconto: '0', data_venda: '' });
 
   const getLeadName = (leadId: string | null) => leadOptions.find(l => l.id === leadId)?.nome_lead || '—';
-  const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const filtered = useMemo(() => {
     if (!search.trim()) return vendas;
