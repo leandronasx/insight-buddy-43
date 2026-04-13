@@ -147,14 +147,14 @@ export default function Dashboard() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 22%)" />
-              <XAxis dataKey="mes" stroke="hsl(215, 15%, 55%)" fontSize={12} />
-              <YAxis stroke="hsl(215, 15%, 55%)" fontSize={12} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="mes" className="fill-muted-foreground" fontSize={12} />
+              <YAxis className="fill-muted-foreground" fontSize={12} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
               <Tooltip
-                contentStyle={{ background: 'hsl(220, 18%, 14%)', border: '1px solid hsl(220, 15%, 22%)', borderRadius: '8px', color: 'hsl(210, 20%, 95%)' }}
+                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
                 formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
               />
-              <Bar dataKey="faturamento" fill="hsl(142, 60%, 45%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
