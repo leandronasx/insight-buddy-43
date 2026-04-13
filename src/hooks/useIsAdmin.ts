@@ -1,32 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 export function useIsAdmin() {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-
-    const check = async () => {
+  const { data: isAdmin = false, isLoading: loading } = useQuery({
+    queryKey: ['isAdmin', user?.id],
+    queryFn: async () => {
+      if (!user) return false;
       const { data } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
         .maybeSingle();
-      setIsAdmin(!!data);
-      setLoading(false);
-    };
-
-    check();
-  }, [user]);
+      return !!data;
+    },
+    enabled: !!user,
+  });
 
   return { isAdmin, loading };
 }
