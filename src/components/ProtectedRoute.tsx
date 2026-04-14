@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { AppLayout } from './AppLayout';
+import { FullPageSkeleton } from './LoadingSkeleton';
 import Login from '@/pages/Login';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -9,11 +10,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { empresa, loading: empLoading } = useEmpresa();
 
   if (authLoading || (user && empLoading)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground animate-pulse font-display text-lg">Carregando...</p>
-      </div>
-    );
+    return <FullPageSkeleton />;
   }
 
   if (!user) return <Login />;
