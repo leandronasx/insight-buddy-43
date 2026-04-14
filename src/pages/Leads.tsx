@@ -1,11 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Phone, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { useLeads, type Lead } from '@/hooks/useLeads';
+import { usePagination } from '@/hooks/usePagination';
 import { downloadCSV } from '@/lib/csv-export';
+import { PaginationControls } from '@/components/PaginationControls';
+import { ListSkeleton } from '@/components/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,7 +32,7 @@ const statusColors: Record<string, string> = {
 export default function Leads() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
-  const { leads, saveLead, deleteLead } = useLeads();
+  const { leads, isLoading, saveLead, deleteLead } = useLeads();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -49,6 +52,13 @@ export default function Leads() {
       l.status.toLowerCase().includes(q)
     );
   }, [leads, search]);
+
+  const pagination = usePagination(filtered);
+
+  // Reset pagination when search changes
+  useEffect(() => { pagination.resetPage(); }, [search]);
+
+  if (isLoading) return <ListSkeleton />;
 
   const openNew = () => {
     setEditingLead(null);
@@ -129,7 +139,7 @@ export default function Leads() {
             {search ? 'Nenhum lead encontrado.' : 'Nenhum lead neste mês. Clique em + para adicionar.'}
           </p>
         )}
-        {filtered.map(lead => (
+        {pagination.items.map(lead => (
           <div key={lead.id}>
             <motion.div
               layout
@@ -174,6 +184,15 @@ export default function Leads() {
           </div>
         ))}
       </div>
+
+      <PaginationControls
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        onPageChange={pagination.goToPage}
+        hasNext={pagination.hasNext}
+        hasPrev={pagination.hasPrev}
+      />
 
       <button onClick={openNew} className="fab-button">
         <Plus className="h-6 w-6" />

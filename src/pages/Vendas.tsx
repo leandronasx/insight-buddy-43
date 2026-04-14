@@ -1,12 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Calendar, Search, Download } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { useVendas, type Venda } from '@/hooks/useVendas';
+import { usePagination } from '@/hooks/usePagination';
 import { downloadCSV } from '@/lib/csv-export';
 import { formatCurrency } from '@/lib/date-utils';
+import { PaginationControls } from '@/components/PaginationControls';
+import { ListSkeleton } from '@/components/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function Vendas() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
-  const { vendas, leadOptions, saveVenda, deleteVenda } = useVendas();
+  const { vendas, leadOptions, isLoading, saveVenda, deleteVenda } = useVendas();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
@@ -35,6 +38,12 @@ export default function Vendas() {
     );
   }, [vendas, search, leadOptions]);
 
+  const pagination = usePagination(filtered);
+
+  useEffect(() => { pagination.resetPage(); }, [search]);
+
+  if (isLoading) return <ListSkeleton />;
+
   const openNew = () => {
     setEditingVenda(null);
     const today = new Date();
@@ -52,7 +61,7 @@ export default function Vendas() {
     if (!empresa) return;
     const valorCheio = parseFloat(form.valor_cheio) || 0;
     if (valorCheio <= 0) {
-      alert('Informe um valor cheio válido.');
+      toast.error('Informe um valor cheio válido.');
       return;
     }
     const desconto = parseFloat(form.desconto) || 0;
@@ -126,7 +135,7 @@ export default function Vendas() {
             {search ? 'Nenhuma venda encontrada.' : 'Nenhuma venda neste mês. Clique em + para adicionar.'}
           </p>
         )}
-        {filtered.map(v => (
+        {pagination.items.map(v => (
           <div key={v.id}>
             <motion.div
               layout
@@ -168,6 +177,15 @@ export default function Vendas() {
           </div>
         ))}
       </div>
+
+      <PaginationControls
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        onPageChange={pagination.goToPage}
+        hasNext={pagination.hasNext}
+        hasPrev={pagination.hasPrev}
+      />
 
       <button onClick={openNew} className="fab-button">
         <Plus className="h-6 w-6" />

@@ -4,20 +4,18 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useMonth } from '@/contexts/MonthContext';
 import { useDashboardData, useChartData } from '@/hooks/useDashboardData';
 import { formatCurrency } from '@/lib/date-utils';
+import { DashboardSkeleton } from '@/components/LoadingSkeleton';
 
 export default function Dashboard() {
   const { year } = useMonth();
   const { data, isLoading } = useDashboardData();
   const { data: chartData = [] } = useChartData();
 
-
-
-
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
   const item = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0 } };
 
   if (isLoading || !data) {
-    return <p className="text-muted-foreground animate-pulse text-center py-8">Carregando dashboard...</p>;
+    return <DashboardSkeleton />;
   }
 
   const metaBatida = data.faturamento >= data.metaFaturamento && data.metaFaturamento > 0;
