@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ShoppingCart, Settings, LogOut, Menu, X, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, Wrench, Settings, LogOut, Menu, X, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
+  { to: '/servicos', icon: Wrench, label: 'Serviços' },
   { to: '/setup', icon: Settings, label: 'Setup Mensal' },
 ];
 
