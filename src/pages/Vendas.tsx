@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Calendar, Search, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Search, Download, X } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
-import { useVendas, type Venda } from '@/hooks/useVendas';
+import { useVendas, type VendaComServicos } from '@/hooks/useVendas';
 import { usePagination } from '@/hooks/usePagination';
 import { downloadCSV } from '@/lib/csv-export';
 import { formatCurrency } from '@/lib/date-utils';
@@ -16,16 +16,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface ServicoRow {
+  estofado: string;
+  valor: string;
+}
+
 export default function Vendas() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
   const { vendas, leadOptions, isLoading, saveVenda, deleteVenda } = useVendas();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
+  const [editingVenda, setEditingVenda] = useState<VendaComServicos | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ lead_id: '', valor_cheio: '', desconto: '0', data_venda: '' });
+  const [form, setForm] = useState({ lead_id: '', desconto: '0', data_venda: '' });
+  const [servicoRows, setServicoRows] = useState<ServicoRow[]>([{ estofado: '', valor: '' }]);
 
   const getLeadName = (leadId: string | null) => leadOptions.find(l => l.id === leadId)?.nome_lead || '—';
 
@@ -34,7 +40,8 @@ export default function Vendas() {
     const q = search.toLowerCase();
     return vendas.filter(v =>
       getLeadName(v.lead_id).toLowerCase().includes(q) ||
-      v.valor_final.toString().includes(q)
+      v.valor_final.toString().includes(q) ||
+      v.servicos.some(s => (s.estofado || '').toLowerCase().includes(q))
     );
   }, [vendas, search, leadOptions]);
 
@@ -44,38 +51,67 @@ export default function Vendas() {
 
   if (isLoading) return <ListSkeleton />;
 
+  const totalServicos = servicoRows.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
+  const desconto = parseFloat(form.desconto) || 0;
+  const valorFinal = totalServicos - desconto;
+
   const openNew = () => {
     setEditingVenda(null);
     const today = new Date();
-    setForm({ lead_id: '', valor_cheio: '', desconto: '0', data_venda: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}` });
+    setForm({
+      lead_id: '',
+      desconto: '0',
+      data_venda: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+    });
+    setServicoRows([{ estofado: '', valor: '' }]);
     setModalOpen(true);
   };
 
-  const openEdit = (v: Venda) => {
+  const openEdit = (v: VendaComServicos) => {
     setEditingVenda(v);
-    setForm({ lead_id: v.lead_id || '', valor_cheio: String(v.valor_cheio), desconto: String(v.desconto), data_venda: v.data_venda });
+    setForm({
+      lead_id: v.lead_id || '',
+      desconto: String(v.desconto),
+      data_venda: v.data_venda,
+    });
+    setServicoRows(
+      v.servicos.length > 0
+        ? v.servicos.map(s => ({ estofado: s.estofado || '', valor: String(s.valor) }))
+        : [{ estofado: '', valor: '' }]
+    );
     setModalOpen(true);
+  };
+
+  const updateServicoRow = (index: number, field: keyof ServicoRow, value: string) => {
+    setServicoRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r));
+  };
+
+  const addServicoRow = () => {
+    setServicoRows(prev => [...prev, { estofado: '', valor: '' }]);
+  };
+
+  const removeServicoRow = (index: number) => {
+    setServicoRows(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
     if (!empresa) return;
-    const valorCheio = parseFloat(form.valor_cheio) || 0;
-    if (valorCheio <= 0) {
-      toast.error('Informe um valor cheio válido.');
+    const validRows = servicoRows.filter(r => (parseFloat(r.valor) || 0) > 0);
+    if (validRows.length === 0) {
+      toast.error('Adicione pelo menos um estofado/serviço com valor.');
       return;
     }
-    const desconto = parseFloat(form.desconto) || 0;
-    const valorFinal = valorCheio - desconto;
 
     try {
       await saveVenda.mutateAsync({
         ...(editingVenda ? { id: editingVenda.id } : {}),
         lead_id: form.lead_id || null,
         empresa_id: empresa.id,
-        valor_cheio: valorCheio,
+        valor_cheio: totalServicos,
         desconto,
         valor_final: valorFinal,
         data_venda: form.data_venda,
+        servicos: validRows.map(r => ({ estofado: r.estofado, valor: parseFloat(r.valor) || 0 })),
       });
       setModalOpen(false);
       setSelectedId(null);
@@ -101,8 +137,12 @@ export default function Vendas() {
   const handleExport = () => {
     downloadCSV(
       `vendas_${year}-${String(month).padStart(2, '0')}.csv`,
-      ['Lead', 'Valor Cheio', 'Desconto', 'Valor Final', 'Data'],
-      filtered.map(v => [getLeadName(v.lead_id), v.valor_cheio, v.desconto, v.valor_final, v.data_venda])
+      ['Lead', 'Estofados', 'Valor Cheio', 'Desconto', 'Valor Final', 'Data'],
+      filtered.map(v => [
+        getLeadName(v.lead_id),
+        v.servicos.map(s => s.estofado || '').filter(Boolean).join(', '),
+        v.valor_cheio, v.desconto, v.valor_final, v.data_venda,
+      ])
     );
   };
 
@@ -148,6 +188,11 @@ export default function Vendas() {
                   <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                     <Calendar className="h-3 w-3" />{new Date(v.data_venda + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </span>
+                  {v.servicos.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {v.servicos.map(s => s.estofado).filter(Boolean).join(', ')}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-display font-bold text-primary">{formatCurrency(v.valor_final)}</p>
@@ -192,38 +237,77 @@ export default function Vendas() {
       </button>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">{editingVenda ? 'Editar Venda' : 'Nova Venda'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Lead (opcional)</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Selecionar Lead *</label>
               <Select value={form.lead_id} onValueChange={v => setForm({ ...form, lead_id: v })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecionar lead" /></SelectTrigger>
                 <SelectContent>
                   {leadOptions.map(l => <SelectItem key={l.id} value={l.id}>{l.nome_lead}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {form.lead_id && (
+                <p className="text-xs text-green-500 mt-1">✓ Lead selecionado: {getLeadName(form.lead_id)}</p>
+              )}
             </div>
+
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Valor Cheio (R$)</label>
-              <Input type="number" value={form.valor_cheio} onChange={e => setForm({ ...form, valor_cheio: e.target.value })} className="bg-secondary border-border" />
+              <label className="text-sm font-medium text-foreground mb-1 block">Data do Serviço *</label>
+              <Input type="date" value={form.data_venda} onChange={e => setForm({ ...form, data_venda: e.target.value })} className="bg-secondary border-border" />
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-foreground">Estofados / Serviços</label>
+                <button type="button" onClick={addServicoRow} className="text-sm text-primary hover:underline">
+                  + Adicionar
+                </button>
+              </div>
+              <div className="space-y-2">
+                {servicoRows.map((row, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={row.estofado}
+                      onChange={e => updateServicoRow(i, 'estofado', e.target.value)}
+                      placeholder="Ex: sofá em L"
+                      className="bg-secondary border-border flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={row.valor}
+                      onChange={e => updateServicoRow(i, 'valor', e.target.value)}
+                      placeholder="Valor"
+                      className="bg-secondary border-border w-24"
+                    />
+                    {servicoRows.length > 1 && (
+                      <button type="button" onClick={() => removeServicoRow(i)} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <p className="text-sm text-muted-foreground">Valor Total (R$)</p>
+              <p className="font-display text-lg font-bold text-foreground">{formatCurrency(totalServicos)}</p>
+            </div>
+
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Desconto (R$)</label>
               <Input type="number" value={form.desconto} onChange={e => setForm({ ...form, desconto: e.target.value })} className="bg-secondary border-border" />
             </div>
+
             <div className="metric-card">
-              <p className="text-sm text-muted-foreground">Valor Final</p>
-              <p className="font-display text-xl font-bold text-primary">
-                {formatCurrency((parseFloat(form.valor_cheio) || 0) - (parseFloat(form.desconto) || 0))}
-              </p>
+              <p className="text-sm text-muted-foreground">Valor Final (R$)</p>
+              <p className="font-display text-xl font-bold text-primary">{formatCurrency(valorFinal)}</p>
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Data da Venda</label>
-              <Input type="date" value={form.data_venda} onChange={e => setForm({ ...form, data_venda: e.target.value })} className="bg-secondary border-border" />
-            </div>
+
             <Button onClick={handleSave} className="w-full" disabled={saveVenda.isPending}>
               {saveVenda.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
@@ -236,7 +320,7 @@ export default function Vendas() {
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">Excluir Venda</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir esta venda? Os serviços vinculados também serão excluídos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
