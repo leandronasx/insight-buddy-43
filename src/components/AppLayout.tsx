@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
+  { to: '/servicos', icon: Wrench, label: 'Serviços' },
   { to: '/setup', icon: Settings, label: 'Setup Mensal' },
 ];
 
