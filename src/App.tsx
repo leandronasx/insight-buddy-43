@@ -10,6 +10,7 @@ import LeadsPage from "./pages/LeadsPage.tsx";
 import VendasPage from "./pages/VendasPage.tsx";
 import SetupPage from "./pages/SetupPage.tsx";
 import AdminEmpresas from "./pages/AdminEmpresas.tsx";
+import ServicosPage from "./pages/ServicosPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
