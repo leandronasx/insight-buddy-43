@@ -10,8 +10,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
-  
   { to: '/setup', icon: Settings, label: 'Setup Mensal' },
+  { to: '/minha-empresa', icon: Building2, label: 'Minha Empresa' },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
