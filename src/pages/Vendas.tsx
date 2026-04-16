@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Calendar, Search, Download, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Search, Download, X, FileText } from 'lucide-react';
+import { gerarOrdemServicoPDF } from '@/lib/pdf-ordem-servico';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { useVendas, type VendaComServicos } from '@/hooks/useVendas';
@@ -208,8 +209,19 @@ export default function Vendas() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="flex gap-2 px-2 py-2 overflow-hidden"
+                  className="flex gap-2 px-2 py-2 overflow-hidden flex-wrap"
                 >
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const lead = leadOptions.find(l => l.id === v.lead_id);
+                    gerarOrdemServicoPDF({
+                      venda: v,
+                      empresaNome: empresa?.empresa_nome || '',
+                      leadNome: lead?.nome_lead || 'Cliente não informado',
+                    });
+                    toast.success('Ordem de Serviço gerada!');
+                  }}>
+                    <FileText className="h-4 w-4 mr-1" /> Gerar OS
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => openEdit(v)}>
                     <Edit className="h-4 w-4 mr-1" /> Editar
                   </Button>
