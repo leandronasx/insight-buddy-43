@@ -1,15 +1,16 @@
 import jsPDF from 'jspdf';
 import type { VendaComServicos } from '@/hooks/useVendas';
+import type { Empresa } from '@/hooks/useEmpresa';
+import type { LeadOption } from '@/hooks/useVendas';
 import { formatCurrency } from '@/lib/date-utils';
 
 interface OrdemServicoData {
   venda: VendaComServicos;
-  empresaNome: string;
-  leadNome: string;
-  leadTelefone?: string;
+  empresa: Empresa;
+  lead: LeadOption | null;
 }
 
-export function gerarOrdemServicoPDF({ venda, empresaNome, leadNome, leadTelefone }: OrdemServicoData) {
+export function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServicoData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -17,51 +18,94 @@ export function gerarOrdemServicoPDF({ venda, empresaNome, leadNome, leadTelefon
   let y = 20;
 
   // ─── Header ───
-  doc.setFillColor(15, 23, 42); // dark bg
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 44, 'F');
 
-  doc.setTextColor(34, 197, 94); // green accent
-  doc.setFontSize(22);
+  doc.setTextColor(34, 197, 94);
+  doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('ORDEM DE SERVIÇO', margin, 18);
+  doc.text('ORDEM DE SERVIÇO', margin, 16);
 
-  doc.setTextColor(148, 163, 184); // muted
-  doc.setFontSize(10);
-  doc.text(empresaNome, margin, 28);
+  doc.setTextColor(148, 163, 184);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(empresa.empresa_nome, margin, 24);
 
-  // OS number & date
+  if (empresa.cnpj_cpf) {
+    doc.text(`CNPJ/CPF: ${empresa.cnpj_cpf}`, margin, 29);
+  }
+  if (empresa.endereco) {
+    doc.text(empresa.endereco, margin, 34);
+  }
+
+  const rightInfo: string[] = [];
+  if (empresa.telefone) rightInfo.push(empresa.telefone);
+  if (empresa.email) rightInfo.push(empresa.email);
+
+  // OS number & date on the right
   const osNumber = venda.id.slice(0, 8).toUpperCase();
   const dataFormatada = new Date(venda.data_venda + 'T00:00:00').toLocaleDateString('pt-BR');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
-  doc.text(`OS #${osNumber}`, pageWidth - margin, 18, { align: 'right' });
-  doc.text(`Data: ${dataFormatada}`, pageWidth - margin, 28, { align: 'right' });
+  doc.text(`OS #${osNumber}`, pageWidth - margin, 16, { align: 'right' });
+  doc.text(`Data: ${dataFormatada}`, pageWidth - margin, 22, { align: 'right' });
 
-  y = 50;
+  doc.setTextColor(148, 163, 184);
+  doc.setFontSize(8);
+  rightInfo.forEach((info, i) => {
+    doc.text(info, pageWidth - margin, 28 + i * 4, { align: 'right' });
+  });
+
+  y = 52;
 
   // ─── Client info ───
-  doc.setTextColor(30, 41, 59);
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'F');
+  const clientBoxHeight = 32;
+  doc.roundedRect(margin, y, contentWidth, clientBoxHeight, 3, 3, 'F');
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('DADOS DO CLIENTE', margin + 6, y + 8);
+  doc.text('DADOS DO CLIENTE', margin + 6, y + 7);
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(leadNome, margin + 6, y + 18);
+  doc.text(lead?.nome_lead || 'Cliente não informado', margin + 6, y + 15);
 
-  if (leadTelefone) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text(leadTelefone, margin + 6, y + 24);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+
+  let clientY = y + 20;
+  const clientDetails: string[] = [];
+  if (lead?.telefone) clientDetails.push(lead.telefone);
+  if (lead?.email) clientDetails.push(lead.email);
+  if (lead?.cpf_cnpj) clientDetails.push(`CPF/CNPJ: ${lead.cpf_cnpj}`);
+  if (lead?.endereco) clientDetails.push(lead.endereco);
+
+  doc.text(clientDetails.join('  •  '), margin + 6, clientY);
+
+  y += clientBoxHeight + 6;
+
+  // ─── Scheduling info ───
+  if (venda.data_agendada || venda.horario_agendado) {
+    doc.setFillColor(34, 197, 94);
+    doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+
+    const agendaText: string[] = [];
+    if (venda.data_agendada) {
+      agendaText.push(`Data: ${new Date(venda.data_agendada + 'T00:00:00').toLocaleDateString('pt-BR')}`);
+    }
+    if (venda.horario_agendado) {
+      agendaText.push(`Horário: ${venda.horario_agendado}`);
+    }
+    doc.text(`AGENDAMENTO — ${agendaText.join('  |  ')}`, margin + 6, y + 8);
+    y += 16;
   }
-
-  y += 36;
 
   // ─── Table header ───
   doc.setFillColor(15, 23, 42);
@@ -101,7 +145,6 @@ export function gerarOrdemServicoPDF({ venda, empresaNome, leadNome, leadTelefon
 
   const totalsX = pageWidth - margin - 4;
 
-  // Subtotal
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139);
@@ -110,16 +153,14 @@ export function gerarOrdemServicoPDF({ venda, empresaNome, leadNome, leadTelefon
   doc.text(formatCurrency(venda.valor_cheio), totalsX, y, { align: 'right' });
   y += 7;
 
-  // Desconto
   if (venda.desconto > 0) {
     doc.setTextColor(100, 116, 139);
     doc.text('Desconto:', totalsX - 50, y);
-    doc.setTextColor(239, 68, 68); // red
+    doc.setTextColor(239, 68, 68);
     doc.text(`- ${formatCurrency(venda.desconto)}`, totalsX, y, { align: 'right' });
     y += 7;
   }
 
-  // Valor Final
   doc.setFillColor(34, 197, 94);
   doc.roundedRect(pageWidth - margin - 80, y - 1, 80, 12, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
@@ -149,6 +190,5 @@ export function gerarOrdemServicoPDF({ venda, empresaNome, leadNome, leadTelefon
   doc.setTextColor(148, 163, 184);
   doc.text(`Gerado por Higi$Controle — ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, footerY, { align: 'center' });
 
-  // Save
-  doc.save(`OS_${osNumber}_${leadNome.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`OS_${osNumber}_${(lead?.nome_lead || 'Cliente').replace(/\s+/g, '_')}.pdf`);
 }

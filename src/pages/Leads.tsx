@@ -38,8 +38,8 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string }>({
-    nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '',
+  const [form, setForm] = useState<{ nome_lead: string; telefone: string; origem: LeadOrigem; status: LeadStatus; data_mensagem: string; endereco: string; email: string; cpf_cnpj: string }>({
+    nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: '', endereco: '', email: '', cpf_cnpj: '',
   });
 
   const filtered = useMemo(() => {
@@ -63,13 +63,13 @@ export default function Leads() {
   const openNew = () => {
     setEditingLead(null);
     const today = new Date();
-    setForm({ nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}` });
+    setForm({ nome_lead: '', telefone: '', origem: 'Tráfego', status: 'Agendado', data_mensagem: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, endereco: '', email: '', cpf_cnpj: '' });
     setModalOpen(true);
   };
 
   const openEdit = (lead: Lead) => {
     setEditingLead(lead);
-    setForm({ nome_lead: lead.nome_lead, telefone: lead.telefone || '', origem: lead.origem, status: lead.status, data_mensagem: lead.data_mensagem });
+    setForm({ nome_lead: lead.nome_lead, telefone: lead.telefone || '', origem: lead.origem, status: lead.status, data_mensagem: lead.data_mensagem, endereco: lead.endereco || '', email: lead.email || '', cpf_cnpj: lead.cpf_cnpj || '' });
     setModalOpen(true);
   };
 
@@ -233,6 +233,18 @@ export default function Leads() {
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Data</label>
               <Input type="date" value={form.data_mensagem} onChange={e => setForm({ ...form, data_mensagem: e.target.value })} className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">E-mail</label>
+              <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="cliente@email.com" className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">CPF / CNPJ</label>
+              <Input value={form.cpf_cnpj} onChange={e => setForm({ ...form, cpf_cnpj: e.target.value })} placeholder="000.000.000-00" className="bg-secondary border-border" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Endereço</label>
+              <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, bairro" className="bg-secondary border-border" />
             </div>
             <Button onClick={handleSave} className="w-full" disabled={saveLead.isPending}>
               {saveLead.isPending ? 'Salvando...' : 'Salvar'}

@@ -12,6 +12,8 @@ export interface Venda {
   valor_final: number;
   data_venda: string;
   empresa_id: string;
+  data_agendada: string | null;
+  horario_agendado: string | null;
 }
 
 export interface VendaComServicos extends Venda {
@@ -31,6 +33,10 @@ export interface ServicoItem {
 export interface LeadOption {
   id: string;
   nome_lead: string;
+  telefone: string | null;
+  email: string | null;
+  cpf_cnpj: string | null;
+  endereco: string | null;
 }
 
 export function useVendas() {
@@ -92,7 +98,7 @@ export function useVendas() {
       if (!empresa) return [];
       const { data } = await supabase
         .from('leads')
-        .select('id, nome_lead')
+        .select('id, nome_lead, telefone, email, cpf_cnpj, endereco')
         .eq('empresa_id', empresa.id)
         .order('nome_lead');
       return (data ?? []) as LeadOption[];
