@@ -221,8 +221,8 @@ export default function Vendas() {
                     const lead = leadOptions.find(l => l.id === v.lead_id);
                     gerarOrdemServicoPDF({
                       venda: v,
-                      empresaNome: empresa?.empresa_nome || '',
-                      leadNome: lead?.nome_lead || 'Cliente não informado',
+                      empresa: empresa!,
+                      lead: lead || null,
                     });
                     toast.success('Ordem de Serviço gerada!');
                   }}>
