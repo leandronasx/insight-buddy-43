@@ -31,7 +31,7 @@ export default function Vendas() {
   const [editingVenda, setEditingVenda] = useState<VendaComServicos | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ lead_id: '', desconto: '0', data_venda: '' });
+  const [form, setForm] = useState({ lead_id: '', desconto: '0', data_venda: '', data_agendada: '', horario_agendado: '' });
   const [servicoRows, setServicoRows] = useState<ServicoRow[]>([{ estofado: '', valor: '' }]);
 
   const getLeadName = (leadId: string | null) => leadOptions.find(l => l.id === leadId)?.nome_lead || '—';
@@ -63,6 +63,8 @@ export default function Vendas() {
       lead_id: '',
       desconto: '0',
       data_venda: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+      data_agendada: '',
+      horario_agendado: '',
     });
     setServicoRows([{ estofado: '', valor: '' }]);
     setModalOpen(true);
@@ -74,6 +76,8 @@ export default function Vendas() {
       lead_id: v.lead_id || '',
       desconto: String(v.desconto),
       data_venda: v.data_venda,
+      data_agendada: v.data_agendada || '',
+      horario_agendado: v.horario_agendado || '',
     });
     setServicoRows(
       v.servicos.length > 0
@@ -112,6 +116,8 @@ export default function Vendas() {
         desconto,
         valor_final: valorFinal,
         data_venda: form.data_venda,
+        data_agendada: form.data_agendada || null,
+        horario_agendado: form.horario_agendado || null,
         servicos: validRows.map(r => ({ estofado: r.estofado, valor: parseFloat(r.valor) || 0 })),
       });
       setModalOpen(false);
