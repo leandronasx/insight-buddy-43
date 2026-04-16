@@ -16,35 +16,56 @@ export type Database = {
     Tables: {
       empresas: {
         Row: {
+          cnpj_cpf: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
           created_at: string
           data_inicio: string | null
           data_termino: string | null
+          email: string | null
           empresa_nome: string
+          endereco: string | null
           id: string
+          logo_url: string | null
           nome_dono: string | null
           status: Database["public"]["Enums"]["empresa_status"]
+          telefone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          cnpj_cpf?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           data_inicio?: string | null
           data_termino?: string | null
+          email?: string | null
           empresa_nome: string
+          endereco?: string | null
           id?: string
+          logo_url?: string | null
           nome_dono?: string | null
           status?: Database["public"]["Enums"]["empresa_status"]
+          telefone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          cnpj_cpf?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           data_inicio?: string | null
           data_termino?: string | null
+          email?: string | null
           empresa_nome?: string
+          endereco?: string | null
           id?: string
+          logo_url?: string | null
           nome_dono?: string | null
           status?: Database["public"]["Enums"]["empresa_status"]
+          telefone?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -96,9 +117,12 @@ export type Database = {
       }
       leads: {
         Row: {
+          cpf_cnpj: string | null
           created_at: string
           data_mensagem: string
+          email: string | null
           empresa_id: string
+          endereco: string | null
           id: string
           nome_lead: string
           origem: Database["public"]["Enums"]["lead_origem"]
@@ -107,9 +131,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cpf_cnpj?: string | null
           created_at?: string
           data_mensagem?: string
+          email?: string | null
           empresa_id: string
+          endereco?: string | null
           id?: string
           nome_lead: string
           origem?: Database["public"]["Enums"]["lead_origem"]
@@ -118,9 +145,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cpf_cnpj?: string | null
           created_at?: string
           data_mensagem?: string
+          email?: string | null
           empresa_id?: string
+          endereco?: string | null
           id?: string
           nome_lead?: string
           origem?: Database["public"]["Enums"]["lead_origem"]
@@ -217,9 +247,11 @@ export type Database = {
       vendas: {
         Row: {
           created_at: string
+          data_agendada: string | null
           data_venda: string
           desconto: number
           empresa_id: string
+          horario_agendado: string | null
           id: string
           lead_id: string | null
           updated_at: string
@@ -228,9 +260,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_agendada?: string | null
           data_venda?: string
           desconto?: number
           empresa_id: string
+          horario_agendado?: string | null
           id?: string
           lead_id?: string | null
           updated_at?: string
@@ -239,9 +273,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_agendada?: string | null
           data_venda?: string
           desconto?: number
           empresa_id?: string
+          horario_agendado?: string | null
           id?: string
           lead_id?: string | null
           updated_at?: string
