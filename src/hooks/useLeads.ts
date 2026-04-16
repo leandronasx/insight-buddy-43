@@ -16,6 +16,9 @@ export interface Lead {
   status: LeadStatus;
   data_mensagem: string;
   empresa_id: string;
+  endereco: string | null;
+  email: string | null;
+  cpf_cnpj: string | null;
 }
 
 export function useLeads() {
