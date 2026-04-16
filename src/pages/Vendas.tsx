@@ -269,13 +269,24 @@ export default function Vendas() {
                 </SelectContent>
               </Select>
               {form.lead_id && (
-                <p className="text-xs text-green-500 mt-1">✓ Lead selecionado: {getLeadName(form.lead_id)}</p>
+                <p className="text-xs text-primary mt-1">✓ Lead selecionado: {getLeadName(form.lead_id)}</p>
               )}
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Data do Serviço *</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Data da Venda *</label>
               <Input type="date" value={form.data_venda} onChange={e => setForm({ ...form, data_venda: e.target.value })} className="bg-secondary border-border" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1 block">Data Agendada</label>
+                <Input type="date" value={form.data_agendada} onChange={e => setForm({ ...form, data_agendada: e.target.value })} className="bg-secondary border-border" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1 block">Horário</label>
+                <Input type="time" value={form.horario_agendado} onChange={e => setForm({ ...form, horario_agendado: e.target.value })} className="bg-secondary border-border" />
+              </div>
             </div>
 
             <div>
