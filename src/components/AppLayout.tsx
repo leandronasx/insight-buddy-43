@@ -10,7 +10,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/leads', icon: Users, label: 'Leads' },
   { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
-  { to: '/setup', icon: Settings, label: 'Setup Mensal' },
+  { to: '/setup', icon: Settings, label: 'Financeiro' },
   { to: '/minha-empresa', icon: Building2, label: 'Minha Empresa' },
 ];
 
@@ -22,7 +22,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const allNavItems = isAdmin
-    ? [...navItems, { to: '/admin', icon: Shield, label: 'Admin' }]
+    ? [...navItems, { to: '/admin', icon: Shield, label: 'Painel Admin' }]
     : navItems;
 
   return (
