@@ -149,7 +149,7 @@ export default function MinhaEmpresa() {
           <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5" /> Endereço
           </label>
-          <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, bairro, cidade - UF" className="bg-secondary border-border" />
+          <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, Número, bairro, CEP, Cidade-UF" className="bg-secondary border-border" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
