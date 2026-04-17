@@ -199,7 +199,7 @@ export default function Leads() {
       </button>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">{editingLead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
           </DialogHeader>
@@ -244,7 +244,7 @@ export default function Leads() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Endereço</label>
-              <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, bairro" className="bg-secondary border-border" />
+              <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, número, bairro, CEP, cidade-UF" className="bg-secondary border-border" />
             </div>
             <Button onClick={handleSave} className="w-full" disabled={saveLead.isPending}>
               {saveLead.isPending ? 'Salvando...' : 'Salvar'}
