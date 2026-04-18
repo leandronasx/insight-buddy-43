@@ -86,7 +86,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-        <h1 className="font-display text-lg font-bold text-foreground">💰 Higi$Controle</h1>
+        <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} compact />
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground">
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
