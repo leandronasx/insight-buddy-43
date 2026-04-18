@@ -1,10 +1,10 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import MinhaEmpresa from './MinhaEmpresa';
+import AdminEmpresas from './AdminEmpresas';
 
-export default function MinhaEmpresaPage() {
+export default function AdminEmpresasPage() {
   return (
     <ProtectedRoute>
-      <MinhaEmpresa />
+      <AdminEmpresas />
     </ProtectedRoute>
   );
 }
