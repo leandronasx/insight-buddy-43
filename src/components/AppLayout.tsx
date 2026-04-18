@@ -4,7 +4,27 @@ import { LayoutDashboard, Users, ShoppingCart, Settings, LogOut, Menu, X, Buildi
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useApplyBranding } from '@/hooks/useApplyBranding';
 import { MonthSelector } from './MonthSelector';
+
+function BrandHeader({ logoUrl, name, compact = false }: { logoUrl?: string | null; name?: string | null; compact?: boolean }) {
+  if (logoUrl) {
+    return (
+      <div className="flex items-center gap-2">
+        <img
+          src={logoUrl}
+          alt={name || 'Logo'}
+          className={compact ? 'h-7 w-auto max-w-[120px] object-contain' : 'h-10 w-auto max-w-[180px] object-contain'}
+        />
+      </div>
+    );
+  }
+  return (
+    <h1 className={`font-display font-bold text-foreground tracking-tight ${compact ? 'text-lg' : 'text-xl'}`}>
+      💰 Higi$Controle
+    </h1>
+  );
+}
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
