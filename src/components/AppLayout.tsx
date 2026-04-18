@@ -52,9 +52,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border p-4">
         <div className="mb-8">
           <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} />
-          {empresa && (
-            <p className="text-sm text-muted-foreground mt-2 truncate">{empresa.empresa_nome}</p>
-          )}
         </div>
         <nav className="flex-1 space-y-1">
           {allNavItems.map(item => {
