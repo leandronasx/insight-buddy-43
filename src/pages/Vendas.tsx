@@ -217,14 +217,19 @@ export default function Vendas() {
                   exit={{ height: 0, opacity: 0 }}
                   className="flex gap-2 px-2 py-2 overflow-hidden flex-wrap"
                 >
-                  <Button size="sm" variant="outline" onClick={() => {
+                  <Button size="sm" variant="outline" onClick={async () => {
                     const lead = leadOptions.find(l => l.id === v.lead_id);
-                    gerarOrdemServicoPDF({
-                      venda: v,
-                      empresa: empresa!,
-                      lead: lead || null,
-                    });
-                    toast.success('Ordem de Serviço gerada!');
+                    try {
+                      await gerarOrdemServicoPDF({
+                        venda: v,
+                        empresa: empresa!,
+                        lead: lead || null,
+                      });
+                      toast.success('Ordem de Serviço gerada!');
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Falha ao gerar OS');
+                    }
                   }}>
                     <FileText className="h-4 w-4 mr-1" /> Gerar OS
                   </Button>
