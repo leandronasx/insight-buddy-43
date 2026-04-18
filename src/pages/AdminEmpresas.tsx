@@ -3,15 +3,13 @@ import { motion } from 'framer-motion';
 import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
 import { MonthSelector } from '@/components/MonthSelector';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminOverview } from '@/components/AdminOverview';
 import { CreateEmpresaDialog } from '@/components/admin/CreateEmpresaDialog';
 import { EditEmpresaDialog } from '@/components/admin/EditEmpresaDialog';
-import { FullPageSkeleton, AdminSkeleton } from '@/components/LoadingSkeleton';
-import Login from './Login';
+import { AdminSkeleton } from '@/components/LoadingSkeleton';
 
 interface Empresa {
   id: string;
@@ -25,7 +23,6 @@ interface Empresa {
 }
 
 export default function AdminEmpresas() {
-  const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,8 +49,7 @@ export default function AdminEmpresas() {
     setEditOpen(true);
   };
 
-  if (authLoading || adminLoading) return <FullPageSkeleton />;
-  if (!user) return <Login />;
+  if (adminLoading) return <AdminSkeleton />;
 
   if (!isAdmin) {
     return (
