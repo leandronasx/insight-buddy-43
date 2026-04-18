@@ -40,6 +40,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { isAdmin } = useIsAdmin();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useApplyBranding();
 
   const allNavItems = isAdmin
     ? [...navItems, { to: '/admin', icon: Shield, label: 'Painel Admin' }]
@@ -50,11 +51,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Sidebar desktop */}
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border p-4">
         <div className="mb-8">
-          <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
-            💰 Higi$Controle
-          </h1>
+          <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} />
           {empresa && (
-            <p className="text-sm text-muted-foreground mt-1 truncate">{empresa.empresa_nome}</p>
+            <p className="text-sm text-muted-foreground mt-2 truncate">{empresa.empresa_nome}</p>
           )}
         </div>
         <nav className="flex-1 space-y-1">
