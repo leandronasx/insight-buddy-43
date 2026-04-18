@@ -4,7 +4,27 @@ import { LayoutDashboard, Users, ShoppingCart, Settings, LogOut, Menu, X, Buildi
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useApplyBranding } from '@/hooks/useApplyBranding';
 import { MonthSelector } from './MonthSelector';
+
+function BrandHeader({ logoUrl, name, compact = false }: { logoUrl?: string | null; name?: string | null; compact?: boolean }) {
+  if (logoUrl) {
+    return (
+      <div className="flex items-center gap-2">
+        <img
+          src={logoUrl}
+          alt={name || 'Logo'}
+          className={compact ? 'h-7 w-auto max-w-[120px] object-contain' : 'h-10 w-auto max-w-[180px] object-contain'}
+        />
+      </div>
+    );
+  }
+  return (
+    <h1 className={`font-display font-bold text-foreground tracking-tight ${compact ? 'text-lg' : 'text-xl'}`}>
+      💰 Higi$Controle
+    </h1>
+  );
+}
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,6 +40,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { isAdmin } = useIsAdmin();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useApplyBranding();
 
   const allNavItems = isAdmin
     ? [...navItems, { to: '/admin', icon: Shield, label: 'Painel Admin' }]
@@ -30,11 +51,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Sidebar desktop */}
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border p-4">
         <div className="mb-8">
-          <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
-            💰 Higi$Controle
-          </h1>
+          <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} />
           {empresa && (
-            <p className="text-sm text-muted-foreground mt-1 truncate">{empresa.empresa_nome}</p>
+            <p className="text-sm text-muted-foreground mt-2 truncate">{empresa.empresa_nome}</p>
           )}
         </div>
         <nav className="flex-1 space-y-1">
@@ -67,7 +86,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-        <h1 className="font-display text-lg font-bold text-foreground">💰 Higi$Controle</h1>
+        <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} compact />
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground">
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
