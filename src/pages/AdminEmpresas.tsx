@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AppLayout } from '@/components/AppLayout';
 import { AdminOverview } from '@/components/AdminOverview';
 import { CreateEmpresaDialog } from '@/components/admin/CreateEmpresaDialog';
 import { EditEmpresaDialog } from '@/components/admin/EditEmpresaDialog';
@@ -68,8 +67,7 @@ export default function AdminEmpresas() {
   }
 
   return (
-    <AppLayout>
-      <Tabs defaultValue="painel" className="space-y-4">
+    <Tabs defaultValue="painel" className="space-y-4">
         <TabsList>
           <TabsTrigger value="painel">Painel Geral</TabsTrigger>
           <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
@@ -149,6 +147,5 @@ export default function AdminEmpresas() {
           )}
         </TabsContent>
       </Tabs>
-    </AppLayout>
   );
 }
