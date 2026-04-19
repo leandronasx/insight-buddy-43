@@ -36,10 +36,15 @@
 
     --radius: 0.75rem;
 
-    --warning: 35 90% 55%;
+    --warning: 35 75% 60%;
     --warning-foreground: 220 20% 10%;
     --success: 142 60% 45%;
     --info: 210 80% 55%;
+
+    /* Finance semantic tokens — soft, calm tones, NEVER overridden by branding */
+    --positive: 152 45% 55%;
+    --negative: 6 65% 62%;
+    --neutral: 215 15% 70%;
 
     --sidebar-background: 220 20% 8%;
     --sidebar-foreground: 210 20% 85%;
