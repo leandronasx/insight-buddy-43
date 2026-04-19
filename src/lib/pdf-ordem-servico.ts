@@ -51,10 +51,10 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   // Brand color (used sparingly as accent). Everything else stays neutral.
   const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);   // accent: header strip + TOTAL
 
-  // Neutral palette (clean, professional, sempre legível)
-  const ink: [number, number, number] = [30, 41, 59];           // títulos / valores
-  const text: [number, number, number] = [51, 65, 85];          // corpo
-  const muted: [number, number, number] = [100, 116, 139];      // labels / secundário
+  // Neutral palette — preto forte para títulos, cinza escuro para corpo
+  const ink: [number, number, number] = [0, 0, 0];              // títulos bold (preto puro)
+  const text: [number, number, number] = [55, 65, 81];          // corpo (cinza escuro legível)
+  const muted: [number, number, number] = [75, 85, 99];         // labels / secundário (mais escuro que antes)
   const softBg: [number, number, number] = [248, 250, 252];     // blocos suaves
   const borderColor: [number, number, number] = [226, 232, 240];
   const headerBg: [number, number, number] = [255, 255, 255];   // header neutro
