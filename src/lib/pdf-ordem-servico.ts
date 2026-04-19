@@ -48,20 +48,33 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
 
-  // Brand colors (with safe fallbacks)
-  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);   // accent / total
-  const secondary = hexToRgb(empresa.cor_secundaria, [15, 23, 42]); // header bg
-  const muted: [number, number, number] = [100, 116, 139];
-  const softBg: [number, number, number] = [241, 245, 249];
+  // Brand color (used sparingly as accent). Everything else stays neutral.
+  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);   // accent: header strip + TOTAL
+
+  // Neutral palette (clean, professional, sempre legível)
+  const ink: [number, number, number] = [30, 41, 59];           // títulos / valores
+  const text: [number, number, number] = [51, 65, 85];          // corpo
+  const muted: [number, number, number] = [100, 116, 139];      // labels / secundário
+  const softBg: [number, number, number] = [248, 250, 252];     // blocos suaves
   const borderColor: [number, number, number] = [226, 232, 240];
+  const headerBg: [number, number, number] = [255, 255, 255];   // header neutro
 
   // Try to load logo
   const logo = empresa.logo_url ? await loadImage(empresa.logo_url) : null;
 
-  // ─── HEADER (company branding strip) ──────────────────────────────────
-  const headerH = 38;
-  doc.setFillColor(...secondary);
-  doc.rect(0, 0, pageWidth, headerH, 'F');
+  // ─── ACCENT BAR (faixa fina com a cor da empresa, único toque no topo) ──
+  const accentH = 4;
+  doc.setFillColor(...primary);
+  doc.rect(0, 0, pageWidth, accentH, 'F');
+
+  // ─── HEADER (fundo branco, texto escuro) ──────────────────────────────
+  const headerTop = accentH;
+  const headerH = 36;
+  doc.setFillColor(...headerBg);
+  doc.rect(0, headerTop, pageWidth, headerH, 'F');
+  // Linha sutil separando o header do corpo
+  doc.setDrawColor(...borderColor);
+  doc.line(margin, headerTop + headerH, pageWidth - margin, headerTop + headerH);
 
   // Logo (left side, contained)
   let textStartX = margin;
@@ -76,22 +89,22 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
       lh = lw / ratio;
     }
     try {
-      doc.addImage(logo.dataUrl, 'PNG', margin, (headerH - lh) / 2, lw, lh);
+      doc.addImage(logo.dataUrl, 'PNG', margin, headerTop + (headerH - lh) / 2, lw, lh);
       textStartX = margin + lw + 6;
     } catch {
       // ignore
     }
   }
 
-  // Company name + contacts (next to logo)
-  doc.setTextColor(255, 255, 255);
+  // Company name + contacts (next to logo) — texto neutro escuro
+  doc.setTextColor(...ink);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text(empresa.empresa_nome, textStartX, 15);
+  doc.setFontSize(14);
+  doc.text(empresa.empresa_nome, textStartX, headerTop + 13);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(203, 213, 225);
+  doc.setTextColor(...muted);
   const compLines: string[] = [];
   if (empresa.cnpj_cpf) compLines.push(`CNPJ/CPF: ${empresa.cnpj_cpf}`);
   if (empresa.endereco) compLines.push(empresa.endereco);
@@ -100,25 +113,27 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   if (empresa.email) contactLine.push(empresa.email);
   if (contactLine.length) compLines.push(contactLine.join('  •  '));
   compLines.slice(0, 3).forEach((l, i) => {
-    doc.text(l, textStartX, 21 + i * 4.2);
+    doc.text(l, textStartX, headerTop + 19 + i * 4);
   });
 
-  // OS number + date (right side)
+  // OS number + date (right side) — "ORDEM DE SERVIÇO" usa cor da empresa
   const osNumber = venda.id.slice(0, 8).toUpperCase();
   const dataFormatada = new Date(venda.data_venda + 'T00:00:00').toLocaleDateString('pt-BR');
 
   doc.setTextColor(...primary);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('ORDEM DE SERVIÇO', pageWidth - margin, 13, { align: 'right' });
+  doc.setFontSize(12);
+  doc.text('ORDEM DE SERVIÇO', pageWidth - margin, headerTop + 11, { align: 'right' });
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...ink);
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text(`Nº ${osNumber}`, pageWidth - margin, 19, { align: 'right' });
-  doc.text(`Data: ${dataFormatada}`, pageWidth - margin, 24, { align: 'right' });
+  doc.text(`Nº ${osNumber}`, pageWidth - margin, headerTop + 18, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...muted);
+  doc.text(`Data: ${dataFormatada}`, pageWidth - margin, headerTop + 23, { align: 'right' });
 
-  let y = headerH + 8;
+  let y = headerTop + headerH + 10;
 
   // ─── CLIENT SECTION ───────────────────────────────────────────────────
   doc.setFillColor(...softBg);
