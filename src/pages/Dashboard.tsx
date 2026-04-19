@@ -27,9 +27,9 @@ export default function Dashboard() {
       {data.metaFaturamento > 0 && (
         <motion.div
           variants={item}
-          className={`metric-card flex items-center gap-4 ${metaBatida ? 'border-primary/50' : 'border-warning/50'}`}
+          className={`metric-card flex items-center gap-4 ${metaBatida ? 'border-positive/50' : 'border-warning/50'}`}
         >
-          <Target className={`h-8 w-8 ${metaBatida ? 'text-primary' : 'text-warning'}`} />
+          <Target className={`h-8 w-8 ${metaBatida ? 'text-positive' : 'text-warning'}`} />
           <div>
             <p className="text-sm text-muted-foreground">Meta do Mês</p>
             <p className="font-display text-lg font-bold text-foreground">
