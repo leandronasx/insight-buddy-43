@@ -82,19 +82,19 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div variants={item} className="metric-card">
           <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-5 w-5 text-primary" />
+            <Wallet className="h-5 w-5 text-positive" />
             <span className="text-xs text-muted-foreground">Faturamento do Mês</span>
           </div>
-          <p className="font-display text-2xl font-bold text-primary">{formatCurrency(data.faturamento)}</p>
+          <p className="font-display text-2xl font-bold text-positive">{formatCurrency(data.faturamento)}</p>
           <p className="text-xs text-muted-foreground mt-1">{data.totalVendas} venda{data.totalVendas !== 1 ? 's' : ''} realizada{data.totalVendas !== 1 ? 's' : ''}</p>
         </motion.div>
 
         <motion.div variants={item} className="metric-card">
           <div className="flex items-center gap-2 mb-2">
-            <Receipt className="h-5 w-5 text-destructive" />
+            <Receipt className="h-5 w-5 text-negative" />
             <span className="text-xs text-muted-foreground">Investimento em Tráfego</span>
           </div>
-          <p className="font-display text-2xl font-bold text-destructive">{formatCurrency(data.investimentoTrafego)}</p>
+          <p className="font-display text-2xl font-bold text-negative">{formatCurrency(data.investimentoTrafego)}</p>
           <p className="text-xs text-muted-foreground mt-1">Custo operacional: {formatCurrency(data.custoOperacional)}</p>
         </motion.div>
 
