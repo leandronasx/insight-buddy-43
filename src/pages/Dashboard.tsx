@@ -128,10 +128,10 @@ export default function Dashboard() {
 
         <motion.div variants={item} className="metric-card">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className={`h-5 w-5 ${data.lucroLiquido >= 0 ? 'text-primary' : 'text-destructive'}`} />
+            <DollarSign className={`h-5 w-5 ${data.lucroLiquido >= 0 ? 'text-positive' : 'text-negative'}`} />
             <span className="text-xs text-muted-foreground">Lucro Líquido</span>
           </div>
-          <p className={`font-display text-2xl font-bold ${data.lucroLiquido >= 0 ? 'text-primary' : 'text-destructive'}`}>
+          <p className={`font-display text-2xl font-bold ${data.lucroLiquido >= 0 ? 'text-positive' : 'text-negative'}`}>
             {formatCurrency(data.lucroLiquido)}
           </p>
         </motion.div>
