@@ -61,6 +61,15 @@ export default {
         info: {
           DEFAULT: "hsl(var(--info))",
         },
+        positive: {
+          DEFAULT: "hsl(var(--positive))",
+        },
+        negative: {
+          DEFAULT: "hsl(var(--negative))",
+        },
+        neutral: {
+          DEFAULT: "hsl(var(--neutral))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
