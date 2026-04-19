@@ -146,7 +146,7 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...secondary);
+  doc.setTextColor(...ink);
   doc.text(lead?.nome_lead || 'Cliente não informado', margin + 5, y + 13);
 
   doc.setFontSize(9);
@@ -183,10 +183,10 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     y += 14;
   }
 
-  // ─── SERVICES TABLE ───────────────────────────────────────────────────
-  doc.setFillColor(...secondary);
+  // ─── SERVICES TABLE (cabeçalho neutro) ───────────────────────────────
+  doc.setFillColor(241, 245, 249); // slate-100
   doc.rect(margin, y, contentWidth, 9, 'F');
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...ink);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('#', margin + 4, y + 6);
@@ -215,7 +215,7 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     doc.text(tipoTrim, pageWidth - margin - 50, y + 6);
 
     doc.setFontSize(9.5);
-    doc.setTextColor(...secondary);
+    doc.setTextColor(...ink);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(s.valor), pageWidth - margin - 4, y + 6, { align: 'right' });
     y += 9;
@@ -233,7 +233,7 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   doc.setFontSize(10);
   doc.setTextColor(...muted);
   doc.text('Subtotal:', totalsRight - 50, y);
-  doc.setTextColor(...secondary);
+  doc.setTextColor(...ink);
   doc.text(formatCurrency(venda.valor_cheio), totalsRight, y, { align: 'right' });
   y += 6;
 
