@@ -120,9 +120,9 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   const osNumber = venda.id.slice(0, 8).toUpperCase();
   const dataFormatada = new Date(venda.data_venda + 'T00:00:00').toLocaleDateString('pt-BR');
 
-  doc.setTextColor(...primary);
+  doc.setTextColor(...ink);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.text('ORDEM DE SERVIÇO', pageWidth - margin, headerTop + 11, { align: 'right' });
 
   doc.setTextColor(...ink);
@@ -245,14 +245,20 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     y += 6;
   }
 
-  // Total badge
+  // Total badge — fundo preto para máximo contraste, com barra lateral na cor da empresa
   y += 2;
+  const badgeX = pageWidth - margin - 85;
+  const badgeW = 85;
+  const badgeH = 13;
+  doc.setFillColor(17, 24, 39); // quase preto (slate-900)
+  doc.roundedRect(badgeX, y, badgeW, badgeH, 2, 2, 'F');
+  // Barra lateral fina com a cor da empresa
   doc.setFillColor(...primary);
-  doc.roundedRect(pageWidth - margin - 85, y, 85, 13, 2, 2, 'F');
+  doc.rect(badgeX, y, 2.5, badgeH, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL', pageWidth - margin - 80, y + 8.5);
+  doc.text('TOTAL', badgeX + 7, y + 8.5);
   doc.setFontSize(13);
   doc.text(formatCurrency(venda.valor_final), totalsRight, y + 8.5, { align: 'right' });
   y += 22;
