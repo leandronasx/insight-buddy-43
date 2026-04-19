@@ -120,9 +120,9 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   const osNumber = venda.id.slice(0, 8).toUpperCase();
   const dataFormatada = new Date(venda.data_venda + 'T00:00:00').toLocaleDateString('pt-BR');
 
-  doc.setTextColor(...primary);
+  doc.setTextColor(...ink);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.text('ORDEM DE SERVIÇO', pageWidth - margin, headerTop + 11, { align: 'right' });
 
   doc.setTextColor(...ink);
