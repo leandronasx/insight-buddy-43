@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useEmpresa } from './useEmpresa';
 
 // Convert hex color to "H S% L%" string used by Tailwind via hsl(var(--token))
-function hexToHslString(hex: string | null | undefined): string | null {
+function hexToHsl(hex: string | null | undefined): { h: number; s: number; l: number } | null {
   if (!hex) return null;
   const m = hex.replace('#', '').match(/^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
   if (!m) return null;
@@ -24,27 +24,33 @@ function hexToHslString(hex: string | null | undefined): string | null {
     }
     h /= 6;
   }
-  const H = Math.round(h * 360);
-  const S = Math.round(s * 100);
-  const L = Math.round(l * 100);
-  return `${H} ${S}% ${L}%`;
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
-// Returns HSL string with L clamped for "foreground" contrast (light text on dark / dark text on light)
-function readableForeground(hsl: string | null): string {
-  if (!hsl) return '210 20% 95%';
-  const parts = hsl.split(' ');
-  const l = parseInt(parts[2], 10);
-  return l > 55 ? '220 20% 10%' : '210 20% 95%';
+const hslStr = (c: { h: number; s: number; l: number }) => `${c.h} ${c.s}% ${c.l}%`;
+const adjust = (c: { h: number; s: number; l: number }, dl: number, ds = 0) => ({
+  h: c.h,
+  s: Math.max(0, Math.min(100, c.s + ds)),
+  l: Math.max(0, Math.min(100, c.l + dl)),
+});
+
+// Foreground that contrasts with a given color (light text on dark bg / dark text on light bg)
+function readableForeground(c: { h: number; s: number; l: number } | null): string {
+  if (!c) return '210 20% 95%';
+  return c.l > 55 ? '220 20% 10%' : '210 20% 95%';
 }
 
-// Default tokens to restore when no empresa is loaded (matches index.css :root)
 const DEFAULTS = {
   primary: '142 60% 45%',
   primaryFg: '220 20% 10%',
   ring: '142 60% 45%',
   sidebarBg: '220 20% 8%',
+  sidebarFg: '210 20% 85%',
   sidebarPrimary: '142 60% 45%',
+  sidebarPrimaryFg: '220 20% 10%',
+  sidebarAccent: '220 15% 15%',
+  sidebarAccentFg: '210 20% 85%',
+  sidebarBorder: '220 15% 18%',
   sidebarRing: '142 60% 45%',
 };
 
@@ -54,28 +60,58 @@ export function useApplyBranding() {
   useEffect(() => {
     const root = document.documentElement;
 
-    const primary = hexToHslString(empresa?.cor_primaria) || DEFAULTS.primary;
-    const secondary = hexToHslString(empresa?.cor_secundaria);
+    const primaryHsl = hexToHsl(empresa?.cor_primaria);
+    const secondaryHsl = hexToHsl(empresa?.cor_secundaria);
 
-    // Apply primary across primary/ring/sidebar accents (most visible "brand" color)
-    root.style.setProperty('--primary', primary);
-    root.style.setProperty('--primary-foreground', readableForeground(primary));
-    root.style.setProperty('--ring', primary);
-    root.style.setProperty('--sidebar-primary', primary);
-    root.style.setProperty('--sidebar-primary-foreground', readableForeground(primary));
-    root.style.setProperty('--sidebar-ring', primary);
-    root.style.setProperty('--success', primary);
-
-    // Secondary color → sidebar background (darker shell of the app)
-    if (secondary) {
-      root.style.setProperty('--sidebar-background', secondary);
+    // === Primary brand color → buttons / links / focus rings ===
+    if (primaryHsl) {
+      root.style.setProperty('--primary', hslStr(primaryHsl));
+      root.style.setProperty('--primary-foreground', readableForeground(primaryHsl));
+      root.style.setProperty('--ring', hslStr(primaryHsl));
     } else {
-      root.style.setProperty('--sidebar-background', DEFAULTS.sidebarBg);
+      root.style.setProperty('--primary', DEFAULTS.primary);
+      root.style.setProperty('--primary-foreground', DEFAULTS.primaryFg);
+      root.style.setProperty('--ring', DEFAULTS.ring);
     }
 
-    return () => {
-      // No reset on unmount — branding should persist while logged in.
-      // It is reset only if empresa changes (handled by next effect run).
-    };
+    // === Sidebar: primária = fundo, secundária = item ativo, texto contrasta com primária ===
+    if (primaryHsl) {
+      const sidebarBg = primaryHsl;
+      const sidebarFg = readableForeground(sidebarBg);
+      // Hover = leve tint sobre o fundo (10% mais claro/escuro dependendo da luminosidade)
+      const hoverBg = primaryHsl.l > 55
+        ? adjust(primaryHsl, -8)
+        : adjust(primaryHsl, 8);
+      const borderTone = primaryHsl.l > 55
+        ? adjust(primaryHsl, -12)
+        : adjust(primaryHsl, 12);
+
+      // Item ativo usa secundária se houver, senão um tint mais escuro/claro da primária
+      const activeBg = secondaryHsl ?? (primaryHsl.l > 55 ? adjust(primaryHsl, -18) : adjust(primaryHsl, 18));
+      const activeFg = readableForeground(activeBg);
+
+      root.style.setProperty('--sidebar-background', hslStr(sidebarBg));
+      root.style.setProperty('--sidebar-foreground', sidebarFg);
+      root.style.setProperty('--sidebar-primary', hslStr(activeBg));
+      root.style.setProperty('--sidebar-primary-foreground', activeFg);
+      root.style.setProperty('--sidebar-accent', hslStr(activeBg));
+      root.style.setProperty('--sidebar-accent-foreground', activeFg);
+      root.style.setProperty('--sidebar-border', hslStr(borderTone));
+      root.style.setProperty('--sidebar-ring', hslStr(activeBg));
+      // Custom token para hover suave (consumido via classe utilitária no AppLayout)
+      root.style.setProperty('--sidebar-hover', hslStr(hoverBg));
+      root.style.setProperty('--sidebar-hover-foreground', sidebarFg);
+    } else {
+      root.style.setProperty('--sidebar-background', DEFAULTS.sidebarBg);
+      root.style.setProperty('--sidebar-foreground', DEFAULTS.sidebarFg);
+      root.style.setProperty('--sidebar-primary', DEFAULTS.sidebarPrimary);
+      root.style.setProperty('--sidebar-primary-foreground', DEFAULTS.sidebarPrimaryFg);
+      root.style.setProperty('--sidebar-accent', DEFAULTS.sidebarAccent);
+      root.style.setProperty('--sidebar-accent-foreground', DEFAULTS.sidebarAccentFg);
+      root.style.setProperty('--sidebar-border', DEFAULTS.sidebarBorder);
+      root.style.setProperty('--sidebar-ring', DEFAULTS.sidebarRing);
+      root.style.setProperty('--sidebar-hover', DEFAULTS.sidebarAccent);
+      root.style.setProperty('--sidebar-hover-foreground', DEFAULTS.sidebarAccentFg);
+    }
   }, [empresa?.cor_primaria, empresa?.cor_secundaria]);
 }
