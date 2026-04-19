@@ -60,11 +60,25 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-primary'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                    : 'text-sidebar-foreground hover:translate-x-0.5'
                 }`}
+                style={
+                  !active
+                    ? {
+                        // Hover suave usando tint da cor primária da empresa
+                        ['--tw-bg-opacity' as never]: 1,
+                      }
+                    : undefined
+                }
+                onMouseEnter={e => {
+                  if (!active) e.currentTarget.style.backgroundColor = 'hsl(var(--sidebar-hover))';
+                }}
+                onMouseLeave={e => {
+                  if (!active) e.currentTarget.style.backgroundColor = '';
+                }}
               >
                 <item.icon className="h-5 w-5" />
                 {item.label}
