@@ -10,7 +10,7 @@ import { MonthSelector } from './MonthSelector';
 function BrandHeader({ logoUrl, name, compact = false }: { logoUrl?: string | null; name?: string | null; compact?: boolean }) {
   if (logoUrl) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center w-full">
         <img
           src={logoUrl}
           alt={name || 'Logo'}
