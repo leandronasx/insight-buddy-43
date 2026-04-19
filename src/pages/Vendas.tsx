@@ -195,11 +195,6 @@ export default function Vendas() {
                   <span className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                     <Calendar className="h-3 w-3" />{new Date(v.data_venda + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </span>
-                  {v.servicos.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {v.servicos.map(s => s.estofado).filter(Boolean).join(', ')}
-                    </p>
-                  )}
                 </div>
                 <div className="text-right">
                   <p className="font-display font-bold text-primary">{formatCurrency(v.valor_final)}</p>
