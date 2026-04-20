@@ -65,9 +65,11 @@ export function useVendas() {
   });
 
   // Fetch servicos for all vendas in the month
+  // Stable serialized key avoids infinite refetch from new array reference each render
   const vendaIds = vendas.map(v => v.id);
+  const vendaIdsKey = vendaIds.slice().sort().join(',');
   const { data: servicosByVenda = {} } = useQuery({
-    queryKey: ['servicos-by-venda', empresa?.id, month, year, vendaIds],
+    queryKey: ['servicos-by-venda', empresa?.id, vendaIdsKey],
     queryFn: async () => {
       if (!empresa || vendaIds.length === 0) return {};
       const { data, error } = await supabase

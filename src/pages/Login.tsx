@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
 
-export default function Login() {
+function LoginInner() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,3 +71,13 @@ export default function Login() {
     </div>
   );
 }
+
+// Wrap with forwardRef so parent components (e.g. animations) can pass refs without warning
+const Login = forwardRef<HTMLDivElement>((_, ref) => (
+  <div ref={ref}>
+    <LoginInner />
+  </div>
+));
+Login.displayName = 'Login';
+
+export default Login;
