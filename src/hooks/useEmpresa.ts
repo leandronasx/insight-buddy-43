@@ -31,9 +31,9 @@ export function useEmpresa() {
         .from('empresas')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data as Empresa;
+      return data as Empresa | null;
     },
     enabled: !!user,
   });
