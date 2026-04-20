@@ -48,16 +48,16 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
 
-  // Brand color (used sparingly as accent). Everything else stays neutral.
-  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);   // accent: header strip + TOTAL
+  // Brand colors — primária para destaques (agendamento, total), secundária no header
+  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);
+  const secondary = hexToRgb(empresa.cor_secundaria, [59, 130, 246]);
 
   // Neutral palette — preto forte para títulos, cinza escuro para corpo
   const ink: [number, number, number] = [0, 0, 0];              // títulos bold (preto puro)
   const text: [number, number, number] = [55, 65, 81];          // corpo (cinza escuro legível)
-  const muted: [number, number, number] = [75, 85, 99];         // labels / secundário (mais escuro que antes)
+  const muted: [number, number, number] = [75, 85, 99];         // labels / secundário
   const softBg: [number, number, number] = [248, 250, 252];     // blocos suaves
   const borderColor: [number, number, number] = [226, 232, 240];
-  const headerBg: [number, number, number] = [255, 255, 255];   // header neutro
 
   // Try to load logo
   const logo = empresa.logo_url ? await loadImage(empresa.logo_url) : null;
