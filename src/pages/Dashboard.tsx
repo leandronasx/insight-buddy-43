@@ -91,7 +91,7 @@ export default function Dashboard() {
 
         <motion.div variants={item} className="metric-card">
           <div className="flex items-center gap-2 mb-2">
-            <Receipt className="h-5 w-5 text-negative" />
+            <Receipt className="h-5 w-5 text-warning" />
             <span className="text-xs text-muted-foreground">Investimento em Tráfego</span>
           </div>
           <p className="font-display text-2xl font-bold text-foreground">{formatCurrency(data.investimentoTrafego)}</p>
