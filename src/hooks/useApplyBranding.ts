@@ -74,21 +74,27 @@ export function useApplyBranding() {
       root.style.setProperty('--ring', DEFAULTS.ring);
     }
 
-    // === Sidebar: primária = fundo, secundária = item ativo, texto contrasta com primária ===
-    if (primaryHsl) {
-      const sidebarBg = primaryHsl;
-      const sidebarFg = readableForeground(sidebarBg);
-      // Hover = leve tint sobre o fundo (10% mais claro/escuro dependendo da luminosidade)
-      const hoverBg = primaryHsl.l > 55
-        ? adjust(primaryHsl, -8)
-        : adjust(primaryHsl, 8);
-      const borderTone = primaryHsl.l > 55
-        ? adjust(primaryHsl, -12)
-        : adjust(primaryHsl, 12);
+    // === Sidebar ===
+    // Fundo = SECUNDÁRIA (fallback: tom suave da primária ou neutro claro)
+    // Botão ativo = PRIMÁRIA, com texto branco/contraste
+    // Hover = tom intermediário da paleta
+    const sidebarBg = secondaryHsl ?? (primaryHsl ? adjust(primaryHsl, 45, -40) : null);
 
-      // Item ativo usa secundária se houver, senão um tint mais escuro/claro da primária
-      const activeBg = secondaryHsl ?? (primaryHsl.l > 55 ? adjust(primaryHsl, -18) : adjust(primaryHsl, 18));
+    if (sidebarBg && primaryHsl) {
+      const sidebarFg = readableForeground(sidebarBg);
+
+      // Item ativo = cor primária da empresa
+      const activeBg = primaryHsl;
       const activeFg = readableForeground(activeBg);
+
+      // Hover sobre o fundo: leve tint deslocado da primária, suave sobre o fundo
+      const hoverBg = sidebarBg.l > 55
+        ? adjust(primaryHsl, 30, -20) // claro: tom mais pastel da primária
+        : adjust(primaryHsl, -15);    // escuro: primária um pouco mais escura
+      const hoverFg = readableForeground(hoverBg);
+
+      // Borda sutil derivada do fundo
+      const borderTone = sidebarBg.l > 55 ? adjust(sidebarBg, -10) : adjust(sidebarBg, 10);
 
       root.style.setProperty('--sidebar-background', hslStr(sidebarBg));
       root.style.setProperty('--sidebar-foreground', sidebarFg);
@@ -98,9 +104,8 @@ export function useApplyBranding() {
       root.style.setProperty('--sidebar-accent-foreground', activeFg);
       root.style.setProperty('--sidebar-border', hslStr(borderTone));
       root.style.setProperty('--sidebar-ring', hslStr(activeBg));
-      // Custom token para hover suave (consumido via classe utilitária no AppLayout)
       root.style.setProperty('--sidebar-hover', hslStr(hoverBg));
-      root.style.setProperty('--sidebar-hover-foreground', sidebarFg);
+      root.style.setProperty('--sidebar-hover-foreground', hoverFg);
     } else {
       root.style.setProperty('--sidebar-background', DEFAULTS.sidebarBg);
       root.style.setProperty('--sidebar-foreground', DEFAULTS.sidebarFg);
