@@ -94,7 +94,7 @@ export default function Dashboard() {
             <Receipt className="h-5 w-5 text-negative" />
             <span className="text-xs text-muted-foreground">Investimento em Tráfego</span>
           </div>
-          <p className="font-display text-2xl font-bold text-negative">{formatCurrency(data.investimentoTrafego)}</p>
+          <p className="font-display text-2xl font-bold text-foreground">{formatCurrency(data.investimentoTrafego)}</p>
           <p className="text-xs text-muted-foreground mt-1">Custo operacional: {formatCurrency(data.custoOperacional)}</p>
         </motion.div>
 
