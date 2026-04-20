@@ -48,16 +48,16 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   const margin = 15;
   const contentWidth = pageWidth - margin * 2;
 
-  // Brand color (used sparingly as accent). Everything else stays neutral.
-  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);   // accent: header strip + TOTAL
+  // Brand colors — primária para destaques (agendamento, total), secundária no header
+  const primary = hexToRgb(empresa.cor_primaria, [34, 197, 94]);
+  const secondary = hexToRgb(empresa.cor_secundaria, [59, 130, 246]);
 
   // Neutral palette — preto forte para títulos, cinza escuro para corpo
   const ink: [number, number, number] = [0, 0, 0];              // títulos bold (preto puro)
   const text: [number, number, number] = [55, 65, 81];          // corpo (cinza escuro legível)
-  const muted: [number, number, number] = [75, 85, 99];         // labels / secundário (mais escuro que antes)
+  const muted: [number, number, number] = [75, 85, 99];         // labels / secundário
   const softBg: [number, number, number] = [248, 250, 252];     // blocos suaves
   const borderColor: [number, number, number] = [226, 232, 240];
-  const headerBg: [number, number, number] = [255, 255, 255];   // header neutro
 
   // Try to load logo
   const logo = empresa.logo_url ? await loadImage(empresa.logo_url) : null;
@@ -67,10 +67,10 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   doc.setFillColor(...primary);
   doc.rect(0, 0, pageWidth, accentH, 'F');
 
-  // ─── HEADER (fundo branco, texto escuro) ──────────────────────────────
+  // ─── HEADER (fundo com a cor SECUNDÁRIA da empresa) ───────────────────
   const headerTop = accentH;
   const headerH = 36;
-  doc.setFillColor(...headerBg);
+  doc.setFillColor(...secondary);
   doc.rect(0, headerTop, pageWidth, headerH, 'F');
   // Linha sutil separando o header do corpo
   doc.setDrawColor(...borderColor);
@@ -167,9 +167,9 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
 
   // ─── SCHEDULING (if present) ──────────────────────────────────────────
   if (venda.data_agendada || venda.horario_agendado) {
-    doc.setFillColor(241, 245, 249); // slate-100 neutro
+    doc.setFillColor(...primary);
     doc.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F');
-    doc.setTextColor(...ink);
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const agendaText: string[] = [];
@@ -245,22 +245,19 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     y += 6;
   }
 
-  // Total badge — fundo preto para máximo contraste, com barra lateral na cor da empresa
+  // Total badge — cor PRIMÁRIA da empresa, com largura adequada para o valor
   y += 2;
-  const badgeX = pageWidth - margin - 85;
-  const badgeW = 85;
-  const badgeH = 13;
-  doc.setFillColor(17, 24, 39); // quase preto (slate-900)
-  doc.roundedRect(badgeX, y, badgeW, badgeH, 2, 2, 'F');
-  // Barra lateral fina com a cor da empresa
+  const badgeW = 95;
+  const badgeX = pageWidth - margin - badgeW;
+  const badgeH = 14;
   doc.setFillColor(...primary);
-  doc.rect(badgeX, y, 2.5, badgeH, 'F');
+  doc.roundedRect(badgeX, y, badgeW, badgeH, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL', badgeX + 7, y + 8.5);
+  doc.text('TOTAL', badgeX + 6, y + 9);
   doc.setFontSize(13);
-  doc.text(formatCurrency(venda.valor_final), totalsRight, y + 8.5, { align: 'right' });
+  doc.text(formatCurrency(venda.valor_final), badgeX + badgeW - 6, y + 9, { align: 'right' });
   y += 22;
 
   // ─── SIGNATURES ───────────────────────────────────────────────────────
