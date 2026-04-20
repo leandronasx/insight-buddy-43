@@ -269,7 +269,7 @@ export default function Vendas() {
                 </SelectContent>
               </Select>
               {form.lead_id && (
-                <p className="text-xs text-primary mt-1">✓ Lead selecionado: {getLeadName(form.lead_id)}</p>
+                <p className="text-xs mt-1 text-positive">✓ Lead selecionado: {getLeadName(form.lead_id)}</p>
               )}
             </div>
 
@@ -292,7 +292,7 @@ export default function Vendas() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-foreground">Estofados / Serviços</label>
-                <button type="button" onClick={addServicoRow} className="text-sm text-primary hover:underline">
+                <button type="button" onClick={addServicoRow} className="text-sm hover:underline text-primary">
                   + Adicionar
                 </button>
               </div>
@@ -334,7 +334,7 @@ export default function Vendas() {
 
             <div className="metric-card">
               <p className="text-sm text-muted-foreground">Valor Final (R$)</p>
-              <p className="font-display text-xl font-bold text-primary">{formatCurrency(valorFinal)}</p>
+              <p className="font-display text-xl font-bold text-positive">{formatCurrency(valorFinal)}</p>
             </div>
 
             <Button onClick={handleSave} className="w-full" disabled={saveVenda.isPending}>
