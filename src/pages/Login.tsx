@@ -71,3 +71,13 @@ function LoginInner() {
     </div>
   );
 }
+
+// Wrap with forwardRef so parent components (e.g. animations) can pass refs without warning
+const Login = forwardRef<HTMLDivElement>((_, ref) => (
+  <div ref={ref}>
+    <LoginInner />
+  </div>
+));
+Login.displayName = 'Login';
+
+export default Login;
