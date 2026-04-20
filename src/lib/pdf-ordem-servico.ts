@@ -183,10 +183,11 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     y += 14;
   }
 
-  // ─── SERVICES TABLE (cabeçalho neutro) ───────────────────────────────
-  doc.setFillColor(241, 245, 249); // slate-100
+  // ─── SERVICES TABLE (cabeçalho com a cor SECUNDÁRIA) ─────────────────
+  doc.setFillColor(...secondary);
   doc.rect(margin, y, contentWidth, 9, 'F');
-  doc.setTextColor(...ink);
+  const headerFg: [number, number, number] = secondary[0] * 0.299 + secondary[1] * 0.587 + secondary[2] * 0.114 > 150 ? [0, 0, 0] : [255, 255, 255];
+  doc.setTextColor(...headerFg);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('#', margin + 4, y + 6);
