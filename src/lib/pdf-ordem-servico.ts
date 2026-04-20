@@ -245,22 +245,19 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
     y += 6;
   }
 
-  // Total badge — fundo preto para máximo contraste, com barra lateral na cor da empresa
+  // Total badge — cor PRIMÁRIA da empresa, com largura adequada para o valor
   y += 2;
-  const badgeX = pageWidth - margin - 85;
-  const badgeW = 85;
-  const badgeH = 13;
-  doc.setFillColor(17, 24, 39); // quase preto (slate-900)
-  doc.roundedRect(badgeX, y, badgeW, badgeH, 2, 2, 'F');
-  // Barra lateral fina com a cor da empresa
+  const badgeW = 95;
+  const badgeX = pageWidth - margin - badgeW;
+  const badgeH = 14;
   doc.setFillColor(...primary);
-  doc.rect(badgeX, y, 2.5, badgeH, 'F');
+  doc.roundedRect(badgeX, y, badgeW, badgeH, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL', badgeX + 7, y + 8.5);
+  doc.text('TOTAL', badgeX + 6, y + 9);
   doc.setFontSize(13);
-  doc.text(formatCurrency(venda.valor_final), totalsRight, y + 8.5, { align: 'right' });
+  doc.text(formatCurrency(venda.valor_final), badgeX + badgeW - 6, y + 9, { align: 'right' });
   y += 22;
 
   // ─── SIGNATURES ───────────────────────────────────────────────────────
