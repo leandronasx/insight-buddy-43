@@ -167,9 +167,9 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
 
   // ─── SCHEDULING (if present) ──────────────────────────────────────────
   if (venda.data_agendada || venda.horario_agendado) {
-    doc.setFillColor(241, 245, 249); // slate-100 neutro
+    doc.setFillColor(...primary);
     doc.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F');
-    doc.setTextColor(...ink);
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const agendaText: string[] = [];
