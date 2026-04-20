@@ -67,10 +67,10 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   doc.setFillColor(...primary);
   doc.rect(0, 0, pageWidth, accentH, 'F');
 
-  // ─── HEADER (fundo branco, texto escuro) ──────────────────────────────
+  // ─── HEADER (fundo com a cor SECUNDÁRIA da empresa) ───────────────────
   const headerTop = accentH;
   const headerH = 36;
-  doc.setFillColor(...headerBg);
+  doc.setFillColor(...secondary);
   doc.rect(0, headerTop, pageWidth, headerH, 'F');
   // Linha sutil separando o header do corpo
   doc.setDrawColor(...borderColor);
