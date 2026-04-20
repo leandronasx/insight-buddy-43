@@ -197,7 +197,7 @@ export default function Vendas() {
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="font-display font-bold text-primary">{formatCurrency(v.valor_final)}</p>
+                  <p className="font-display font-bold text-positive">{formatCurrency(v.valor_final)}</p>
                   {v.desconto > 0 && (
                     <p className="text-xs text-muted-foreground line-through">{formatCurrency(v.valor_cheio)}</p>
                   )}
