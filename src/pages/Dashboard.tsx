@@ -68,7 +68,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Orgânico</p>
-              <p className="font-display text-lg font-bold text-primary">{data.leadsOrganico}</p>
+              <p className="font-display text-lg font-bold text-positive">{data.leadsOrganico}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Indicação</p>
