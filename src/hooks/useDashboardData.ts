@@ -105,7 +105,7 @@ export function useChartData() {
         .lt('data_venda', `${year + 1}-01-01`);
 
       return months.map((mes, i) => {
-        const monthVendas = allVendas?.filter(v => new Date(v.data_venda).getMonth() === i) ?? [];
+        const monthVendas = allVendas?.filter(v => new Date(`${v.data_venda}T00:00:00`).getMonth() === i) ?? [];
         return { mes, faturamento: monthVendas.reduce((acc, v) => acc + Number(v.valor_final), 0) };
       });
     },
