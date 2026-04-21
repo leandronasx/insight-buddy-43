@@ -5,7 +5,7 @@ import { drawHeader, getOsNumber } from './pdf/header';
 import { drawClientSection, drawScheduling } from './pdf/client-section';
 import { drawServicesTable } from './pdf/services-table';
 import { drawTotals } from './pdf/totals';
-import { drawSignatures, drawFooter } from './pdf/signatures';
+import { drawSignatures, drawFooterAllPages } from './pdf/signatures';
 
 export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServicoData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -35,7 +35,7 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   y = drawServicesTable({ doc, layout, theme, venda, y });
   y = drawTotals({ doc, layout, theme, venda, y });
   drawSignatures({ doc, layout, theme, empresa, y });
-  drawFooter({ doc, layout, theme, empresa });
+  drawFooterAllPages({ doc, layout, theme, empresa });
 
   const osNumber = getOsNumber(venda);
   doc.save(`OS_${osNumber}_${(lead?.nome_lead || 'Cliente').replace(/\s+/g, '_')}.pdf`);

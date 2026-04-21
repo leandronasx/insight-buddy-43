@@ -3,6 +3,7 @@ import type { VendaComServicos } from '@/hooks/useVendas';
 import type { PdfLayout, PdfTheme } from './types';
 import { formatCurrency } from '@/lib/date-utils';
 import { getContrastFg } from './utils';
+import { ensureSpace, getContentBottom } from './pagination';
 
 interface ServicesArgs {
   doc: jsPDF;
@@ -12,11 +13,13 @@ interface ServicesArgs {
   y: number;
 }
 
-export function drawServicesTable({ doc, layout, theme, venda, y }: ServicesArgs): number {
-  const { pageWidth, margin, contentWidth } = layout;
+const ROW_H = 9;
+const HEADER_H = 9;
 
+function drawTableHeader(doc: jsPDF, layout: PdfLayout, theme: PdfTheme, y: number): number {
+  const { pageWidth, margin, contentWidth } = layout;
   doc.setFillColor(...theme.secondary);
-  doc.rect(margin, y, contentWidth, 9, 'F');
+  doc.rect(margin, y, contentWidth, HEADER_H, 'F');
   const headerFg = getContrastFg(theme.secondary);
   doc.setTextColor(...headerFg);
   doc.setFontSize(9);
@@ -25,12 +28,24 @@ export function drawServicesTable({ doc, layout, theme, venda, y }: ServicesArgs
   doc.text('ESTOFADO / SERVIÇO', margin + 14, y + 6);
   doc.text('TIPO', pageWidth - margin - 50, y + 6);
   doc.text('VALOR', pageWidth - margin - 4, y + 6, { align: 'right' });
-  y += 9;
+  return y + HEADER_H;
+}
+
+export function drawServicesTable({ doc, layout, theme, venda, y }: ServicesArgs): number {
+  const { pageWidth, margin, contentWidth } = layout;
+
+  y = drawTableHeader(doc, layout, theme, y);
 
   venda.servicos.forEach((s, i) => {
+    // Break to new page if next row + table header (for repeat) won't fit
+    if (y + ROW_H > getContentBottom(layout)) {
+      y = ensureSpace({ doc, layout, theme, y, needed: ROW_H + HEADER_H });
+      y = drawTableHeader(doc, layout, theme, y);
+    }
+
     if (i % 2 === 0) {
       doc.setFillColor(248, 250, 252);
-      doc.rect(margin, y, contentWidth, 9, 'F');
+      doc.rect(margin, y, contentWidth, ROW_H, 'F');
     }
     doc.setTextColor(51, 65, 85);
     doc.setFont('helvetica', 'normal');
@@ -50,7 +65,7 @@ export function drawServicesTable({ doc, layout, theme, venda, y }: ServicesArgs
     doc.setTextColor(...theme.ink);
     doc.setFont('helvetica', 'bold');
     doc.text(formatCurrency(s.valor), pageWidth - margin - 4, y + 6, { align: 'right' });
-    y += 9;
+    y += ROW_H;
   });
 
   return y;

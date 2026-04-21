@@ -2,6 +2,7 @@ import type jsPDF from 'jspdf';
 import type { VendaComServicos } from '@/hooks/useVendas';
 import type { PdfLayout, PdfTheme } from './types';
 import { formatCurrency } from '@/lib/date-utils';
+import { ensureSpace } from './pagination';
 
 interface TotalsArgs {
   doc: jsPDF;
@@ -13,6 +14,10 @@ interface TotalsArgs {
 
 export function drawTotals({ doc, layout, theme, venda, y }: TotalsArgs): number {
   const { pageWidth, margin } = layout;
+
+  // Reserve space for: divider + subtotal + (optional discount) + total badge (~38mm)
+  const needed = 38 + (venda.desconto > 0 ? 6 : 0);
+  y = ensureSpace({ doc, layout, theme, y, needed });
 
   y += 4;
   doc.setDrawColor(...theme.borderColor);

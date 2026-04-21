@@ -1,6 +1,7 @@
 import type jsPDF from 'jspdf';
 import type { Empresa } from '@/hooks/useEmpresa';
 import type { PdfLayout, PdfTheme } from './types';
+import { ensureSpace } from './pagination';
 
 interface SignaturesArgs {
   doc: jsPDF;
@@ -10,8 +11,12 @@ interface SignaturesArgs {
   y: number;
 }
 
-export function drawSignatures({ doc, layout, theme, empresa, y }: SignaturesArgs): void {
+export function drawSignatures({ doc, layout, theme, empresa, y }: SignaturesArgs): number {
   const { pageWidth, pageHeight, margin, contentWidth } = layout;
+
+  // Signatures need ~30mm minimum
+  y = ensureSpace({ doc, layout, theme, y, needed: 30 });
+
   const sigY = Math.max(y + 20, pageHeight - 35);
   doc.setDrawColor(...theme.borderColor);
   const sigWidth = (contentWidth - 20) / 2;
@@ -23,18 +28,36 @@ export function drawSignatures({ doc, layout, theme, empresa, y }: SignaturesArg
   doc.setTextColor(...theme.muted);
   doc.text('Assinatura do Cliente', margin + sigWidth / 2, sigY + 5, { align: 'center' });
   doc.text(`Assinatura — ${empresa.empresa_nome}`, margin + sigWidth + 20 + sigWidth / 2, sigY + 5, { align: 'center' });
+
+  return sigY + 8;
 }
 
-export function drawFooter({ doc, layout, theme, empresa }: Omit<SignaturesArgs, 'y'>): void {
+/**
+ * Draws footer on EVERY page (page numbers + company info).
+ */
+export function drawFooterAllPages({
+  doc,
+  layout,
+  theme,
+  empresa,
+}: Omit<SignaturesArgs, 'y'>): void {
   const { pageWidth, pageHeight, margin } = layout;
-  const footerY = pageHeight - 8;
-  doc.setDrawColor(...theme.borderColor);
-  doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
-  doc.setFontSize(7);
-  doc.setTextColor(...theme.muted);
-  const footerLeft: string[] = [empresa.empresa_nome];
-  if (empresa.telefone) footerLeft.push(empresa.telefone);
-  if (empresa.email) footerLeft.push(empresa.email);
-  doc.text(footerLeft.join('  •  '), margin, footerY);
-  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin, footerY, { align: 'right' });
+  const total = doc.getNumberOfPages();
+
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    const footerY = pageHeight - 8;
+    doc.setDrawColor(...theme.borderColor);
+    doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...theme.muted);
+    const footerLeft: string[] = [empresa.empresa_nome];
+    if (empresa.telefone) footerLeft.push(empresa.telefone);
+    if (empresa.email) footerLeft.push(empresa.email);
+    doc.text(footerLeft.join('  •  '), margin, footerY);
+
+    const right = `Emitido em ${new Date().toLocaleDateString('pt-BR')}  •  Página ${p} de ${total}`;
+    doc.text(right, pageWidth - margin, footerY, { align: 'right' });
+  }
 }
