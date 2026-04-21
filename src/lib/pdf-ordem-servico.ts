@@ -54,7 +54,6 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
 
   // Neutral palette — preto forte para títulos, cinza escuro para corpo
   const ink: [number, number, number] = [0, 0, 0];              // títulos bold (preto puro)
-  const text: [number, number, number] = [55, 65, 81];          // corpo (cinza escuro legível)
   const muted: [number, number, number] = [75, 85, 99];         // labels / secundário
   const softBg: [number, number, number] = [248, 250, 252];     // blocos suaves
   const borderColor: [number, number, number] = [226, 232, 240];
