@@ -59,10 +59,14 @@ export default function Vendas() {
   const openNew = () => {
     setEditingVenda(null);
     const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
+    // Last valid day of selected month (handles Feb 28/29, 30-day months, etc.)
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+    const day = isCurrentMonth ? today.getDate() : Math.min(today.getDate(), lastDayOfMonth);
     setForm({
       lead_id: '',
       desconto: '0',
-      data_venda: `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+      data_venda: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
       data_agendada: '',
       horario_agendado: '',
     });
