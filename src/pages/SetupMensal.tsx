@@ -101,11 +101,14 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={investimentoTrafego}
             onChange={e => setInvestimentoTrafego(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${invTrafegoNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {invTrafegoNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
         <div className="metric-card">
