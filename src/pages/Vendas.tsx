@@ -105,9 +105,45 @@ export default function Vendas() {
 
   const handleSave = async () => {
     if (!empresa) return;
+
+    // Validação: nenhum serviço com valor negativo
+    const hasNegativeServico = servicoRows.some(r => (parseFloat(r.valor) || 0) < 0);
+    if (hasNegativeServico) {
+      toast.error('Valores de serviço não podem ser negativos.');
+      return;
+    }
+
     const validRows = servicoRows.filter(r => (parseFloat(r.valor) || 0) > 0);
     if (validRows.length === 0) {
-      toast.error('Adicione pelo menos um estofado/serviço com valor.');
+      toast.error('Adicione pelo menos um estofado/serviço com valor maior que zero.');
+      return;
+    }
+
+    // Validação: desconto não pode ser negativo nem maior/igual ao total
+    if (desconto < 0) {
+      toast.error('O desconto não pode ser negativo.');
+      return;
+    }
+    if (desconto >= totalServicos) {
+      toast.error('O desconto não pode ser maior ou igual ao valor total dos serviços.');
+      return;
+    }
+    if (valorFinal <= 0) {
+      toast.error('O valor final da venda deve ser maior que zero.');
+      return;
+    }
+
+    // Validação: data da venda dentro do mês/ano selecionado no filtro global
+    if (form.data_venda) {
+      const [yStr, mStr] = form.data_venda.split('-');
+      const yNum = parseInt(yStr, 10);
+      const mNum = parseInt(mStr, 10);
+      if (yNum !== year || mNum !== month) {
+        toast.error('A data da venda deve estar dentro do mês selecionado no filtro.');
+        return;
+      }
+    } else {
+      toast.error('Informe a data da venda.');
       return;
     }
 
