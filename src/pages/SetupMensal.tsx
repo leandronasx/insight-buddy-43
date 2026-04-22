@@ -52,15 +52,21 @@ export default function SetupMensal() {
 
   const handleSave = async () => {
     if (!empresa) return;
+
+    if (hasNegative) {
+      toast.error('Os valores do setup não podem ser negativos.');
+      return;
+    }
+
     setLoading(true);
 
     const payload = {
       empresa_id: empresa.id,
       mes_referencia: month,
       ano_referencia: year,
-      investimento_trafego: parseFloat(investimentoTrafego) || 0,
-      custo_operacional: parseFloat(custoOperacional) || 0,
-      meta_faturamento: parseFloat(metaFaturamento) || 0,
+      investimento_trafego: invTrafegoNum,
+      custo_operacional: custoOpNum,
+      meta_faturamento: metaNum,
     };
 
     try {
@@ -68,10 +74,14 @@ export default function SetupMensal() {
         const { error } = await supabase.from('financeiro_mensal').update(payload).eq('id', existingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('financeiro_mensal').insert(payload);
+        const { data, error } = await supabase.from('financeiro_mensal').insert(payload).select('id').single();
         if (error) throw error;
+        if (data) setExistingId(data.id);
       }
-      toast.success(`Setup de ${label} salvo com sucesso!`);
+      // Recalcula automaticamente ROI, Lucro Líquido e demais métricas no Dashboard
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-chart'] });
+      toast.success(`Setup de ${label} salvo. ROI e Lucro Líquido recalculados.`);
     } catch (error: any) {
       toast.error('Erro ao salvar setup: ' + error.message);
     } finally {
