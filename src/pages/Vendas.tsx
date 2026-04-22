@@ -105,9 +105,45 @@ export default function Vendas() {
 
   const handleSave = async () => {
     if (!empresa) return;
+
+    // Validação: nenhum serviço com valor negativo
+    const hasNegativeServico = servicoRows.some(r => (parseFloat(r.valor) || 0) < 0);
+    if (hasNegativeServico) {
+      toast.error('Valores de serviço não podem ser negativos.');
+      return;
+    }
+
     const validRows = servicoRows.filter(r => (parseFloat(r.valor) || 0) > 0);
     if (validRows.length === 0) {
-      toast.error('Adicione pelo menos um estofado/serviço com valor.');
+      toast.error('Adicione pelo menos um estofado/serviço com valor maior que zero.');
+      return;
+    }
+
+    // Validação: desconto não pode ser negativo nem maior/igual ao total
+    if (desconto < 0) {
+      toast.error('O desconto não pode ser negativo.');
+      return;
+    }
+    if (desconto >= totalServicos) {
+      toast.error('O desconto não pode ser maior ou igual ao valor total dos serviços.');
+      return;
+    }
+    if (valorFinal <= 0) {
+      toast.error('O valor final da venda deve ser maior que zero.');
+      return;
+    }
+
+    // Validação: data da venda dentro do mês/ano selecionado no filtro global
+    if (form.data_venda) {
+      const [yStr, mStr] = form.data_venda.split('-');
+      const yNum = parseInt(yStr, 10);
+      const mNum = parseInt(mStr, 10);
+      if (yNum !== year || mNum !== month) {
+        toast.error('A data da venda deve estar dentro do mês selecionado no filtro.');
+        return;
+      }
+    } else {
+      toast.error('Informe a data da venda.');
       return;
     }
 
@@ -311,10 +347,11 @@ export default function Vendas() {
                     />
                     <Input
                       type="number"
+                      min="0"
                       value={row.valor}
                       onChange={e => updateServicoRow(i, 'valor', e.target.value)}
                       placeholder="Valor"
-                      className="bg-secondary border-border w-24"
+                      className={`bg-secondary border-border w-24 ${(parseFloat(row.valor) || 0) < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                     {servicoRows.length > 1 && (
                       <button type="button" onClick={() => removeServicoRow(i)} className="text-muted-foreground hover:text-destructive">
@@ -333,12 +370,24 @@ export default function Vendas() {
 
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Desconto (R$)</label>
-              <Input type="number" value={form.desconto} onChange={e => setForm({ ...form, desconto: e.target.value })} className="bg-secondary border-border" />
+              <Input
+                type="number"
+                min="0"
+                value={form.desconto}
+                onChange={e => setForm({ ...form, desconto: e.target.value })}
+                className={`bg-secondary border-border ${(desconto < 0 || desconto >= totalServicos) && totalServicos > 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              />
+              {desconto < 0 && (
+                <p className="text-xs text-destructive mt-1">Desconto não pode ser negativo.</p>
+              )}
+              {desconto >= totalServicos && totalServicos > 0 && (
+                <p className="text-xs text-destructive mt-1">Desconto não pode ser maior ou igual ao valor total.</p>
+              )}
             </div>
 
             <div className="metric-card">
               <p className="text-sm text-muted-foreground">Valor Final (R$)</p>
-              <p className="font-display text-xl font-bold text-positive">{formatCurrency(valorFinal)}</p>
+              <p className={`font-display text-xl font-bold ${valorFinal > 0 ? 'text-positive' : 'text-destructive'}`}>{formatCurrency(valorFinal)}</p>
             </div>
 
             <Button onClick={handleSave} className="w-full" disabled={saveVenda.isPending}>

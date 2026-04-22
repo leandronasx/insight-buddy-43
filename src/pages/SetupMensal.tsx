@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Save, DollarSign, Target, Briefcase } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
@@ -11,11 +12,17 @@ import { Input } from '@/components/ui/input';
 export default function SetupMensal() {
   const { empresa } = useEmpresa();
   const { month, year, label } = useMonth();
+  const queryClient = useQueryClient();
   const [investimentoTrafego, setInvestimentoTrafego] = useState('');
   const [custoOperacional, setCustoOperacional] = useState('');
   const [metaFaturamento, setMetaFaturamento] = useState('');
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const invTrafegoNum = parseFloat(investimentoTrafego) || 0;
+  const custoOpNum = parseFloat(custoOperacional) || 0;
+  const metaNum = parseFloat(metaFaturamento) || 0;
+  const hasNegative = invTrafegoNum < 0 || custoOpNum < 0 || metaNum < 0;
 
   useEffect(() => {
     if (!empresa) return;
@@ -45,15 +52,21 @@ export default function SetupMensal() {
 
   const handleSave = async () => {
     if (!empresa) return;
+
+    if (hasNegative) {
+      toast.error('Os valores do setup não podem ser negativos.');
+      return;
+    }
+
     setLoading(true);
 
     const payload = {
       empresa_id: empresa.id,
       mes_referencia: month,
       ano_referencia: year,
-      investimento_trafego: parseFloat(investimentoTrafego) || 0,
-      custo_operacional: parseFloat(custoOperacional) || 0,
-      meta_faturamento: parseFloat(metaFaturamento) || 0,
+      investimento_trafego: invTrafegoNum,
+      custo_operacional: custoOpNum,
+      meta_faturamento: metaNum,
     };
 
     try {
@@ -61,10 +74,14 @@ export default function SetupMensal() {
         const { error } = await supabase.from('financeiro_mensal').update(payload).eq('id', existingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('financeiro_mensal').insert(payload);
+        const { data, error } = await supabase.from('financeiro_mensal').insert(payload).select('id').single();
         if (error) throw error;
+        if (data) setExistingId(data.id);
       }
-      toast.success(`Setup de ${label} salvo com sucesso!`);
+      // Recalcula automaticamente ROI, Lucro Líquido e demais métricas no Dashboard
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-chart'] });
+      toast.success(`Setup de ${label} salvo. ROI e Lucro Líquido recalculados.`);
     } catch (error: any) {
       toast.error('Erro ao salvar setup: ' + error.message);
     } finally {
@@ -84,11 +101,14 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={investimentoTrafego}
             onChange={e => setInvestimentoTrafego(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${invTrafegoNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {invTrafegoNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
         <div className="metric-card">
@@ -98,11 +118,14 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={custoOperacional}
             onChange={e => setCustoOperacional(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${custoOpNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {custoOpNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
         <div className="metric-card">
@@ -112,14 +135,17 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={metaFaturamento}
             onChange={e => setMetaFaturamento(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${metaNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {metaNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
-        <Button onClick={handleSave} className="w-full" disabled={loading}>
+        <Button onClick={handleSave} className="w-full" disabled={loading || hasNegative}>
           <Save className="h-4 w-4 mr-2" />
           {loading ? 'Salvando...' : 'Salvar Setup'}
         </Button>
