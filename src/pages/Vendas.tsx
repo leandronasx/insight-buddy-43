@@ -347,10 +347,11 @@ export default function Vendas() {
                     />
                     <Input
                       type="number"
+                      min="0"
                       value={row.valor}
                       onChange={e => updateServicoRow(i, 'valor', e.target.value)}
                       placeholder="Valor"
-                      className="bg-secondary border-border w-24"
+                      className={`bg-secondary border-border w-24 ${(parseFloat(row.valor) || 0) < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
                     {servicoRows.length > 1 && (
                       <button type="button" onClick={() => removeServicoRow(i)} className="text-muted-foreground hover:text-destructive">
