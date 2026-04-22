@@ -369,12 +369,24 @@ export default function Vendas() {
 
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Desconto (R$)</label>
-              <Input type="number" value={form.desconto} onChange={e => setForm({ ...form, desconto: e.target.value })} className="bg-secondary border-border" />
+              <Input
+                type="number"
+                min="0"
+                value={form.desconto}
+                onChange={e => setForm({ ...form, desconto: e.target.value })}
+                className={`bg-secondary border-border ${(desconto < 0 || desconto >= totalServicos) && totalServicos > 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              />
+              {desconto < 0 && (
+                <p className="text-xs text-destructive mt-1">Desconto não pode ser negativo.</p>
+              )}
+              {desconto >= totalServicos && totalServicos > 0 && (
+                <p className="text-xs text-destructive mt-1">Desconto não pode ser maior ou igual ao valor total.</p>
+              )}
             </div>
 
             <div className="metric-card">
               <p className="text-sm text-muted-foreground">Valor Final (R$)</p>
-              <p className="font-display text-xl font-bold text-positive">{formatCurrency(valorFinal)}</p>
+              <p className={`font-display text-xl font-bold ${valorFinal > 0 ? 'text-positive' : 'text-destructive'}`}>{formatCurrency(valorFinal)}</p>
             </div>
 
             <Button onClick={handleSave} className="w-full" disabled={saveVenda.isPending}>
