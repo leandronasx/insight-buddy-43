@@ -118,11 +118,14 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={custoOperacional}
             onChange={e => setCustoOperacional(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${custoOpNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {custoOpNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
         <div className="metric-card">
