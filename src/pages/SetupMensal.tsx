@@ -135,11 +135,14 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number"
+            min="0"
+            step="0.01"
             value={metaFaturamento}
             onChange={e => setMetaFaturamento(e.target.value)}
             placeholder="0.00"
-            className="bg-secondary border-border"
+            className={`bg-secondary border-border ${metaNum < 0 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
           />
+          {metaNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
         <Button onClick={handleSave} className="w-full" disabled={loading}>
