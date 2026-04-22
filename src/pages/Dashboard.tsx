@@ -152,7 +152,7 @@ export default function Dashboard() {
                 contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
                 formatter={(value: number) => [formatCurrency(value), 'Faturamento']}
               />
-              <Bar dataKey="faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="faturamento" fill="hsl(var(--positive))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
