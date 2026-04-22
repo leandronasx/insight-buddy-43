@@ -145,7 +145,7 @@ export default function SetupMensal() {
           {metaNum < 0 && <p className="text-xs text-destructive mt-1">Não pode ser negativo.</p>}
         </div>
 
-        <Button onClick={handleSave} className="w-full" disabled={loading}>
+        <Button onClick={handleSave} className="w-full" disabled={loading || hasNegative}>
           <Save className="h-4 w-4 mr-2" />
           {loading ? 'Salvando...' : 'Salvar Setup'}
         </Button>
