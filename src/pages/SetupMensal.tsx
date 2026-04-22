@@ -12,11 +12,17 @@ import { Input } from '@/components/ui/input';
 export default function SetupMensal() {
   const { empresa } = useEmpresa();
   const { month, year, label } = useMonth();
+  const queryClient = useQueryClient();
   const [investimentoTrafego, setInvestimentoTrafego] = useState('');
   const [custoOperacional, setCustoOperacional] = useState('');
   const [metaFaturamento, setMetaFaturamento] = useState('');
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const invTrafegoNum = parseFloat(investimentoTrafego) || 0;
+  const custoOpNum = parseFloat(custoOperacional) || 0;
+  const metaNum = parseFloat(metaFaturamento) || 0;
+  const hasNegative = invTrafegoNum < 0 || custoOpNum < 0 || metaNum < 0;
 
   useEffect(() => {
     if (!empresa) return;
