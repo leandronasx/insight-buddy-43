@@ -89,14 +89,14 @@ export function OSPreviewModal({ open, onClose, venda, empresa, lead }: OSPrevie
             <div className="flex items-start justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 {empresa.logo_url ? (
-                  <img src={empresa.logo_url} alt={empresa.empresa_nome} className="h-10 w-auto max-w-[100px] object-contain" />
+                  <img src={empresa.logo_url} alt={empresa.nome_empresa} className="h-10 w-auto max-w-[100px] object-contain" />
                 ) : (
                   <div className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: accentColor }}>
-                    {empresa.empresa_nome.charAt(0).toUpperCase()}
+                    {empresa.nome_empresa.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <p className="font-bold text-base text-gray-900">{empresa.empresa_nome}</p>
+                  <p className="font-bold text-base text-gray-900">{empresa.nome_empresa}</p>
                   {empresa.telefone && <p className="text-xs text-gray-500">{empresa.telefone}</p>}
                   {empresa.endereco && <p className="text-xs text-gray-500">{empresa.endereco}</p>}
                 </div>
@@ -117,7 +117,7 @@ export function OSPreviewModal({ open, onClose, venda, empresa, lead }: OSPrevie
                 </div>
                 {lead?.telefone && <p className="text-sm text-gray-600">{lead.telefone}</p>}
                 {lead?.email && <p className="text-xs text-gray-500 col-span-2">{lead.email}</p>}
-                {lead?.cpf_cnpj && <p className="text-xs text-gray-500">CPF/CNPJ: {lead.cpf_cnpj}</p>}
+                {lead?.cnpj_cpf && <p className="text-xs text-gray-500">CPF/CNPJ: {lead.cnpj_cpf}</p>}
                 {lead?.endereco && <p className="text-xs text-gray-500 col-span-2">{lead.endereco}</p>}
               </div>
             </div>
@@ -202,7 +202,7 @@ export function OSPreviewModal({ open, onClose, venda, empresa, lead }: OSPrevie
 
             {/* Footer */}
             <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 text-center">
-              <p className="text-[10px] text-gray-400">{empresa.empresa_nome} • Obrigado pela preferência!</p>
+              <p className="text-[10px] text-gray-400">{empresa.nome_empresa} • Obrigado pela preferência!</p>
             </div>
           </motion.div>
 

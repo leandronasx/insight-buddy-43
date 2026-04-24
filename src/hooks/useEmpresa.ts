@@ -7,6 +7,7 @@ export interface Empresa {
   id_usuario: string;
   nome_empresa: string;
   nome_dono: string | null;
+  telefone: string | null;
   data_inicio: string | null;
   data_termino: string | null;
   endereco: string | null;
