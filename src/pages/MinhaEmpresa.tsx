@@ -13,7 +13,7 @@ export default function MinhaEmpresa() {
   const { empresa, loading, updateEmpresa } = useEmpresa();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
-    empresa_nome: '',
+    nome_empresa: '',
     nome_dono: '',
     endereco: '',
     cnpj_cpf: '',
@@ -26,7 +26,7 @@ export default function MinhaEmpresa() {
   useEffect(() => {
     if (empresa) {
       setForm({
-        empresa_nome: empresa.empresa_nome || '',
+        nome_empresa: empresa.nome_empresa || '',
         nome_dono: empresa.nome_dono || '',
         endereco: empresa.endereco || '',
         cnpj_cpf: empresa.cnpj_cpf || '',
@@ -58,7 +58,7 @@ export default function MinhaEmpresa() {
   const handleSave = async () => {
     try {
       await updateEmpresa.mutateAsync({
-        empresa_nome: form.empresa_nome,
+        nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono || null,
         endereco: form.endereco || null,
         cnpj_cpf: form.cnpj_cpf || null,
@@ -100,7 +100,7 @@ export default function MinhaEmpresa() {
             <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
               <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
             </label>
-            <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" />
+            <Input value={form.nome_empresa} onChange={e => setForm({ ...form, nome_empresa: e.target.value })} className="bg-secondary border-border" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
@@ -144,7 +144,7 @@ export default function MinhaEmpresa() {
         </div>
       </div>
 
-      <Button onClick={handleSave} className="w-full" disabled={updateEmpresa.isPending || !form.empresa_nome}>
+      <Button onClick={handleSave} className="w-full" disabled={updateEmpresa.isPending || !form.nome_empresa}>
         <Save className="h-4 w-4 mr-2" />
         {updateEmpresa.isPending ? 'Salvando...' : 'Salvar Informações'}
       </Button>

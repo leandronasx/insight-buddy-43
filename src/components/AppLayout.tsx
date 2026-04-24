@@ -159,7 +159,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Sidebar desktop */}
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border p-4 gap-4">
         <div className="mb-2">
-          <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} />
+          <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.nome_empresa} />
         </div>
         {renderNav()}
         <button
@@ -173,7 +173,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-        <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.empresa_nome} compact />
+        <BrandHeader logoUrl={empresa?.logo_url} name={empresa?.nome_empresa} compact />
         <div className="flex items-center gap-1">
           <NotificacoesBell />
           <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground p-1">
@@ -201,7 +201,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center justify-between mb-6">
           <div>
             {empresa && (
-              <h2 className="font-display text-2xl font-bold text-foreground">{empresa.empresa_nome}</h2>
+              <h2 className="font-display text-2xl font-bold text-foreground">{empresa.nome_empresa}</h2>
             )}
           </div>
           <div className="flex items-center gap-2">

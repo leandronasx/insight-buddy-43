@@ -18,9 +18,14 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
+const STATUS_OPTIONS = ['pendente', 'confirmado', 'cancelado', 'concluido'] as const;
 
-
-
+const statusColors: Record<string, string> = {
+  pendente:   'bg-yellow-500/20 text-yellow-400',
+  confirmado: 'bg-blue-500/20 text-blue-400',
+  cancelado:  'bg-destructive/20 text-destructive',
+  concluido:  'bg-primary/20 text-primary',
+};
 
 interface ItemRow { estofado: string; valor: string; bonus: string; }
 
@@ -34,17 +39,18 @@ export default function Vendas() {
   const [editingVenda, setEditingVenda] = useState<VendaComItens | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ lead_id: '',  data_venda: '', data_agendada: '', horario_agendado: '' });
+  const [form, setForm] = useState({ id_leads: '', status: 'pendente', data_venda: '', data_servico: '', horario_servico: '' });
   const [itemRows, setItemRows] = useState<ItemRow[]>([{ estofado: '', valor: '', bonus: '0' }]);
 
-  const getLeadName = (leadId: string) => leadOptions.find(l => l.id === leadId)?.nome_lead ?? '—';
+  const getLeadName = (leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—';
 
   const filtered = useMemo(() => {
     if (!search.trim()) return vendas;
     const q = search.toLowerCase();
     return vendas.filter(v =>
-      getLeadName(v.lead_id).toLowerCase().includes(q) ||
-      ("").toLowerCase().includes(q)
+      getLeadName(v.id_leads).toLowerCase().includes(q) ||
+      v.status.toLowerCase().includes(q) ||
+      v.itens.some(i => i.estofado.toLowerCase().includes(q))
     );
   }, [vendas, search, leadOptions]);
 
@@ -58,7 +64,7 @@ export default function Vendas() {
 
   const openNew = () => {
     setEditingVenda(null);
-    setForm({ lead_id: '',  data_venda: today, data_agendada: '', horario_agendado: '' });
+    setForm({ id_leads: '', status: 'pendente', data_venda: today, data_servico: '', horario_servico: '' });
     setItemRows([{ estofado: '', valor: '', bonus: '0' }]);
     setModalOpen(true);
   };
@@ -66,30 +72,30 @@ export default function Vendas() {
   const openEdit = (v: VendaComItens) => {
     setEditingVenda(v);
     setForm({
-      lead_id: v.lead_id,
-
+      id_leads: v.id_leads,
+      status: v.status,
       data_venda: v.data_venda,
-      data_agendada: v.data_agendada || '',
-      horario_agendado: v.horario_agendado?.slice(0, 5) || '',
+      data_servico: v.data_servico || '',
+      horario_servico: v.horario_servico?.slice(0, 5) || '',
     });
-    setItemRows(v.servicos && v.servicos.length > 0
-      ? v.servicos.map((i: any) => ({ estofado: i.estofado || '', valor: String(i.valor || 0), bonus: '0' }))
+    setItemRows(v.itens.length > 0
+      ? v.itens.map(i => ({ estofado: i.estofado, valor: String(i.valor), bonus: String(i.bonus ?? 0) }))
       : [{ estofado: '', valor: '', bonus: '0' }]
     );
     setModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!empresa || !form.lead_id) { toast.error('Selecione um lead'); return; }
+    if (!empresa || !form.id_leads) { toast.error('Selecione um lead'); return; }
     try {
       await saveVenda.mutateAsync({
         ...(editingVenda ? { id: editingVenda.id } : {}),
-        lead_id: form.lead_id,
-
+        id_leads: form.id_leads,
+        status: form.status as any,
         data_venda: form.data_venda || today,
-        data_agendada: form.data_agendada || null,
-        horario_agendado: form.horario_agendado || null,
-        servicos: itemRows
+        data_servico: form.data_servico || null,
+        horario_servico: form.horario_servico || null,
+        itens: itemRows
           .filter(r => r.estofado.trim())
           .map(r => ({ estofado: r.estofado, valor: parseFloat(r.valor) || 0, bonus: parseFloat(r.bonus) || 0 })),
       });
@@ -128,7 +134,7 @@ export default function Vendas() {
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
             ['Lead', 'Status', 'Data Venda', 'Data Serviço', 'Total'],
-            filtered.map(v => [getLeadName(v.lead_id), "", v.data_venda, v.data_agendada ?? '', formatCurrency(v.valor_total)])
+            filtered.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_total)])
           )
         }>
           <Download className="h-4 w-4 mr-1" /> Exportar
@@ -148,13 +154,13 @@ export default function Vendas() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium text-foreground">{getLeadName(v.lead_id)}</p>
-
+                  <p className="font-medium text-foreground">{getLeadName(v.id_leads)}</p>
+                  <Badge className={`text-xs ${statusColors[v.status]}`}>{v.status}</Badge>
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                   <span>Venda: {new Date(v.data_venda + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                  {v.data_agendada && <span>Serviço: {new Date(v.data_agendada + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
-
+                  {v.data_servico && <span>Serviço: {new Date(v.data_servico + 'T00:00:00').toLocaleDateString('pt-BR')}</span>}
+                  {v.itens.length > 0 && <span>{v.itens.length} item(ns)</span>}
                 </div>
               </div>
               <span className="font-display font-bold text-positive flex-shrink-0">{formatCurrency(v.valor_total)}</span>
@@ -200,17 +206,23 @@ export default function Vendas() {
             {/* Lead */}
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-medium">Lead / Cliente *</label>
-              <Select value={form.lead_id} onValueChange={v => setForm({ ...form, lead_id: v })}>
+              <Select value={form.id_leads} onValueChange={v => setForm({ ...form, id_leads: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione o lead" /></SelectTrigger>
                 <SelectContent>
-                  {leadOptions.map(l => <SelectItem key={l.id} value={l.id}>{l.nome_lead}</SelectItem>)}
+                  {leadOptions.map(l => <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Status + Data venda */}
             <div className="grid grid-cols-2 gap-3">
-
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium">Status</label>
+                <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Data da Venda</label>
                 <Input type="date" value={form.data_venda} onChange={e => setForm({ ...form, data_venda: e.target.value })} />
@@ -221,11 +233,11 @@ export default function Vendas() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Data do Serviço</label>
-                <Input type="date" value={form.data_agendada} onChange={e => setForm({ ...form, data_agendada: e.target.value })} />
+                <Input type="date" value={form.data_servico} onChange={e => setForm({ ...form, data_servico: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Horário</label>
-                <Input type="time" value={form.horario_agendado} onChange={e => setForm({ ...form, horario_agendado: e.target.value })} />
+                <Input type="time" value={form.horario_servico} onChange={e => setForm({ ...form, horario_servico: e.target.value })} />
               </div>
             </div>
 
@@ -285,7 +297,7 @@ export default function Vendas() {
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">Excluir Venda</AlertDialogTitle>
-            <AlertDialogDescription>Tem certeza? Os servicos vinculados também serão excluídos.</AlertDialogDescription>
+            <AlertDialogDescription>Tem certeza? Os itens vinculados também serão excluídos.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -301,7 +313,7 @@ export default function Vendas() {
           onClose={() => setOsPreviewVenda(null)}
           venda={osPreviewVenda}
           empresa={empresa}
-          lead={leadOptions.find(l => l.id === osPreviewVenda.lead_id) || null}
+          lead={leadOptions.find(l => l.id === osPreviewVenda.id_leads) || null}
         />
       )}
     </div>

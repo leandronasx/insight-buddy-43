@@ -6,210 +6,131 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+export interface Database {
   public: {
     Tables: {
-      usuarios: {
+      user_roles: {
         Row: {
           id: string
-          email: string
-          senha: string | null
-          status: string
-          permissao: string
-          data_criacao: string
-          data_atualizacao: string
+          user_id: string
+          role: 'admin' | 'user'
         }
         Insert: {
-          id: string
-          email: string
-          senha?: string | null
-          status?: string
-          permissao?: string
-          data_criacao?: string
-          data_atualizacao?: string
+          id?: string
+          user_id: string
+          role: 'admin' | 'user'
         }
         Update: {
           id?: string
-          email?: string
-          senha?: string | null
-          status?: string
-          permissao?: string
-          data_criacao?: string
-          data_atualizacao?: string
+          user_id?: string
+          role?: 'admin' | 'user'
         }
         Relationships: []
       }
       empresas: {
         Row: {
           id: string
-          id_usuario: string
-          nome_empresa: string
+          user_id: string
+          empresa_nome: string
+          status: 'ativo' | 'inativo'
           nome_dono: string | null
-          cnpj_cpf: string | null
+          data_inicio: string | null
+          data_termino: string | null
           endereco: string | null
+          cnpj_cpf: string | null
+          email: string | null
+          telefone: string | null
           logo_url: string | null
           cor_primaria: string | null
           cor_secundaria: string | null
-          data_inicio: string | null
-          data_termino: string | null
-          data_criacao: string
-          data_atualizacao: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          id_usuario: string
-          nome_empresa: string
+          user_id: string
+          empresa_nome: string
+          status?: 'ativo' | 'inativo'
           nome_dono?: string | null
-          cnpj_cpf?: string | null
+          data_inicio?: string | null
+          data_termino?: string | null
           endereco?: string | null
+          cnpj_cpf?: string | null
+          email?: string | null
+          telefone?: string | null
           logo_url?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
-          data_inicio?: string | null
-          data_termino?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          id_usuario?: string
-          nome_empresa?: string
+          user_id?: string
+          empresa_nome?: string
+          status?: 'ativo' | 'inativo'
           nome_dono?: string | null
-          cnpj_cpf?: string | null
+          data_inicio?: string | null
+          data_termino?: string | null
           endereco?: string | null
+          cnpj_cpf?: string | null
+          email?: string | null
+          telefone?: string | null
           logo_url?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
-          data_inicio?: string | null
-          data_termino?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
+          created_at?: string
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "empresas_id_usuario_fkey"
-            columns: ["id_usuario"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      financeiro: {
-        Row: {
-          id: string
-          id_empresa: string
-          ano: number
-          mes: number
-          meta_financeira: number
-          custo_operacional: number
-          custo_anuncio: number
-          data_criacao: string
-          data_atualizacao: string
-        }
-        Insert: {
-          id?: string
-          id_empresa: string
-          ano: number
-          mes: number
-          meta_financeira?: number
-          custo_operacional?: number
-          custo_anuncio?: number
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Update: {
-          id?: string
-          id_empresa?: string
-          ano?: number
-          mes?: number
-          meta_financeira?: number
-          custo_operacional?: number
-          custo_anuncio?: number
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "financeiro_id_empresa_fkey"
-            columns: ["id_empresa"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       leads: {
         Row: {
           id: string
-          id_empresa: string
-          nome: string
+          empresa_id: string
+          nome_lead: string
           telefone: string | null
-          email: string | null
-          cnpj_cpf: string | null
+          origem: 'Tráfego' | 'Orgânico' | 'Indicação'
+          status: 'Agendado' | 'Sem Interesse' | 'Fechado' | 'Reabordar'
+          data_mensagem: string
           endereco: string | null
-          origem_lead: string | null
-          situacao_do_cliente: string | null
-          momento_funil: string | null
-          robo_pos_vendas: boolean
-          robo_follow_ups: boolean
-          robo_atendimento: boolean
-          robo_agendamento: boolean
-          qualificacao: string | null
-          data_contato: string | null
-          data_orcamento: string | null
-          data_criacao: string
-          data_atualizacao: string
+          email: string | null
+          cpf_cnpj: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          id_empresa: string
-          nome: string
+          empresa_id: string
+          nome_lead: string
           telefone?: string | null
-          email?: string | null
-          cnpj_cpf?: string | null
+          origem?: 'Tráfego' | 'Orgânico' | 'Indicação'
+          status?: 'Agendado' | 'Sem Interesse' | 'Fechado' | 'Reabordar'
+          data_mensagem?: string
           endereco?: string | null
-          origem_lead?: string | null
-          situacao_do_cliente?: string | null
-          momento_funil?: string | null
-          robo_pos_vendas?: boolean
-          robo_follow_ups?: boolean
-          robo_atendimento?: boolean
-          robo_agendamento?: boolean
-          qualificacao?: string | null
-          data_contato?: string | null
-          data_orcamento?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
+          email?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          id_empresa?: string
-          nome?: string
+          empresa_id?: string
+          nome_lead?: string
           telefone?: string | null
-          email?: string | null
-          cnpj_cpf?: string | null
+          origem?: 'Tráfego' | 'Orgânico' | 'Indicação'
+          status?: 'Agendado' | 'Sem Interesse' | 'Fechado' | 'Reabordar'
+          data_mensagem?: string
           endereco?: string | null
-          origem_lead?: string | null
-          situacao_do_cliente?: string | null
-          momento_funil?: string | null
-          robo_pos_vendas?: boolean
-          robo_follow_ups?: boolean
-          robo_atendimento?: boolean
-          robo_agendamento?: boolean
-          qualificacao?: string | null
-          data_contato?: string | null
-          data_orcamento?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
+          email?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "leads_id_empresa_fkey"
-            columns: ["id_empresa"]
+            foreignKeyName: "leads_empresa_id_fkey"
+            columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
@@ -219,105 +140,161 @@ export type Database = {
       vendas: {
         Row: {
           id: string
-          id_leads: string
+          lead_id: string | null
+          empresa_id: string
+          valor_cheio: number
+          desconto: number
+          valor_final: number
           data_venda: string
-          data_servico: string | null
-          horario_servico: string | null
-          status: string
-          data_criacao: string
-          data_atualizacao: string
+          data_agendada: string | null
+          horario_agendado: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          id_leads: string
+          lead_id?: string | null
+          empresa_id: string
+          valor_cheio?: number
+          desconto?: number
+          valor_final?: number
           data_venda?: string
-          data_servico?: string | null
-          horario_servico?: string | null
-          status?: string
-          data_criacao?: string
-          data_atualizacao?: string
+          data_agendada?: string | null
+          horario_agendado?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          id_leads?: string
+          lead_id?: string | null
+          empresa_id?: string
+          valor_cheio?: number
+          desconto?: number
+          valor_final?: number
           data_venda?: string
-          data_servico?: string | null
-          horario_servico?: string | null
-          status?: string
-          data_criacao?: string
-          data_atualizacao?: string
+          data_agendada?: string | null
+          horario_agendado?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "vendas_id_leads_fkey"
-            columns: ["id_leads"]
+            foreignKeyName: "vendas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           }
         ]
       }
-      itens_vendas: {
+      servicos: {
         Row: {
           id: string
-          id_vendas: string
-          estofado: string
+          lead_id: string | null
+          empresa_id: string
+          venda_id: string | null
+          estofado: string | null
           valor: number
-          bonus: number
-          data_criacao: string
-          data_atualizacao: string
+          tipo_servico: 'higienização' | 'impermeabilização' | 'higienização e impermeabilização'
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          id_vendas: string
-          estofado: string
+          lead_id?: string | null
+          empresa_id: string
+          venda_id?: string | null
+          estofado?: string | null
           valor?: number
-          bonus?: number
-          data_criacao?: string
-          data_atualizacao?: string
+          tipo_servico?: 'higienização' | 'impermeabilização' | 'higienização e impermeabilização'
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          id_vendas?: string
-          estofado?: string
+          lead_id?: string | null
+          empresa_id?: string
+          venda_id?: string | null
+          estofado?: string | null
           valor?: number
-          bonus?: number
-          data_criacao?: string
-          data_atualizacao?: string
+          tipo_servico?: 'higienização' | 'impermeabilização' | 'higienização e impermeabilização'
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "itens_vendas_id_vendas_fkey"
-            columns: ["id_vendas"]
+            foreignKeyName: "servicos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicos_venda_id_fkey"
+            columns: ["venda_id"]
             isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           }
         ]
       }
-      os: {
+      financeiro_mensal: {
         Row: {
           id: string
-          id_vendas: string
-          enviado: boolean
-          data_criacao: string
-          data_atualizacao: string
+          empresa_id: string
+          mes_referencia: number
+          ano_referencia: number
+          investimento_trafego: number
+          custo_operacional: number
+          meta_faturamento: number
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          id_vendas: string
-          enviado?: boolean
-          data_criacao?: string
-          data_atualizacao?: string
+          empresa_id: string
+          mes_referencia: number
+          ano_referencia: number
+          investimento_trafego?: number
+          custo_operacional?: number
+          meta_faturamento?: number
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          id_vendas?: string
-          enviado?: boolean
-          data_criacao?: string
-          data_atualizacao?: string
+          empresa_id?: string
+          mes_referencia?: number
+          ano_referencia?: number
+          investimento_trafego?: number
+          custo_operacional?: number
+          meta_faturamento?: number
+          created_at?: string
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_mensal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       regras_automacoes: {
         Row: {
@@ -344,36 +321,6 @@ export type Database = {
           tipo_lembrete?: string
           cadencia_envio?: number
           template_mensagem?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Relationships: []
-      }
-      historico_atendimento: {
-        Row: {
-          id: string
-          id_leads: string
-          data_interacao: string
-          tipo: string
-          mensagem: string | null
-          data_criacao: string
-          data_atualizacao: string
-        }
-        Insert: {
-          id?: string
-          id_leads: string
-          data_interacao?: string
-          tipo: string
-          mensagem?: string | null
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Update: {
-          id?: string
-          id_leads?: string
-          data_interacao?: string
-          tipo?: string
-          mensagem?: string | null
           data_criacao?: string
           data_atualizacao?: string
         }
@@ -423,10 +370,111 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      app_role: 'admin' | 'user'
+      empresa_status: 'ativo' | 'inativo'
+      lead_origem: 'Tráfego' | 'Orgânico' | 'Indicação'
+      lead_status: 'Agendado' | 'Sem Interesse' | 'Fechado' | 'Reabordar'
+      tipo_servico: 'higienização' | 'impermeabilização' | 'higienização e impermeabilização'
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
+
+type PublicSchema = Database[Extract<keyof Database, "public">]
+
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never

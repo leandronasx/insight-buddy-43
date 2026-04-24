@@ -3,22 +3,38 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { getDateRange } from '@/lib/date-utils';
-import { Database } from '@/integrations/supabase/types';
 
-export type Venda = Database['public']['Tables']['vendas']['Row'];
+export interface Venda {
+  id: string;
+  id_leads: string;
+  data_venda: string;
+  data_servico: string | null;
+  horario_servico: string | null;
+  status: 'pendente' | 'confirmado' | 'cancelado' | 'concluido';
+  data_criacao: string;
+  data_atualizacao: string;
+}
+
+export interface ItemVenda {
+  id: string;
+  id_vendas: string;
+  estofado: string;
+  valor: number;
+  bonus: number;
+}
 
 export interface VendaComItens extends Venda {
+  itens: ItemVenda[];
   valor_total: number;
-  status: string;
-  servicos: any[];
+  bonus_total: number;
 }
 
 export interface LeadOption {
   id: string;
-  nome_lead: string;
+  nome: string;
   telefone: string | null;
   email: string | null;
-  cpf_cnpj: string | null;
+  cnpj_cpf: string | null;
   endereco: string | null;
 }
 
@@ -29,91 +45,128 @@ export function useVendas() {
 
   const queryKey = ['vendas', empresa?.id, month, year];
 
-  const { data: vendas = [], isLoading: loading } = useQuery({
+  // Busca vendas via leads da empresa
+  const { data: vendas = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
       if (!empresa) return [];
       const { start, end } = getDateRange(month, year);
 
+      // Primeiro busca leads da empresa
+      const { data: leadsData } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('id_empresa', empresa.id);
+
+      const leadIds = (leadsData ?? []).map(l => l.id);
+      if (leadIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('vendas')
-        .select('*, servicos(*)')
-        .eq('empresa_id', empresa.id)
+        .select('*')
+        .in('id_leads', leadIds)
         .gte('data_venda', start)
         .lt('data_venda', end)
         .order('data_venda', { ascending: false });
-
       if (error) throw error;
-
-      // Calculate total values (for backwards compatibility in frontend, mapped from valor_final)
-      const mapped = (data ?? []).map(v => ({
-        ...v,
-        status: 'Fechado', // Status in new schema comes from leads, hardcoding for type compatibility
-        valor_total: Number(v.valor_final)
-      }));
-
-      return mapped as unknown as VendaComItens[];
+      return (data ?? []) as Venda[];
     },
     enabled: !!empresa,
   });
 
+  // Busca itens das vendas
+  const vendaIds = vendas.map(v => v.id);
+  const vendaIdsKey = vendaIds.slice().sort().join(',');
+  const { data: itensByVenda = {} } = useQuery({
+    queryKey: ['itens-vendas', empresa?.id, vendaIdsKey],
+    queryFn: async () => {
+      if (!empresa || vendaIds.length === 0) return {};
+      const { data, error } = await supabase
+        .from('itens_vendas')
+        .select('*')
+        .in('id_vendas', vendaIds);
+      if (error) throw error;
+      const map: Record<string, ItemVenda[]> = {};
+      (data ?? []).forEach((item: any) => {
+        if (!map[item.id_vendas]) map[item.id_vendas] = [];
+        map[item.id_vendas].push(item);
+      });
+      return map;
+    },
+    enabled: !!empresa && vendaIds.length > 0,
+  });
+
+  const vendasComItens: VendaComItens[] = vendas.map(v => {
+    const itens = itensByVenda[v.id] || [];
+    return {
+      ...v,
+      itens,
+      valor_total: itens.reduce((s, i) => s + Number(i.valor), 0),
+      bonus_total: itens.reduce((s, i) => s + Number(i.bonus ?? 0), 0),
+    };
+  });
+
+  // Lead options para selects
   const { data: leadOptions = [] } = useQuery({
-    queryKey: ['leadOptions', empresa?.id],
+    queryKey: ['lead-options', empresa?.id],
     queryFn: async () => {
       if (!empresa) return [];
       const { data } = await supabase
         .from('leads')
-        .select('id, nome_lead, telefone, email, cpf_cnpj, endereco')
-        .eq('empresa_id', empresa.id)
-        .order('nome_lead');
+        .select('id, nome, telefone, email, cnpj_cpf, endereco')
+        .eq('id_empresa', empresa.id)
+        .order('nome');
       return (data ?? []) as LeadOption[];
     },
     enabled: !!empresa,
   });
 
   const saveVenda = useMutation({
-    mutationFn: async ({ id, servicos, ...payload }: Partial<Venda> & { lead_id: string; empresa_id: string; servicos?: any[] }) => {
-  payload.valor_final = servicos ? servicos.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0) : 0;
-
-      if (id) {
-        const { error } = await supabase.from('vendas').update(payload).eq('id', id);
+    mutationFn: async ({
+      id,
+      itens: itensPayload,
+      ...payload
+    }: Partial<Venda> & { itens?: { estofado: string; valor: number; bonus?: number }[] }) => {
+      let vendaId = id;
+      if (vendaId) {
+        const { error } = await supabase.from('vendas').update(payload).eq('id', vendaId);
         if (error) throw error;
-        await supabase.from('servicos').delete().eq('venda_id', id);
-        if (servicos && servicos.length > 0) {
-          const rows = servicos.map(s => ({
-            empresa_id: payload.empresa_id,
-            lead_id: payload.lead_id,
-            venda_id: id,
-            estofado: s.estofado,
-            valor: Number(s.valor || 0)
-          }));
-          await supabase.from('servicos').insert(rows);
-        }
+        await supabase.from('itens_vendas').delete().eq('id_vendas', vendaId);
       } else {
-        const { data, error } = await supabase.from('vendas').insert(payload).select().single();
+        const { data, error } = await supabase.from('vendas').insert(payload).select('id').single();
         if (error) throw error;
-        if (servicos && servicos.length > 0) {
-          const rows = servicos.map(s => ({
-            empresa_id: payload.empresa_id,
-            lead_id: payload.lead_id,
-            venda_id: data.id,
-            estofado: s.estofado,
-            valor: Number(s.valor || 0)
-          }));
-          await supabase.from('servicos').insert(rows);
-        }
+        vendaId = data.id;
+      }
+      if (itensPayload && itensPayload.length > 0 && vendaId) {
+        const rows = itensPayload.map(item => ({
+          id_vendas: vendaId!,
+          estofado: item.estofado,
+          valor: item.valor,
+          bonus: item.bonus ?? 0,
+        }));
+        const { error: iErr } = await supabase.from('itens_vendas').insert(rows);
+        if (iErr) throw iErr;
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['itens-vendas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 
   const deleteVenda = useMutation({
     mutationFn: async (id: string) => {
+      await supabase.from('itens_vendas').delete().eq('id_vendas', id);
       const { error } = await supabase.from('vendas').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['itens-vendas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 
-  return { vendas, loading, leadOptions, saveVenda, deleteVenda };
+  return { vendas: vendasComItens, leadOptions, isLoading, saveVenda, deleteVenda };
 }

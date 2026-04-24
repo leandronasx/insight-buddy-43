@@ -38,9 +38,9 @@ export function useDashboardData() {
       const { data: leadsData } = await supabase
         .from('leads')
         .select('*')
-        .eq('empresa_id', empresa.id)
-        .gte('created_at', start)
-        .lt('created_at', end);
+        .eq('id_empresa', empresa.id)
+        .gte('data_criacao', start)
+        .lt('data_criacao', end);
 
       const leads = leadsData ?? [];
       const leadIds = leads.map(l => l.id);
@@ -50,8 +50,8 @@ export function useDashboardData() {
       if (leadIds.length > 0) {
         const { data: vendasData } = await supabase
           .from('vendas')
-          .select('id, lead_id, data_venda')
-          .in('lead_id', leadIds)
+          .select('id, id_leads, status, data_venda')
+          .in('id_leads', leadIds)
           .gte('data_venda', start)
           .lt('data_venda', end);
         vendas = vendasData ?? [];
@@ -61,32 +61,32 @@ export function useDashboardData() {
       let itens: any[] = [];
       if (vendas.length > 0) {
         const { data: itensData } = await supabase
-          .from('servicos')
-          .select('valor, bonus, venda_id')
-          .in('venda_id', vendas.map(v => v.id));
+          .from('itens_vendas')
+          .select('valor, bonus, id_vendas')
+          .in('id_vendas', vendas.map(v => v.id));
         itens = itensData ?? [];
       }
 
       // Financeiro do mês
       const { data: fin } = await supabase
-        .from('financeiro_mensal')
+        .from('financeiro')
         .select('*')
-        .eq('empresa_id', empresa.id)
-        .eq('mes_referencia', month)
-        .eq('ano_referencia', year)
+        .eq('id_empresa', empresa.id)
+        .eq('mes', month)
+        .eq('ano', year)
         .maybeSingle();
 
       const totalLeads = leads.length;
-      const leadsTrafego = leads.filter(l => l.origem === 'Tráfego').length;
-      const leadsOrganico = leads.filter(l => l.origem === 'Orgânico').length;
-      const leadsIndicacao = leads.filter(l => l.origem === 'Indicação').length;
-      const leadsFechados = leads.filter(l => l.status === 'Fechado').length;
+      const leadsTrafego = leads.filter(l => l.origem_lead === 'Tráfego').length;
+      const leadsOrganico = leads.filter(l => l.origem_lead === 'Orgânico').length;
+      const leadsIndicacao = leads.filter(l => l.origem_lead === 'Indicação').length;
+      const leadsFechados = leads.filter(l => l.situacao_do_cliente === 'Fechado').length;
       const totalVendas = vendas.length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
       const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0), 0);
-      const custoAnuncio = Number(fin?.investimento_trafego ?? 0);
+      const custoAnuncio = Number(fin?.custo_anuncio ?? 0);
       const custoOperacional = Number(fin?.custo_operacional ?? 0);
-      const metaFaturamento = Number(fin?.meta_faturamento ?? 0);
+      const metaFaturamento = Number(fin?.meta_financeira ?? 0);
       const roi = custoAnuncio > 0 ? faturamento / custoAnuncio : 0;
       const cac = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
       const lucroLiquido = faturamento - (custoAnuncio + custoOperacional);
@@ -119,14 +119,14 @@ export function useChartData() {
       const { data: leadsData } = await supabase
         .from('leads')
         .select('id')
-        .eq('empresa_id', empresa.id);
+        .eq('id_empresa', empresa.id);
       const leadIds = (leadsData ?? []).map(l => l.id);
       if (leadIds.length === 0) return months.map(mes => ({ mes, faturamento: 0 }));
 
       const { data: vendas } = await supabase
         .from('vendas')
         .select('id, data_venda')
-        .in('lead_id', leadIds)
+        .in('id_leads', leadIds)
         .gte('data_venda', `${year}-01-01`)
         .lt('data_venda', `${year + 1}-01-01`);
 
@@ -134,15 +134,15 @@ export function useChartData() {
       let itens: any[] = [];
       if (vendaIds.length > 0) {
         const { data: itensData } = await supabase
-          .from('servicos')
-          .select('valor, venda_id')
-          .in('venda_id', vendaIds);
+          .from('itens_vendas')
+          .select('valor, id_vendas')
+          .in('id_vendas', vendaIds);
         itens = itensData ?? [];
       }
 
       const itensByVenda: Record<string, number> = {};
       itens.forEach(i => {
-        itensByVenda[i.venda_id] = (itensByVenda[i.venda_id] ?? 0) + Number(i.valor);
+        itensByVenda[i.id_vendas] = (itensByVenda[i.id_vendas] ?? 0) + Number(i.valor);
       });
 
       return months.map((mes, i) => {

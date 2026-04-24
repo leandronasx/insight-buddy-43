@@ -14,11 +14,11 @@ import { Badge } from '@/components/ui/badge';
 
 interface Regra {
   id: string;
-  empresa_id: string;
+  id_empresa: string;
   tipo_lembrete: string;
   cadencia_envio: number;
   template_mensagem: string | null;
-  created_at: string;
+  data_criacao: string;
 }
 
 // 4 tipos com lógica de cadência explicada
@@ -91,8 +91,8 @@ export default function Automacoes() {
       const { data, error } = await supabase
         .from('regras_automacoes')
         .select('*')
-        .eq('empresa_id', empresa.id)
-        .order('created_at', { ascending: false });
+        .eq('id_empresa', empresa.id)
+        .order('data_criacao', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Regra[];
     },
@@ -106,7 +106,7 @@ export default function Automacoes() {
       ...payload
     }: {
       id?: string;
-      empresa_id: string;
+      id_empresa: string;
       tipo_lembrete: string;
       cadencia_envio: number;
       template_mensagem: string;
@@ -165,7 +165,7 @@ export default function Automacoes() {
     try {
       await saveRegra.mutateAsync({
         ...(editingId ? { id: editingId } : {}),
-        empresa_id: empresa.id,
+        id_empresa: empresa.id,
         tipo_lembrete: form.tipo_lembrete,
         cadencia_envio: dias,
         template_mensagem: form.template_mensagem,

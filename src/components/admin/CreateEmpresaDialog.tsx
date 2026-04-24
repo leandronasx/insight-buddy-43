@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const emptyForm = {
-  empresa_nome: '',
+  nome_empresa: '',
   nome_dono: '',
   email: '',
   password: '',
@@ -32,7 +32,7 @@ export function CreateEmpresaDialog({ open, onOpenChange, onSuccess }: Props) {
       body: {
         email: form.email,
         password: form.password,
-        nome_empresa: form.empresa_nome,
+        nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono,
         data_inicio: form.data_inicio,
         data_termino: form.data_termino || null,
@@ -66,7 +66,7 @@ export function CreateEmpresaDialog({ open, onOpenChange, onSuccess }: Props) {
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Nome da Empresa *</label>
-            <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" placeholder="Ex: Estofados Premium" />
+            <Input value={form.nome_empresa} onChange={e => setForm({ ...form, nome_empresa: e.target.value })} className="bg-secondary border-border" placeholder="Ex: Estofados Premium" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Nome do Dono</label>
@@ -91,7 +91,7 @@ export function CreateEmpresaDialog({ open, onOpenChange, onSuccess }: Props) {
             </div>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button onClick={handleCreate} className="w-full" disabled={saving || !form.empresa_nome || !form.email || !form.password}>
+          <Button onClick={handleCreate} className="w-full" disabled={saving || !form.nome_empresa || !form.email || !form.password}>
             {saving ? 'Criando...' : 'Criar Empresa'}
           </Button>
         </div>

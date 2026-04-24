@@ -157,7 +157,7 @@ export default function Agenda() {
           ) : (
             <div className="space-y-3">
               {selectedVendas.map(v => {
-                const lead = getLeadInfo(v.lead_id || null);
+                const lead = getLeadInfo(v.lead_id);
                 return (
                   <motion.div
                     key={v.id}

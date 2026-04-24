@@ -15,35 +15,35 @@ export default function SetupMensal() {
   const queryClient = useQueryClient();
   const [custoAnuncio, setCustoAnuncio] = useState('');
   const [custoOperacional, setCustoOperacional] = useState('');
-  const [metaFaturamento, setMetaFaturamento] = useState('');
+  const [metaFinanceira, setMetaFinanceira] = useState('');
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const custoAnuncioNum = parseFloat(custoAnuncio) || 0;
   const custoOpNum = parseFloat(custoOperacional) || 0;
-  const metaNum = parseFloat(metaFaturamento) || 0;
+  const metaNum = parseFloat(metaFinanceira) || 0;
   const hasNegative = custoAnuncioNum < 0 || custoOpNum < 0 || metaNum < 0;
 
   useEffect(() => {
     if (!empresa) return;
     const fetch = async () => {
       const { data } = await supabase
-        .from('financeiro_mensal')
+        .from('financeiro')
         .select('*')
-        .eq('empresa_id', empresa.id)
-        .eq('mes_referencia', month)
-        .eq('ano_referencia', year)
+        .eq('id_empresa', empresa.id)
+        .eq('mes', month)
+        .eq('ano', year)
         .maybeSingle();
 
       if (data) {
-        setCustoAnuncio(String(data.investimento_trafego ?? 0));
+        setCustoAnuncio(String(data.custo_anuncio ?? 0));
         setCustoOperacional(String(data.custo_operacional ?? 0));
-        setMetaFaturamento(String(data.meta_faturamento ?? 0));
+        setMetaFinanceira(String(data.meta_financeira ?? 0));
         setExistingId(data.id);
       } else {
         setCustoAnuncio('');
         setCustoOperacional('');
-        setMetaFaturamento('');
+        setMetaFinanceira('');
         setExistingId(null);
       }
     };
@@ -56,20 +56,20 @@ export default function SetupMensal() {
     setLoading(true);
 
     const payload = {
-      empresa_id: empresa.id,
-      mes_referencia: month,
-      ano_referencia: year,
-      investimento_trafego: custoAnuncioNum,
+      id_empresa: empresa.id,
+      mes: month,
+      ano: year,
+      custo_anuncio: custoAnuncioNum,
       custo_operacional: custoOpNum,
-      meta_faturamento: metaNum,
+      meta_financeira: metaNum,
     };
 
     try {
       if (existingId) {
-        const { error } = await supabase.from('financeiro_mensal').update(payload).eq('id', existingId);
+        const { error } = await supabase.from('financeiro').update(payload).eq('id', existingId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('financeiro_mensal').insert(payload).select('id').single();
+        const { data, error } = await supabase.from('financeiro').insert(payload).select('id').single();
         if (error) throw error;
         if (data) setExistingId(data.id);
       }
@@ -125,8 +125,8 @@ export default function SetupMensal() {
           </div>
           <Input
             type="number" min="0" step="0.01"
-            value={metaFaturamento}
-            onChange={e => setMetaFaturamento(e.target.value)}
+            value={metaFinanceira}
+            onChange={e => setMetaFinanceira(e.target.value)}
             placeholder="0.00"
             className={`bg-secondary border-border ${metaNum < 0 ? 'border-destructive' : ''}`}
           />

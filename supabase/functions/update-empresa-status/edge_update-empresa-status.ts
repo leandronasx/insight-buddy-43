@@ -5,8 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// NOTE: The new schema HAS 'status' ('ativo' | 'inativo') column on empresas.
-// We will update 'status' along with 'data_termino' etc.
+// NOTE: The new schema has no 'status' column on empresas.
+// This function now updates data_termino to deactivate (set a past date)
+// or clears it to reactivate. Also supports updating nome_empresa and other fields.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,27 +37,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin via user_roles (new schema)
-    const { data: roleData } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
+    // Check admin via usuarios.permissao (new schema)
+    const { data: usuarioData } = await adminClient
+      .from("usuarios")
+      .select("permissao")
+      .eq("id", user.id)
       .maybeSingle();
 
-    if (!roleData) {
+    if (!usuarioData || usuarioData.permissao !== "admin") {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { empresa_id, status, data_termino, empresa_nome, nome_dono } = await req.json();
+    const { empresa_id, data_termino, nome_empresa, nome_dono } = await req.json();
 
     const updateData: Record<string, unknown> = {};
-    if (status !== undefined) updateData.status = status;
     if (data_termino !== undefined) updateData.data_termino = data_termino;
-    if (empresa_nome !== undefined) updateData.empresa_nome = empresa_nome;
+    if (nome_empresa !== undefined) updateData.nome_empresa = nome_empresa;
     if (nome_dono !== undefined) updateData.nome_dono = nome_dono;
 
     const { error } = await adminClient

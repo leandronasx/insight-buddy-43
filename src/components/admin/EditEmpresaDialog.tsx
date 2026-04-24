@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 interface Empresa {
   id: string;
-  user_id: string;
-  empresa_nome: string;
+  id_usuario: string;
+  nome_empresa: string;
   nome_dono: string | null;
   data_inicio: string | null;
   data_termino: string | null;
@@ -30,7 +30,7 @@ interface Props {
 export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
-    empresa_nome: '',
+    nome_empresa: '',
     nome_dono: '',
     data_inicio: '',
     data_termino: '',
@@ -49,7 +49,7 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
   useEffect(() => {
     if (empresa) {
       setForm({
-        empresa_nome: empresa.empresa_nome,
+        nome_empresa: empresa.nome_empresa,
         nome_dono: empresa.nome_dono || '',
         data_inicio: empresa.data_inicio || '',
         data_termino: empresa.data_termino || '',
@@ -68,7 +68,7 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
     const file = e.target.files?.[0];
     if (!file || !empresa) return;
     const ext = file.name.split('.').pop();
-    const filePath = `${empresa.user_id}/logo.${ext}`;
+    const filePath = `${empresa.id_usuario}/logo.${ext}`;
     setUploading(true);
     const { error: upErr } = await supabase.storage.from('logos').upload(filePath, file, { upsert: true });
     if (upErr) { toast.error('Erro ao enviar logo: ' + upErr.message); setUploading(false); return; }
@@ -88,7 +88,7 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
     const { error: updateErr } = await supabase
       .from('empresas')
       .update({
-        empresa_nome: form.empresa_nome,
+        nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono || null,
         data_inicio: form.data_inicio || null,
         data_termino: form.data_termino || null,
@@ -158,7 +158,7 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> Nome da Empresa *</label>
-              <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" />
+              <Input value={form.nome_empresa} onChange={e => setForm({ ...form, nome_empresa: e.target.value })} className="bg-secondary border-border" />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Proprietário</label>
@@ -203,7 +203,7 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
 
           {error && <p className="text-destructive text-sm">{error}</p>}
 
-          <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !form.empresa_nome}>
+          <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !form.nome_empresa}>
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
 
