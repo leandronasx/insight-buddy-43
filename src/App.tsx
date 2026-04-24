@@ -11,7 +11,11 @@ import VendasPage from "./pages/VendasPage.tsx";
 import SetupPage from "./pages/SetupPage.tsx";
 import MinhaEmpresaPage from "./pages/MinhaEmpresaPage.tsx";
 import AdminEmpresasPage from "./pages/AdminEmpresasPage.tsx";
-
+import KanbanPage from "./pages/KanbanPage.tsx";
+import AgendaPage from "./pages/AgendaPage.tsx";
+import WhatsappPage from "./pages/WhatsappPage.tsx";
+import AutomacoesPage from "./pages/AutomacoesPage.tsx";
+import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -27,11 +31,15 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/leads" element={<LeadsPage />} />
+              <Route path="/leads/kanban" element={<KanbanPage />} />
               <Route path="/vendas" element={<VendasPage />} />
-              
+              <Route path="/agenda" element={<AgendaPage />} />
+              <Route path="/whatsapp" element={<WhatsappPage />} />
+              <Route path="/automacoes" element={<AutomacoesPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/minha-empresa" element={<MinhaEmpresaPage />} />
               <Route path="/admin" element={<AdminEmpresasPage />} />
+              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

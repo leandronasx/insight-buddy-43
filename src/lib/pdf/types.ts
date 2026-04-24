@@ -1,8 +1,8 @@
-import type { VendaComServicos, LeadOption } from '@/hooks/useVendas';
+import type { VendaComItens, LeadOption } from '@/hooks/useVendas';
 import type { Empresa } from '@/hooks/useEmpresa';
 
 export interface OrdemServicoData {
-  venda: VendaComServicos;
+  venda: VendaComItens;
   empresa: Empresa;
   lead: LeadOption | null;
 }

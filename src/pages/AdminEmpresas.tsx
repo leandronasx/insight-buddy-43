@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Building2, User, Calendar, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
-import { MonthSelector } from '@/components/MonthSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AdminOverview } from '@/components/AdminOverview';
 import { CreateEmpresaDialog } from '@/components/admin/CreateEmpresaDialog';
 import { EditEmpresaDialog } from '@/components/admin/EditEmpresaDialog';
 import { AdminSkeleton } from '@/components/LoadingSkeleton';
@@ -53,8 +50,8 @@ export default function AdminEmpresas() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="glass-card p-8 text-center max-w-md">
+      <div className="flex items-center justify-center py-20 px-4">
+        <div className="metric-card p-8 text-center max-w-md">
           <h2 className="font-display text-xl font-bold text-foreground mb-2">Acesso Restrito</h2>
           <p className="text-muted-foreground">Apenas administradores podem acessar esta página.</p>
         </div>
@@ -63,85 +60,77 @@ export default function AdminEmpresas() {
   }
 
   return (
-    <Tabs defaultValue="painel" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="painel">Painel Geral</TabsTrigger>
-          <TabsTrigger value="empresas">Gestão de Empresas</TabsTrigger>
-        </TabsList>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{empresas.length} empresa{empresas.length !== 1 ? 's' : ''} cadastrada{empresas.length !== 1 ? 's' : ''}</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1">
+          <Plus className="h-4 w-4" /> Nova Empresa
+        </Button>
+      </div>
 
-        <TabsContent value="painel">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-bold text-foreground">Painel Geral</h2>
-            <MonthSelector />
-          </div>
-          <AdminOverview />
-        </TabsContent>
-
-        <TabsContent value="empresas">
-          {loading ? (
-            <AdminSkeleton />
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-bold text-foreground">Gestão de Empresas</h2>
-                <Button onClick={() => setCreateOpen(true)} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Nova Empresa
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {empresas.length === 0 && (
-                  <p className="text-muted-foreground text-center py-8">Nenhuma empresa cadastrada.</p>
-                )}
-                {empresas.map(emp => (
-                  <motion.div
-                    key={emp.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
-                    onClick={() => openEdit(emp)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Building2 className="h-4 w-4 text-primary shrink-0" />
-                          <p className="font-display font-bold text-foreground truncate">{emp.empresa_nome}</p>
-                          <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
-                        </div>
-                        {emp.nome_dono && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>{emp.nome_dono}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>
-                            {emp.data_inicio ? new Date(emp.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                            {emp.data_termino ? ` → ${new Date(emp.data_termino + 'T00:00:00').toLocaleDateString('pt-BR')}` : ' → Sem término'}
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${
-                          emp.status === 'ativo'
-                            ? 'bg-primary/20 text-primary'
-                            : 'bg-destructive/20 text-destructive'
-                        }`}
-                      >
-                        {emp.status === 'ativo' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                        {emp.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <CreateEmpresaDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={fetchEmpresas} />
-              <EditEmpresaDialog empresa={editingEmpresa} open={editOpen} onOpenChange={setEditOpen} onSuccess={fetchEmpresas} />
+      {loading ? (
+        <AdminSkeleton />
+      ) : (
+        <div className="space-y-3">
+          {empresas.length === 0 && (
+            <div className="metric-card flex flex-col items-center py-16 text-center">
+              <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground">Nenhuma empresa cadastrada.</p>
+              <Button variant="outline" onClick={() => setCreateOpen(true)} className="mt-4 gap-1">
+                <Plus className="h-4 w-4" /> Cadastrar primeira empresa
+              </Button>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+          {empresas.map(emp => (
+            <motion.div
+              key={emp.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+              onClick={() => openEdit(emp)}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building2 className="h-4 w-4 text-primary shrink-0" />
+                    <p className="font-display font-bold text-foreground truncate">{emp.empresa_nome}</p>
+                    <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+                  </div>
+                  {emp.nome_dono && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <User className="h-3 w-3" />
+                      <span>{emp.nome_dono}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>
+                      {emp.data_inicio ? new Date(emp.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                      {emp.data_termino ? ` → ${new Date(emp.data_termino + 'T00:00:00').toLocaleDateString('pt-BR')}` : ' → Sem término'}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                    emp.status === 'ativo'
+                      ? 'bg-primary/20 text-primary'
+                      : 'bg-destructive/20 text-destructive'
+                  }`}
+                >
+                  {emp.status === 'ativo' ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                  {emp.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <CreateEmpresaDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={fetchEmpresas} />
+      <EditEmpresaDialog empresa={editingEmpresa} open={editOpen} onOpenChange={setEditOpen} onSuccess={fetchEmpresas} />
+    </div>
   );
 }

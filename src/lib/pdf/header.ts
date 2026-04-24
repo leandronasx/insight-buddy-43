@@ -1,6 +1,6 @@
 import type jsPDF from 'jspdf';
 import type { Empresa } from '@/hooks/useEmpresa';
-import type { VendaComServicos } from '@/hooks/useVendas';
+import type { VendaComItens } from '@/hooks/useVendas';
 import type { PdfLayout, PdfTheme } from './types';
 import { loadImage } from './utils';
 
@@ -9,7 +9,7 @@ interface HeaderArgs {
   layout: PdfLayout;
   theme: PdfTheme;
   empresa: Empresa;
-  venda: VendaComServicos;
+  venda: VendaComItens;
 }
 
 export async function drawHeader({ doc, layout, theme, empresa, venda }: HeaderArgs): Promise<number> {
@@ -53,7 +53,7 @@ export async function drawHeader({ doc, layout, theme, empresa, venda }: HeaderA
   doc.setTextColor(...theme.ink);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text(empresa.empresa_nome, textStartX, headerTop + 13);
+  doc.text(empresa.nome_empresa, textStartX, headerTop + 13);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -62,8 +62,8 @@ export async function drawHeader({ doc, layout, theme, empresa, venda }: HeaderA
   if (empresa.cnpj_cpf) compLines.push(`CNPJ/CPF: ${empresa.cnpj_cpf}`);
   if (empresa.endereco) compLines.push(empresa.endereco);
   const contactLine: string[] = [];
-  if (empresa.telefone) contactLine.push(empresa.telefone);
-  if (empresa.email) contactLine.push(empresa.email);
+  if ((empresa as any).telefone) contactLine.push((empresa as any).telefone);
+  if ((empresa as any).email) contactLine.push((empresa as any).email);
   if (contactLine.length) compLines.push(contactLine.join('  •  '));
   compLines.slice(0, 3).forEach((l, i) => {
     doc.text(l, textStartX, headerTop + 19 + i * 4);
@@ -87,6 +87,6 @@ export async function drawHeader({ doc, layout, theme, empresa, venda }: HeaderA
   return headerTop + headerH + 10;
 }
 
-export function getOsNumber(venda: VendaComServicos): string {
+export function getOsNumber(venda: VendaComItens): string {
   return venda.id.slice(0, 8).toUpperCase();
 }

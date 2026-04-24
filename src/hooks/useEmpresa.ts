@@ -4,19 +4,18 @@ import { useAuth } from './useAuth';
 
 export interface Empresa {
   id: string;
-  user_id: string;
-  empresa_nome: string;
+  id_usuario: string;
+  nome_empresa: string;
   nome_dono: string | null;
   data_inicio: string | null;
   data_termino: string | null;
-  status: 'ativo' | 'inativo';
   endereco: string | null;
   cnpj_cpf: string | null;
-  email: string | null;
-  telefone: string | null;
   logo_url: string | null;
   cor_primaria: string | null;
   cor_secundaria: string | null;
+  data_criacao: string;
+  data_atualizacao: string;
 }
 
 export function useEmpresa() {
@@ -30,7 +29,7 @@ export function useEmpresa() {
       const { data, error } = await supabase
         .from('empresas')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id_usuario', user.id)
         .maybeSingle();
       if (error) throw error;
       return data as Empresa | null;

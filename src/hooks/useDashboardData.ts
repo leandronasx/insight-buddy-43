@@ -4,7 +4,7 @@ import { useEmpresa } from '@/hooks/useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { getDateRange } from '@/lib/date-utils';
 
-interface DashboardData {
+export interface DashboardData {
   totalLeads: number;
   leadsTrafego: number;
   leadsOrganico: number;
@@ -13,7 +13,7 @@ interface DashboardData {
   totalVendas: number;
   conversao: number;
   faturamento: number;
-  investimentoTrafego: number;
+  custoAnuncio: number;
   custoOperacional: number;
   metaFaturamento: number;
   roi: number;
@@ -21,7 +21,6 @@ interface DashboardData {
   lucroLiquido: number;
   ticketMedio: number;
 }
-
 
 export function useDashboardData() {
   const { empresa } = useEmpresa();
@@ -35,51 +34,69 @@ export function useDashboardData() {
       if (!empresa) throw new Error('No empresa');
       const { start, end } = getDateRange(month, year);
 
-      const [leadsRes, vendasRes, finRes] = await Promise.all([
-        supabase.from('leads').select('*').eq('empresa_id', empresa.id)
-          .gte('data_mensagem', start).lt('data_mensagem', end),
-        supabase.from('vendas').select('*, lead_id').eq('empresa_id', empresa.id)
-          .gte('data_venda', start).lt('data_venda', end),
-        supabase.from('financeiro_mensal').select('*').eq('empresa_id', empresa.id)
-          .eq('mes_referencia', month).eq('ano_referencia', year).maybeSingle(),
-      ]);
+      // Leads criados no mês
+      const { data: leadsData } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id_empresa', empresa.id)
+        .gte('data_criacao', start)
+        .lt('data_criacao', end);
 
-      const leads = leadsRes.data ?? [];
-      const vendas = vendasRes.data ?? [];
-      const fin = finRes.data;
+      const leads = leadsData ?? [];
+      const leadIds = leads.map(l => l.id);
 
-      // Fetch leads that have vendas but messaged in different month
-      const vendaLeadIds = vendas.filter(v => v.lead_id).map(v => v.lead_id as string);
-      const existingLeadIds = new Set(leads.map(l => l.id));
-      const missingLeadIds = vendaLeadIds.filter(id => !existingLeadIds.has(id));
-
-      let allLeads = leads;
-      if (missingLeadIds.length > 0) {
-        const { data: extraLeads } = await supabase
-          .from('leads').select('*').eq('empresa_id', empresa.id).in('id', missingLeadIds);
-        if (extraLeads) allLeads = [...leads, ...extraLeads];
+      // Vendas do mês (via leads da empresa)
+      let vendas: any[] = [];
+      if (leadIds.length > 0) {
+        const { data: vendasData } = await supabase
+          .from('vendas')
+          .select('id, id_leads, status, data_venda')
+          .in('id_leads', leadIds)
+          .gte('data_venda', start)
+          .lt('data_venda', end);
+        vendas = vendasData ?? [];
       }
 
-      const totalLeads = allLeads.length;
-      const leadsTrafego = allLeads.filter(l => l.origem === 'Tráfego').length;
-      const leadsOrganico = allLeads.filter(l => l.origem === 'Orgânico').length;
-      const leadsIndicacao = allLeads.filter(l => l.origem === 'Indicação').length;
-      const leadsFechados = allLeads.filter(l => l.status === 'Fechado').length;
+      // Itens das vendas para calcular faturamento
+      let itens: any[] = [];
+      if (vendas.length > 0) {
+        const { data: itensData } = await supabase
+          .from('itens_vendas')
+          .select('valor, bonus, id_vendas')
+          .in('id_vendas', vendas.map(v => v.id));
+        itens = itensData ?? [];
+      }
+
+      // Financeiro do mês
+      const { data: fin } = await supabase
+        .from('financeiro')
+        .select('*')
+        .eq('id_empresa', empresa.id)
+        .eq('mes', month)
+        .eq('ano', year)
+        .maybeSingle();
+
+      const totalLeads = leads.length;
+      const leadsTrafego = leads.filter(l => l.origem_lead === 'Tráfego').length;
+      const leadsOrganico = leads.filter(l => l.origem_lead === 'Orgânico').length;
+      const leadsIndicacao = leads.filter(l => l.origem_lead === 'Indicação').length;
+      const leadsFechados = leads.filter(l => l.situacao_do_cliente === 'Fechado').length;
       const totalVendas = vendas.length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = vendas.reduce((acc, v) => acc + Number(v.valor_final), 0);
-      const investimentoTrafego = Number(fin?.investimento_trafego ?? 0);
+      const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0), 0);
+      const custoAnuncio = Number(fin?.custo_anuncio ?? 0);
       const custoOperacional = Number(fin?.custo_operacional ?? 0);
-      const metaFaturamento = Number(fin?.meta_faturamento ?? 0);
-      const roi = investimentoTrafego > 0 ? faturamento / investimentoTrafego : 0;
-      const cac = totalVendas > 0 ? investimentoTrafego / totalVendas : 0;
-      const lucroLiquido = faturamento - (investimentoTrafego + custoOperacional);
+      const metaFaturamento = Number(fin?.meta_financeira ?? 0);
+      const roi = custoAnuncio > 0 ? faturamento / custoAnuncio : 0;
+      const cac = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
+      const lucroLiquido = faturamento - (custoAnuncio + custoOperacional);
       const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
       return {
         totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, totalVendas, conversao, faturamento, investimentoTrafego,
-        custoOperacional, metaFaturamento, roi, cac, lucroLiquido, ticketMedio,
+        leadsFechados, totalVendas, conversao, faturamento,
+        custoAnuncio, custoOperacional, metaFaturamento,
+        roi, cac, lucroLiquido, ticketMedio,
       };
     },
     enabled: !!empresa,
@@ -96,17 +113,44 @@ export function useChartData() {
     queryKey: ['dashboard-chart', empresa?.id, year],
     queryFn: async () => {
       if (!empresa) throw new Error('No empresa');
-      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      const { data: allVendas } = await supabase
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+      // Leads da empresa para filtrar vendas
+      const { data: leadsData } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('id_empresa', empresa.id);
+      const leadIds = (leadsData ?? []).map(l => l.id);
+      if (leadIds.length === 0) return months.map(mes => ({ mes, faturamento: 0 }));
+
+      const { data: vendas } = await supabase
         .from('vendas')
-        .select('valor_final, data_venda')
-        .eq('empresa_id', empresa.id)
+        .select('id, data_venda')
+        .in('id_leads', leadIds)
         .gte('data_venda', `${year}-01-01`)
         .lt('data_venda', `${year + 1}-01-01`);
 
+      const vendaIds = (vendas ?? []).map(v => v.id);
+      let itens: any[] = [];
+      if (vendaIds.length > 0) {
+        const { data: itensData } = await supabase
+          .from('itens_vendas')
+          .select('valor, id_vendas')
+          .in('id_vendas', vendaIds);
+        itens = itensData ?? [];
+      }
+
+      const itensByVenda: Record<string, number> = {};
+      itens.forEach(i => {
+        itensByVenda[i.id_vendas] = (itensByVenda[i.id_vendas] ?? 0) + Number(i.valor);
+      });
+
       return months.map((mes, i) => {
-        const monthVendas = allVendas?.filter(v => new Date(`${v.data_venda}T00:00:00`).getMonth() === i) ?? [];
-        return { mes, faturamento: monthVendas.reduce((acc, v) => acc + Number(v.valor_final), 0) };
+        const monthVendas = (vendas ?? []).filter(v =>
+          new Date(`${v.data_venda}T00:00:00`).getMonth() === i
+        );
+        const fat = monthVendas.reduce((s, v) => s + (itensByVenda[v.id] ?? 0), 0);
+        return { mes, faturamento: fat };
       });
     },
     enabled: !!empresa,

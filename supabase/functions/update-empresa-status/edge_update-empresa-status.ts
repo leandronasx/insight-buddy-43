@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// NOTE: The new schema has no 'status' column on empresas.
+// This function now updates data_termino to deactivate (set a past date)
+// or clears it to reactivate. Also supports updating nome_empresa and other fields.
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -23,7 +27,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
 
@@ -34,26 +37,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: roleData } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
+    // Check admin via usuarios.permissao (new schema)
+    const { data: usuarioData } = await adminClient
+      .from("usuarios")
+      .select("permissao")
+      .eq("id", user.id)
       .maybeSingle();
 
-    if (!roleData) {
+    if (!usuarioData || usuarioData.permissao !== "admin") {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { empresa_id, status, data_termino } = await req.json();
+    const { empresa_id, data_termino, nome_empresa, nome_dono } = await req.json();
 
-    const updateData: Record<string, unknown> = { status };
-    if (data_termino !== undefined) {
-      updateData.data_termino = data_termino;
-    }
+    const updateData: Record<string, unknown> = {};
+    if (data_termino !== undefined) updateData.data_termino = data_termino;
+    if (nome_empresa !== undefined) updateData.nome_empresa = nome_empresa;
+    if (nome_dono !== undefined) updateData.nome_dono = nome_dono;
 
     const { error } = await adminClient
       .from("empresas")

@@ -1,5 +1,5 @@
 import type jsPDF from 'jspdf';
-import type { VendaComServicos } from '@/hooks/useVendas';
+import type { VendaComItens } from '@/hooks/useVendas';
 import type { PdfLayout, PdfTheme } from './types';
 import { formatCurrency } from '@/lib/date-utils';
 import { getContrastFg } from './utils';
@@ -9,7 +9,7 @@ interface ServicesArgs {
   doc: jsPDF;
   layout: PdfLayout;
   theme: PdfTheme;
-  venda: VendaComServicos;
+  venda: VendaComItens;
   y: number;
 }
 
@@ -36,7 +36,7 @@ export function drawServicesTable({ doc, layout, theme, venda, y }: ServicesArgs
 
   y = drawTableHeader(doc, layout, theme, y);
 
-  venda.servicos.forEach((s, i) => {
+  venda.itens.forEach((s, i) => {
     // Break to new page if next row + table header (for repeat) won't fit
     if (y + ROW_H > getContentBottom(layout)) {
       y = ensureSpace({ doc, layout, theme, y, needed: ROW_H + HEADER_H });

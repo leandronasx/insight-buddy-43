@@ -27,7 +27,7 @@ export function drawSignatures({ doc, layout, theme, empresa, y }: SignaturesArg
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...theme.muted);
   doc.text('Assinatura do Cliente', margin + sigWidth / 2, sigY + 5, { align: 'center' });
-  doc.text(`Assinatura — ${empresa.empresa_nome}`, margin + sigWidth + 20 + sigWidth / 2, sigY + 5, { align: 'center' });
+  doc.text(`Assinatura — ${empresa.nome_empresa}`, margin + sigWidth + 20 + sigWidth / 2, sigY + 5, { align: 'center' });
 
   return sigY + 8;
 }
@@ -52,9 +52,9 @@ export function drawFooterAllPages({
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...theme.muted);
-    const footerLeft: string[] = [empresa.empresa_nome];
-    if (empresa.telefone) footerLeft.push(empresa.telefone);
-    if (empresa.email) footerLeft.push(empresa.email);
+    const footerLeft: string[] = [empresa.nome_empresa];
+    if ((empresa as any).telefone) footerLeft.push((empresa as any).telefone);
+    if ((empresa as any).email) footerLeft.push((empresa as any).email);
     doc.text(footerLeft.join('  •  '), margin, footerY);
 
     const right = `Emitido em ${new Date().toLocaleDateString('pt-BR')}  •  Página ${p} de ${total}`;

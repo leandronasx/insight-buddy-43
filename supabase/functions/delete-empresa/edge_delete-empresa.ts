@@ -1,9 +1,8 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
@@ -22,12 +21,11 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is admin
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
+
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
@@ -35,14 +33,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
-    const { data: roles } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin");
+    // Check admin via usuarios.permissao (new schema)
+    const { data: usuarioData } = await adminClient
+      .from("usuarios")
+      .select("permissao")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (!roles || roles.length === 0) {
+    if (!usuarioData || usuarioData.permissao !== "admin") {
       return new Response(JSON.stringify({ error: "Not admin" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -57,10 +55,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get the empresa to find user_id
+    // Get id_usuario from empresa (new schema)
     const { data: empresa, error: empError } = await adminClient
       .from("empresas")
-      .select("user_id")
+      .select("id_usuario")
       .eq("id", empresa_id)
       .single();
 
@@ -71,9 +69,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const targetUserId = empresa.user_id;
+    const targetUserId = empresa.id_usuario;
 
-    // Delete the empresa (cascade will remove all related data)
+    // Delete empresa (CASCADE removes leads, vendas, itens, financeiro, etc.)
     const { error: deleteError } = await adminClient
       .from("empresas")
       .delete()
@@ -86,7 +84,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete the auth user
+    // Delete auth user
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
     if (authDeleteError) {
       console.error("Failed to delete auth user:", authDeleteError.message);

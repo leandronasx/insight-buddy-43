@@ -38,5 +38,5 @@ export async function gerarOrdemServicoPDF({ venda, empresa, lead }: OrdemServic
   drawFooterAllPages({ doc, layout, theme, empresa });
 
   const osNumber = getOsNumber(venda);
-  doc.save(`OS_${osNumber}_${(lead?.nome_lead || 'Cliente').replace(/\s+/g, '_')}.pdf`);
+  doc.save(`OS_${osNumber}_${(lead?.nome || 'Cliente').replace(/\s+/g, '_')}.pdf`);
 }

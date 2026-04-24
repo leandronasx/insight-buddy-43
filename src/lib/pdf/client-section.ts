@@ -1,5 +1,5 @@
 import type jsPDF from 'jspdf';
-import type { LeadOption, VendaComServicos } from '@/hooks/useVendas';
+import type { LeadOption, VendaComItens } from '@/hooks/useVendas';
 import type { PdfLayout, PdfTheme } from './types';
 
 interface ClientArgs {
@@ -24,7 +24,7 @@ export function drawClientSection({ doc, layout, theme, lead, y }: ClientArgs): 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...theme.ink);
-  doc.text(lead?.nome_lead || 'Cliente não informado', margin + 5, y + 13);
+  doc.text(lead?.nome || 'Cliente não informado', margin + 5, y + 13);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -45,12 +45,12 @@ interface SchedulingArgs {
   doc: jsPDF;
   layout: PdfLayout;
   theme: PdfTheme;
-  venda: VendaComServicos;
+  venda: VendaComItens;
   y: number;
 }
 
 export function drawScheduling({ doc, layout, theme, venda, y }: SchedulingArgs): number {
-  if (!venda.data_agendada && !venda.horario_agendado) return y;
+  if (!venda.data_servico && !venda.horario_servico) return y;
 
   const { margin, contentWidth } = layout;
   doc.setFillColor(...theme.primary);
@@ -59,11 +59,11 @@ export function drawScheduling({ doc, layout, theme, venda, y }: SchedulingArgs)
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   const agendaText: string[] = [];
-  if (venda.data_agendada) {
-    agendaText.push(`Data ${new Date(venda.data_agendada + 'T00:00:00').toLocaleDateString('pt-BR')}`);
+  if (venda.data_servico) {
+    agendaText.push(`Data ${new Date(venda.data_servico + 'T00:00:00').toLocaleDateString('pt-BR')}`);
   }
-  if (venda.horario_agendado) {
-    agendaText.push(`Horário ${venda.horario_agendado.slice(0, 5)}`);
+  if (venda.horario_servico) {
+    agendaText.push(`Horário ${venda.horario_servico.slice(0, 5)}`);
   }
   doc.text(`AGENDAMENTO  •  ${agendaText.join('   |   ')}`, margin + 5, y + 6.8);
   return y + 14;

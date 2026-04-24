@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface EmpresaMetrics {
   id: string;
-  empresa_nome: string;
+  nome_empresa: string;
   nome_dono: string | null;
   faturamento: number;
   investimentoTrafego: number;
@@ -54,9 +54,8 @@ export function AdminOverview() {
       const { data: allEmpresas } = await supabase
         .from('empresas')
         .select('*')
-        .eq('status', 'ativo')
-        .neq('user_id', user.id)
-        .order('empresa_nome');
+        .neq('id_usuario', user.id)
+        .order('nome_empresa');
 
       if (!allEmpresas || allEmpresas.length === 0) {
         setEmpresas([]);
@@ -68,34 +67,63 @@ export function AdminOverview() {
 
       // Fetch all leads, vendas, financeiro for this month in parallel
       const [leadsRes, vendasRes, finRes] = await Promise.all([
-        supabase.from('leads').select('*').in('empresa_id', empresaIds)
-          .gte('data_mensagem', startDate).lt('data_mensagem', endDate),
-        supabase.from('vendas').select('*').in('empresa_id', empresaIds)
-          .gte('data_venda', startDate).lt('data_venda', endDate),
-        supabase.from('financeiro_mensal').select('*').in('empresa_id', empresaIds)
-          .eq('mes_referencia', month).eq('ano_referencia', year),
+        supabase.from('leads').select('*').in('id_empresa', empresaIds)
+          .gte('data_criacao', startDate).lt('data_criacao', endDate),
+        // vendas join via leads (no direct empresa_id on vendas in new schema)
+        supabase.from('leads').select('id, id_empresa')
+          .in('id_empresa', empresaIds),
+        supabase.from('financeiro').select('*').in('id_empresa', empresaIds)
+          .eq('mes', month).eq('ano', year),
       ]);
 
       const leads = leadsRes.data ?? [];
-      const vendas = vendasRes.data ?? [];
+      const allLeadIds_forVendas = (vendasRes.data ?? []).map((l: any) => l.id);
       const fins = finRes.data ?? [];
 
-      const metrics: EmpresaMetrics[] = allEmpresas.map(emp => {
-        const empLeads = leads.filter(l => l.empresa_id === emp.id);
-        const empVendas = vendas.filter(v => v.empresa_id === emp.id);
-        const empFin = fins.find(f => f.empresa_id === emp.id);
+      // Fetch vendas via lead ids
+      let vendas: any[] = [];
+      if (allLeadIds_forVendas.length > 0) {
+        const { data: vendasData } = await supabase
+          .from('vendas')
+          .select('id, id_leads, data_venda, status')
+          .in('id_leads', allLeadIds_forVendas)
+          .gte('data_venda', startDate)
+          .lt('data_venda', endDate);
+        vendas = vendasData ?? [];
+      }
 
-        const faturamento = empVendas.reduce((acc, v) => acc + Number(v.valor_final), 0);
-        const investimentoTrafego = Number(empFin?.investimento_trafego ?? 0);
+      // Build leadId -> empresa_id map
+      const leadEmpresaMap: Record<string, string> = {};
+      (vendasRes.data ?? []).forEach((l: any) => { leadEmpresaMap[l.id] = l.id_empresa; });
+
+      // Fetch itens_vendas for all vendas to calculate faturamento
+      let itensMap: Record<string, number> = {};
+      if (vendas.length > 0) {
+        const { data: itensData } = await supabase
+          .from('itens_vendas')
+          .select('id_vendas, valor')
+          .in('id_vendas', vendas.map((v: any) => v.id));
+        (itensData ?? []).forEach((i: any) => {
+          itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + Number(i.valor);
+        });
+      }
+
+      const metrics: EmpresaMetrics[] = allEmpresas.map(emp => {
+        const empLeads = leads.filter(l => l.id_empresa === emp.id);
+        const empVendas = vendas.filter(v => leadEmpresaMap[v.id_leads] === emp.id);
+        const empFin = fins.find(f => f.id_empresa === emp.id);
+
+        const faturamento = empVendas.reduce((acc: number, v: any) => acc + (itensMap[v.id] ?? 0), 0);
+        const investimentoTrafego = Number(empFin?.custo_anuncio ?? 0);
         const totalLeads = empLeads.length;
-        const leadsFechados = empLeads.filter(l => l.status === 'Fechado').length;
+        const leadsFechados = empLeads.filter(l => l.situacao_do_cliente === 'Fechado').length;
         const totalVendas = empVendas.length;
         const cac = totalVendas > 0 ? investimentoTrafego / totalVendas : 0;
         const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
         return {
           id: emp.id,
-          empresa_nome: emp.empresa_nome,
+          nome_empresa: emp.nome_empresa,
           nome_dono: emp.nome_dono,
           faturamento,
           investimentoTrafego,
@@ -233,7 +261,7 @@ export function AdminOverview() {
               {empresas.map(emp => (
                 <tr key={emp.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                   <td className="py-3">
-                    <p className="font-medium text-foreground">{emp.empresa_nome}</p>
+                    <p className="font-medium text-foreground">{emp.nome_empresa}</p>
                     {emp.nome_dono && <p className="text-xs text-muted-foreground">{emp.nome_dono}</p>}
                   </td>
                   <td className="py-3 text-right font-medium text-primary">{fmt(emp.faturamento)}</td>

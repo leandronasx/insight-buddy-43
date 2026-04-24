@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Trash2, ToggleLeft, ToggleRight, Upload, Building2, User, FileText, MapPin, Mail, Phone, Palette } from 'lucide-react';
+import { Trash2, Upload, Building2, User, FileText, MapPin, Palette } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,17 +8,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 interface Empresa {
   id: string;
-  user_id: string;
-  empresa_nome: string;
+  id_usuario: string;
+  nome_empresa: string;
   nome_dono: string | null;
   data_inicio: string | null;
   data_termino: string | null;
-  status: 'ativo' | 'inativo';
-  created_at: string;
   endereco?: string | null;
   cnpj_cpf?: string | null;
-  email?: string | null;
-  telefone?: string | null;
   logo_url?: string | null;
   cor_primaria?: string | null;
   cor_secundaria?: string | null;
@@ -34,15 +30,12 @@ interface Props {
 export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
-    empresa_nome: '',
+    nome_empresa: '',
     nome_dono: '',
     data_inicio: '',
     data_termino: '',
-    status: 'ativo' as 'ativo' | 'inativo',
     endereco: '',
     cnpj_cpf: '',
-    email: '',
-    telefone: '',
     cor_primaria: '#22c55e',
     cor_secundaria: '#0f172a',
   });
@@ -56,15 +49,12 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
   useEffect(() => {
     if (empresa) {
       setForm({
-        empresa_nome: empresa.empresa_nome,
+        nome_empresa: empresa.nome_empresa,
         nome_dono: empresa.nome_dono || '',
         data_inicio: empresa.data_inicio || '',
         data_termino: empresa.data_termino || '',
-        status: empresa.status,
         endereco: empresa.endereco || '',
         cnpj_cpf: empresa.cnpj_cpf || '',
-        email: empresa.email || '',
-        telefone: empresa.telefone || '',
         cor_primaria: empresa.cor_primaria || '#22c55e',
         cor_secundaria: empresa.cor_secundaria || '#0f172a',
       });
@@ -77,35 +67,14 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !empresa) return;
-
     const ext = file.name.split('.').pop();
-    const filePath = `${empresa.user_id}/logo.${ext}`;
-
+    const filePath = `${empresa.id_usuario}/logo.${ext}`;
     setUploading(true);
-    const { error: upErr } = await supabase.storage
-      .from('logos')
-      .upload(filePath, file, { upsert: true });
-
-    if (upErr) {
-      toast.error('Erro ao enviar logo: ' + upErr.message);
-      setUploading(false);
-      return;
-    }
-
+    const { error: upErr } = await supabase.storage.from('logos').upload(filePath, file, { upsert: true });
+    if (upErr) { toast.error('Erro ao enviar logo: ' + upErr.message); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from('logos').getPublicUrl(filePath);
     const logo_url = urlData.publicUrl + '?t=' + Date.now();
-
-    const { error: updErr } = await supabase
-      .from('empresas')
-      .update({ logo_url })
-      .eq('id', empresa.id);
-
-    if (updErr) {
-      toast.error('Erro ao salvar logo: ' + updErr.message);
-      setUploading(false);
-      return;
-    }
-
+    await supabase.from('empresas').update({ logo_url }).eq('id', empresa.id);
     setLogoPreview(logo_url);
     setUploading(false);
     toast.success('Logo atualizada!');
@@ -116,19 +85,15 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
     if (!empresa) return;
     setError('');
     setSaving(true);
-
     const { error: updateErr } = await supabase
       .from('empresas')
       .update({
-        empresa_nome: form.empresa_nome,
+        nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono || null,
         data_inicio: form.data_inicio || null,
         data_termino: form.data_termino || null,
-        status: form.status,
         endereco: form.endereco || null,
         cnpj_cpf: form.cnpj_cpf || null,
-        email: form.email || null,
-        telefone: form.telefone || null,
         cor_primaria: form.cor_primaria,
         cor_secundaria: form.cor_secundaria,
       })
@@ -140,7 +105,6 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
       setSaving(false);
       return;
     }
-
     setSaving(false);
     onOpenChange(false);
     toast.success('Empresa atualizada com sucesso!');
@@ -151,11 +115,9 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
     if (!empresa) return;
     setError('');
     setDeleting(true);
-
     const res = await supabase.functions.invoke('delete-empresa', {
       body: { empresa_id: empresa.id },
     });
-
     if (res.error || res.data?.error) {
       const msg = res.error?.message || res.data?.error || 'Erro ao excluir empresa';
       setError(msg);
@@ -163,7 +125,6 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
       setDeleting(false);
       return;
     }
-
     setDeleting(false);
     onOpenChange(false);
     setConfirmDelete(false);
@@ -180,72 +141,39 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
         <div className="space-y-4">
           {/* Logo */}
           <div className="metric-card flex items-center gap-4">
-            <div
-              className="w-16 h-16 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0 cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {logoPreview ? (
-                <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
-              ) : (
-                <Upload className="h-6 w-6 text-muted-foreground" />
-              )}
+            <div className="w-16 h-16 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0 cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}>
+              {logoPreview
+                ? <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
+                : <Upload className="h-6 w-6 text-muted-foreground" />}
             </div>
             <div className="flex-1">
               <p className="font-medium text-foreground text-sm">Logo da Empresa</p>
               <p className="text-xs text-muted-foreground">Clique para enviar/alterar</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleLogoUpload}
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
               {uploading && <p className="text-xs text-primary mt-1">Enviando...</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
-              </label>
-              <Input value={form.empresa_nome} onChange={e => setForm({ ...form, empresa_nome: e.target.value })} className="bg-secondary border-border" />
+              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> Nome da Empresa *</label>
+              <Input value={form.nome_empresa} onChange={e => setForm({ ...form, nome_empresa: e.target.value })} className="bg-secondary border-border" />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" /> Proprietário
-              </label>
+              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Proprietário</label>
               <Input value={form.nome_dono} onChange={e => setForm({ ...form, nome_dono: e.target.value })} className="bg-secondary border-border" />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" /> CNPJ ou CPF
-            </label>
+            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> CNPJ ou CPF</label>
             <Input value={form.cnpj_cpf} onChange={e => setForm({ ...form, cnpj_cpf: e.target.value })} placeholder="00.000.000/0001-00" className="bg-secondary border-border" />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" /> Endereço
-            </label>
+            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Endereço</label>
             <Input value={form.endereco} onChange={e => setForm({ ...form, endereco: e.target.value })} placeholder="Rua, Número, bairro, CEP, Cidade-UF" className="bg-secondary border-border" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5" /> E-mail
-              </label>
-              <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="contato@empresa.com" className="bg-secondary border-border" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5" /> Telefone
-              </label>
-              <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 99999-9999" className="bg-secondary border-border" />
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -260,68 +188,38 @@ export function EditEmpresaDialog({ empresa, open, onOpenChange, onSuccess }: Pr
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
-              <Palette className="h-3.5 w-3.5" /> Cores da Marca
-            </label>
+            <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" /> Cores da Marca</label>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={form.cor_primaria}
-                  onChange={e => setForm({ ...form, cor_primaria: e.target.value })}
-                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
-                />
+                <input type="color" value={form.cor_primaria} onChange={e => setForm({ ...form, cor_primaria: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
                 <span className="text-sm text-muted-foreground">Primária</span>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={form.cor_secundaria}
-                  onChange={e => setForm({ ...form, cor_secundaria: e.target.value })}
-                  className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
-                />
+                <input type="color" value={form.cor_secundaria} onChange={e => setForm({ ...form, cor_secundaria: e.target.value })} className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
                 <span className="text-sm text-muted-foreground">Secundária</span>
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
-            <div className="flex gap-2">
-              <Button type="button" variant={form.status === 'ativo' ? 'default' : 'outline'} size="sm" onClick={() => setForm({ ...form, status: 'ativo' })}>
-                <ToggleRight className="h-4 w-4 mr-1" /> Ativo
-              </Button>
-              <Button type="button" variant={form.status === 'inativo' ? 'destructive' : 'outline'} size="sm" onClick={() => setForm({ ...form, status: 'inativo' })}>
-                <ToggleLeft className="h-4 w-4 mr-1" /> Inativo
-              </Button>
-            </div>
-          </div>
-
           {error && <p className="text-destructive text-sm">{error}</p>}
 
-          <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !form.empresa_nome}>
+          <Button onClick={handleEdit} className="w-full" disabled={saving || deleting || !form.nome_empresa}>
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
 
           <div className="border-t border-border pt-4 mt-2">
             {!confirmDelete ? (
-              <Button
-                variant="outline"
-                className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => setConfirmDelete(true)}
-                disabled={saving || deleting}
-              >
+              <Button variant="outline" className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => setConfirmDelete(true)} disabled={saving || deleting}>
                 <Trash2 className="h-4 w-4 mr-1" /> Excluir Empresa
               </Button>
             ) : (
               <div className="space-y-2">
                 <p className="text-sm text-destructive font-medium text-center">
-                  Tem certeza? Todos os dados (leads, vendas, serviços, financeiro) serão removidos permanentemente.
+                  Tem certeza? Todos os dados serão removidos permanentemente.
                 </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={deleting}>
-                    Cancelar
-                  </Button>
+                  <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancelar</Button>
                   <Button variant="destructive" className="flex-1" onClick={handleDelete} disabled={deleting}>
                     {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
                   </Button>
