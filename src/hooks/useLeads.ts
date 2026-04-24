@@ -3,34 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 import { useMonth } from '@/contexts/MonthContext';
 import { getDateRange } from '@/lib/date-utils';
+import { Database } from '@/integrations/supabase/types';
 
-// Valores conforme o novo schema (TEXT livre)
-export const ORIGENS_LEAD = ['Tráfego', 'Orgânico', 'Indicação', 'WhatsApp', 'Referência'] as const;
-export const SITUACOES_CLIENTE = ['Novo', 'Em negociação', 'Agendado', 'Fechado', 'Sem Interesse', 'Reabordar'] as const;
+export const ORIGENS = ['Tráfego', 'Orgânico', 'Indicação'] as const;
+export const STATUS_LEAD = ['Agendado', 'Sem Interesse', 'Fechado', 'Reabordar'] as const;
 export const MOMENTOS_FUNIL = ['Contato', 'Orçamento', 'Agendamento', 'Pós-venda'] as const;
 export const QUALIFICACOES = ['Quente', 'Morno', 'Frio'] as const;
 
-export interface Lead {
-  id: string;
-  id_empresa: string;
-  nome: string;
-  telefone: string | null;
-  email: string | null;
-  cnpj_cpf: string | null;
-  endereco: string | null;
-  origem_lead: string | null;
-  situacao_do_cliente: string | null;
-  momento_funil: string | null;
-  qualificacao: string | null;
-  robo_pos_vendas: boolean;
-  robo_follow_ups: boolean;
-  robo_atendimento: boolean;
-  robo_agendamento: boolean;
-  data_contato: string | null;
-  data_orcamento: string | null;
-  data_criacao: string;
-  data_atualizacao: string;
-}
+export type Lead = Database['public']['Tables']['leads']['Row'];
+export type InsertLead = Database['public']['Tables']['leads']['Insert'];
 
 export function useLeads() {
   const { empresa } = useEmpresa();
@@ -39,7 +20,7 @@ export function useLeads() {
 
   const queryKey = ['leads', empresa?.id, month, year];
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading: loading } = useQuery({
     queryKey,
     queryFn: async () => {
       if (!empresa) return [];
@@ -47,10 +28,10 @@ export function useLeads() {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .eq('id_empresa', empresa.id)
-        .gte('data_criacao', start)
-        .lt('data_criacao', end)
-        .order('data_criacao', { ascending: false });
+        .eq('empresa_id', empresa.id)
+        .gte('created_at', start)
+        .lt('created_at', end)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
@@ -58,12 +39,12 @@ export function useLeads() {
   });
 
   const saveLead = useMutation({
-    mutationFn: async ({ id, ...payload }: Partial<Lead> & { nome: string; id_empresa: string }) => {
+    mutationFn: async ({ id, ...payload }: Partial<Lead> & { nome_lead: string; empresa_id: string }) => {
       if (id) {
         const { error } = await supabase.from('leads').update(payload).eq('id', id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('leads').insert(payload);
+        const { error } = await supabase.from('leads').insert(payload as InsertLead);
         if (error) throw error;
       }
     },
@@ -78,5 +59,5 @@ export function useLeads() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  return { leads, isLoading, saveLead, deleteLead };
+  return { leads, loading, saveLead, deleteLead };
 }

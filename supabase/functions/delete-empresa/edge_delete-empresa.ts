@@ -33,14 +33,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin via usuarios.permissao (new schema)
-    const { data: usuarioData } = await adminClient
-      .from("usuarios")
-      .select("permissao")
-      .eq("id", user.id)
+    // Check admin via user_roles (new schema)
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
       .maybeSingle();
 
-    if (!usuarioData || usuarioData.permissao !== "admin") {
+    if (!roleData) {
       return new Response(JSON.stringify({ error: "Not admin" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,10 +56,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get id_usuario from empresa (new schema)
+    // Get user_id from empresa (new schema)
     const { data: empresa, error: empError } = await adminClient
       .from("empresas")
-      .select("id_usuario")
+      .select("user_id")
       .eq("id", empresa_id)
       .single();
 
@@ -69,9 +70,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const targetUserId = empresa.id_usuario;
+    const targetUserId = empresa.user_id;
 
-    // Delete empresa (CASCADE removes leads, vendas, itens, financeiro, etc.)
+    // Delete empresa (CASCADE removes leads, vendas, servicos, financeiro_mensal, etc.)
     const { error: deleteError } = await adminClient
       .from("empresas")
       .delete()

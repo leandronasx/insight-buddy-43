@@ -60,7 +60,7 @@ export default function Kanban() {
     const map: Record<string, Lead[]> = {};
     COLUMNS.forEach(c => { map[c.status] = []; });
     filtered.forEach(l => {
-      if (map[l.situacao_do_cliente]) map[l.situacao_do_cliente].push(l);
+      if (map[l.status]) map[l.status].push(l);
     });
     return map;
   }, [filtered]);
@@ -71,9 +71,9 @@ export default function Kanban() {
   const handleDrop = async (status: string) => {
     if (!dragging || !empresa) return;
     const lead = leads.find(l => l.id === dragging);
-    if (!lead || lead.situacao_do_cliente === status) return;
+    if (!lead || lead.status === status) return;
     try {
-      await saveLead.mutateAsync({ id: lead.id, ...lead, status, id_empresa: empresa.id });
+      await saveLead.mutateAsync({ id: lead.id, ...lead, status, empresa_id: empresa.id });
       toast.success(`Lead movido para "${status}"`);
     } catch (e: any) {
       toast.error('Erro ao mover lead: ' + e.message);
@@ -103,23 +103,23 @@ export default function Kanban() {
       <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)]">
         {COLUMNS.map(col => (
           <div
-            key={col.situacao_do_cliente}
-            className={`flex-shrink-0 w-72 rounded-xl border ${col.bg} transition-all duration-200 ${dragOver === col.situacao_do_cliente ? 'ring-2 ring-primary/50 scale-[1.01]' : ''}`}
-            onDragOver={e => { e.preventDefault(); setDragOver(col.situacao_do_cliente); }}
+            key={col.status}
+            className={`flex-shrink-0 w-72 rounded-xl border ${col.bg} transition-all duration-200 ${dragOver === col.status ? 'ring-2 ring-primary/50 scale-[1.01]' : ''}`}
+            onDragOver={e => { e.preventDefault(); setDragOver(col.status); }}
             onDragLeave={() => setDragOver(null)}
-            onDrop={() => handleDrop(col.situacao_do_cliente)}
+            onDrop={() => handleDrop(col.status)}
           >
             {/* Column header */}
             <div className="px-4 py-3 flex items-center justify-between border-b border-inherit">
               <span className={`font-display font-semibold text-sm ${col.color}`}>{col.label}</span>
               <Badge variant="outline" className={`text-xs ${col.color} border-current`}>
-                {byStatus[col.situacao_do_cliente]?.length ?? 0}
+                {byStatus[col.status]?.length ?? 0}
               </Badge>
             </div>
 
             {/* Cards */}
             <div className="p-3 space-y-3 min-h-[200px]">
-              {byStatus[col.situacao_do_cliente]?.map(lead => (
+              {byStatus[col.status]?.map(lead => (
                 <motion.div
                   key={lead.id}
                   layout
@@ -137,8 +137,8 @@ export default function Kanban() {
                       </div>
                       <span className="font-medium text-sm text-foreground leading-tight">{lead.nome}</span>
                     </div>
-                    <Badge variant="outline" className={`text-[10px] ${statusColors[lead.situacao_do_cliente || 'Novo']} flex-shrink-0`}>
-                      {lead.situacao_do_cliente || 'Novo'}
+                    <Badge variant="outline" className={`text-[10px] ${statusColors[lead.status || 'Novo']} flex-shrink-0`}>
+                      {lead.status || 'Novo'}
                     </Badge>
                   </div>
 
@@ -167,7 +167,7 @@ export default function Kanban() {
                 </motion.div>
               ))}
 
-              {byStatus[col.situacao_do_cliente]?.length === 0 && (
+              {byStatus[col.status]?.length === 0 && (
                 <div className="flex items-center justify-center h-24 text-muted-foreground text-xs italic">
                   Nenhum lead aqui
                 </div>

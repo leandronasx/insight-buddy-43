@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Phone, Search, Download, MessageCircle } from 'lucide-react';
 import { useEmpresa } from '@/hooks/useEmpresa';
-import { useLeads, type Lead, ORIGENS_LEAD, SITUACOES_CLIENTE, MOMENTOS_FUNIL, QUALIFICACOES } from '@/hooks/useLeads';
+import { useLeads, type Lead, ORIGENS, STATUS_LEAD, MOMENTOS_FUNIL, QUALIFICACOES } from '@/hooks/useLeads';
 import { usePagination } from '@/hooks/usePagination';
 import { downloadCSV } from '@/lib/csv-export';
 import { PaginationControls } from '@/components/PaginationControls';
@@ -25,23 +25,23 @@ const situacaoColors: Record<string, string> = {
   'Sem Interesse': 'bg-muted text-muted-foreground',
 };
 
-function whatsappUrl(telefone: string | null, nome: string) {
+function whatsappUrl(telefone: string | null, nome_lead: string) {
   const num = (telefone || '').replace(/\D/g, '');
   const msg = encodeURIComponent(`Olá ${nome}! 👋`);
   return `https://wa.me/55${num}?text=${msg}`;
 }
 
 const emptyForm = {
-  nome: '',
+  nome_lead: '',
   telefone: '',
   email: '',
-  cnpj_cpf: '',
+  cpf_cnpj: '',
   endereco: '',
-  origem_lead: 'Tráfego',
-  situacao_do_cliente: 'Novo',
+  origem: 'Tráfego',
+  status: 'Novo',
   momento_funil: 'Contato',
   qualificacao: 'Morno',
-  data_contato: '',
+  data_mensagem: '',
   data_orcamento: '',
   robo_follow_ups: false,
   robo_atendimento: false,
@@ -63,10 +63,10 @@ export default function Leads() {
     if (!search.trim()) return leads;
     const q = search.toLowerCase();
     return leads.filter(l =>
-      l.nome.toLowerCase().includes(q) ||
+      l.nome_lead.toLowerCase().includes(q) ||
       l.telefone?.toLowerCase().includes(q) ||
-      l.origem_lead?.toLowerCase().includes(q) ||
-      l.situacao_do_cliente?.toLowerCase().includes(q)
+      l.origem?.toLowerCase().includes(q) ||
+      l.status?.toLowerCase().includes(q)
     );
   }, [leads, search]);
 
@@ -79,23 +79,23 @@ export default function Leads() {
 
   const openNew = () => {
     setEditingLead(null);
-    setForm({ ...emptyForm, data_contato: today });
+    setForm({ ...emptyForm, data_mensagem: today });
     setModalOpen(true);
   };
 
   const openEdit = (lead: Lead) => {
     setEditingLead(lead);
     setForm({
-      nome: lead.nome,
+      nome_lead: lead.nome_lead,
       telefone: lead.telefone || '',
       email: lead.email || '',
-      cnpj_cpf: lead.cnpj_cpf || '',
+      cpf_cnpj: lead.cpf_cnpj || '',
       endereco: lead.endereco || '',
-      origem_lead: lead.origem_lead || 'Tráfego',
-      situacao_do_cliente: lead.situacao_do_cliente || 'Novo',
+      origem: lead.origem || 'Tráfego',
+      status: lead.status || 'Novo',
       momento_funil: lead.momento_funil || 'Contato',
       qualificacao: lead.qualificacao || 'Morno',
-      data_contato: lead.data_contato ? lead.data_contato.split('T')[0] : '',
+      data_mensagem: lead.data_mensagem ? lead.data_mensagem.split('T')[0] : '',
       data_orcamento: lead.data_orcamento ? lead.data_orcamento.split('T')[0] : '',
       robo_follow_ups: lead.robo_follow_ups,
       robo_atendimento: lead.robo_atendimento,
@@ -106,26 +106,26 @@ export default function Leads() {
   };
 
   const handleSave = async () => {
-    if (!empresa || !form.nome.trim()) return;
+    if (!empresa || !form.nome_lead.trim()) return;
     try {
       await saveLead.mutateAsync({
         ...(editingLead ? { id: editingLead.id } : {}),
-        nome: form.nome,
+        nome_lead: form.nome_lead,
         telefone: form.telefone || null,
         email: form.email || null,
-        cnpj_cpf: form.cnpj_cpf || null,
+        cpf_cnpj: form.cpf_cnpj || null,
         endereco: form.endereco || null,
-        origem_lead: form.origem_lead || null,
-        situacao_do_cliente: form.situacao_do_cliente || null,
+        origem: form.origem || null,
+        status: form.status || null,
         momento_funil: form.momento_funil || null,
         qualificacao: form.qualificacao || null,
-        data_contato: form.data_contato ? new Date(form.data_contato + 'T00:00:00').toISOString() : null,
+        data_mensagem: form.data_mensagem ? new Date(form.data_mensagem + 'T00:00:00').toISOString() : null,
         data_orcamento: form.data_orcamento ? new Date(form.data_orcamento + 'T00:00:00').toISOString() : null,
         robo_follow_ups: form.robo_follow_ups,
         robo_atendimento: form.robo_atendimento,
         robo_agendamento: form.robo_agendamento,
         robo_pos_vendas: form.robo_pos_vendas,
-        id_empresa: empresa.id,
+        empresa_id: empresa.id,
       });
       setModalOpen(false);
       setSelectedId(null);
@@ -164,7 +164,7 @@ export default function Leads() {
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
             ['Nome', 'Telefone', 'Origem', 'Situação', 'Data Contato'],
-            filtered.map(l => [l.nome, l.telefone, l.origem_lead, l.situacao_do_cliente, l.data_contato ?? ''])
+            filtered.map(l => [l.nome_lead, l.telefone, l.origem, l.status, l.data_mensagem ?? ''])
           )
         }>
           <Download className="h-4 w-4 mr-1" /> Exportar
@@ -191,9 +191,9 @@ export default function Leads() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium text-foreground">{lead.nome}</p>
-                  <Badge variant="outline" className={`text-xs ${situacaoColors[lead.situacao_do_cliente || 'Novo'] || 'bg-muted text-muted-foreground'}`}>
-                    {lead.situacao_do_cliente || 'Novo'}
+                  <p className="font-medium text-foreground">{lead.nome_lead}</p>
+                  <Badge variant="outline" className={`text-xs ${situacaoColors[lead.status || 'Novo'] || 'bg-muted text-muted-foreground'}`}>
+                    {lead.status || 'Novo'}
                   </Badge>
                   {lead.qualificacao && (
                     <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -205,13 +205,13 @@ export default function Leads() {
                   {lead.telefone && (
                     <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.telefone}</span>
                   )}
-                  {lead.origem_lead && <span>{lead.origem_lead}</span>}
+                  {lead.origem && <span>{lead.origem}</span>}
                   {lead.momento_funil && <span className="text-primary">{lead.momento_funil}</span>}
                 </div>
               </div>
               {lead.telefone && (
                 <a
-                  href={whatsappUrl(lead.telefone, lead.nome)}
+                  href={whatsappUrl(lead.telefone, lead.nome_lead)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={e => e.stopPropagation()}
@@ -277,8 +277,8 @@ export default function Leads() {
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground font-medium">Nome *</label>
               <Input
-                value={form.nome}
-                onChange={e => setForm({ ...form, nome: e.target.value })}
+                value={form.nome_lead}
+                onChange={e => setForm({ ...form, nome_lead: e.target.value })}
                 placeholder="Nome do cliente"
               />
             </div>
@@ -299,7 +299,7 @@ export default function Leads() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">CPF / CNPJ</label>
-                <Input value={form.cnpj_cpf} onChange={e => setForm({ ...form, cnpj_cpf: e.target.value })} placeholder="000.000.000-00" />
+                <Input value={form.cpf_cnpj} onChange={e => setForm({ ...form, cpf_cnpj: e.target.value })} placeholder="000.000.000-00" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Endereço</label>
@@ -311,16 +311,16 @@ export default function Leads() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Origem</label>
-                <Select value={form.origem_lead} onValueChange={v => setForm({ ...form, origem_lead: v })}>
+                <Select value={form.origem} onValueChange={v => setForm({ ...form, origem: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORIGENS_LEAD.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                  <SelectContent>{ORIGENS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Situação</label>
-                <Select value={form.situacao_do_cliente} onValueChange={v => setForm({ ...form, situacao_do_cliente: v })}>
+                <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{SITUACOES_CLIENTE.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STATUS_LEAD.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
@@ -347,7 +347,7 @@ export default function Leads() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Data do Contato</label>
-                <Input type="date" value={form.data_contato} onChange={e => setForm({ ...form, data_contato: e.target.value })} />
+                <Input type="date" value={form.data_mensagem} onChange={e => setForm({ ...form, data_mensagem: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground font-medium">Data do Orçamento</label>

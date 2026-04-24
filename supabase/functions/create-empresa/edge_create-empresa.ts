@@ -33,14 +33,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin via usuarios.permissao (new schema)
-    const { data: usuarioData } = await adminClient
-      .from("usuarios")
-      .select("permissao")
-      .eq("id", user.id)
+    // Check admin via user_roles (new schema)
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
       .maybeSingle();
 
-    if (!usuarioData || usuarioData.permissao !== "admin") {
+    if (!roleData) {
       return new Response(JSON.stringify({ error: "Acesso negado. Apenas admins." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { nome_empresa },
+      user_metadata: { empresa_nome: nome_empresa },
     });
 
     if (createError) {
@@ -71,20 +72,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // The trigger fn_criar_perfil_usuario creates the usuario row automatically.
-    // Now create the empresa row linked to the new user.
+    // The trigger handle_new_user creates the empresa row automatically with the meta data.
+    // We update it with the additional data.
     const { error: empresaError } = await adminClient
       .from("empresas")
-      .insert({
-        id_usuario: newUser.user.id,
-        nome_empresa,
+      .update({
         nome_dono: nome_dono || null,
         data_inicio: data_inicio || new Date().toISOString().split("T")[0],
         data_termino: data_termino || null,
-      });
+      })
+      .eq('user_id', newUser.user.id);
 
     if (empresaError) {
-      console.error("Error creating empresa:", empresaError);
+      console.error("Error updating auto-created empresa:", empresaError);
     }
 
     return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {

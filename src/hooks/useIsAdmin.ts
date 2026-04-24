@@ -10,11 +10,12 @@ export function useIsAdmin() {
     queryFn: async () => {
       if (!user) return false;
       const { data } = await supabase
-        .from('usuarios')
-        .select('permissao')
-        .eq('id', user.id)
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
         .maybeSingle();
-      return data?.permissao === 'admin';
+      return !!data;
     },
     enabled: !!user,
   });

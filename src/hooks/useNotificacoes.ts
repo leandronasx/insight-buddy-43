@@ -4,10 +4,10 @@ import { useEmpresa } from './useEmpresa';
 
 export interface LeadSemContato {
   id: string;
-  nome: string;
+  nome_lead: string;
   telefone: string | null;
-  situacao_do_cliente: string | null;
-  data_atualizacao: string;
+  status: string | null;
+  updated_at: string;
   diasSemContato: number;
 }
 
@@ -49,11 +49,11 @@ export function useNotificacoes() {
       // Leads ativos sem estar fechados/sem interesse
       const { data: leadsData } = await supabase
         .from('leads')
-        .select('id, nome, telefone, situacao_do_cliente, data_atualizacao')
-        .eq('id_empresa', empresa.id)
-        .not('situacao_do_cliente', 'in', '("Sem Interesse","Fechado")')
-        .gte('data_atualizacao', since.toISOString())
-        .order('data_atualizacao', { ascending: true });
+        .select('id, nome_lead, telefone, status, updated_at')
+        .eq('empresa_id', empresa.id)
+        .not('status', 'in', '("Sem Interesse","Fechado")')
+        .gte('updated_at', since.toISOString())
+        .order('updated_at', { ascending: true });
 
       const leads = leadsData ?? [];
       const leadIds = leads.map(l => l.id);
@@ -63,9 +63,9 @@ export function useNotificacoes() {
       if (leadIds.length > 0) {
         const { data: vendasData } = await supabase
           .from('vendas')
-          .select('data_servico')
-          .in('id_leads', leadIds)
-          .not('data_servico', 'is', null);
+          .select('data_agendada')
+          .in('lead_id', leadIds)
+          .not('data_agendada', 'is', null);
         vendas = vendasData ?? [];
       }
 
@@ -75,13 +75,13 @@ export function useNotificacoes() {
 
       const semContato: LeadSemContato[] = leads.map(l => ({
         ...l,
-        diasSemContato: diffDias(l.data_atualizacao),
+        diasSemContato: diffDias(l.updated_at),
       }));
 
       const leadsSemContato3dias = semContato.filter(l => l.diasSemContato >= 3 && l.diasSemContato < 7);
       const leadsSemContato7dias = semContato.filter(l => l.diasSemContato >= 7);
-      const agendadosHoje = vendas.filter(v => isDateDay(v.data_servico, hoje)).length;
-      const agendadosAmanha = vendas.filter(v => isDateDay(v.data_servico, amanha)).length;
+      const agendadosHoje = vendas.filter(v => isDateDay(v.data_agendada, hoje)).length;
+      const agendadosAmanha = vendas.filter(v => isDateDay(v.data_agendada, amanha)).length;
 
       const totalAlertas =
         leadsSemContato7dias.length +

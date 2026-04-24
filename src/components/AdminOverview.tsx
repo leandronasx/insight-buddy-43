@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface EmpresaMetrics {
   id: string;
-  nome_empresa: string;
+  empresa_nome: string;
   nome_dono: string | null;
   faturamento: number;
   investimentoTrafego: number;
@@ -54,8 +54,8 @@ export function AdminOverview() {
       const { data: allEmpresas } = await supabase
         .from('empresas')
         .select('*')
-        .neq('id_usuario', user.id)
-        .order('nome_empresa');
+        .neq('user_id', user.id)
+        .order('empresa_nome');
 
       if (!allEmpresas || allEmpresas.length === 0) {
         setEmpresas([]);
@@ -67,63 +67,35 @@ export function AdminOverview() {
 
       // Fetch all leads, vendas, financeiro for this month in parallel
       const [leadsRes, vendasRes, finRes] = await Promise.all([
-        supabase.from('leads').select('*').in('id_empresa', empresaIds)
-          .gte('data_criacao', startDate).lt('data_criacao', endDate),
-        // vendas join via leads (no direct empresa_id on vendas in new schema)
-        supabase.from('leads').select('id, id_empresa')
-          .in('id_empresa', empresaIds),
-        supabase.from('financeiro').select('*').in('id_empresa', empresaIds)
-          .eq('mes', month).eq('ano', year),
+        supabase.from('leads').select('*').in('empresa_id', empresaIds)
+          .gte('created_at', startDate).lt('created_at', endDate),
+        // In the new schema vendas HAS empresa_id
+        supabase.from('vendas').select('*').in('empresa_id', empresaIds)
+          .gte('data_venda', startDate).lt('data_venda', endDate),
+        supabase.from('financeiro_mensal').select('*').in('empresa_id', empresaIds)
+          .eq('mes_referencia', month).eq('ano_referencia', year),
       ]);
 
       const leads = leadsRes.data ?? [];
-      const allLeadIds_forVendas = (vendasRes.data ?? []).map((l: any) => l.id);
+      const vendas = vendasRes.data ?? [];
       const fins = finRes.data ?? [];
 
-      // Fetch vendas via lead ids
-      let vendas: any[] = [];
-      if (allLeadIds_forVendas.length > 0) {
-        const { data: vendasData } = await supabase
-          .from('vendas')
-          .select('id, id_leads, data_venda, status')
-          .in('id_leads', allLeadIds_forVendas)
-          .gte('data_venda', startDate)
-          .lt('data_venda', endDate);
-        vendas = vendasData ?? [];
-      }
-
-      // Build leadId -> empresa_id map
-      const leadEmpresaMap: Record<string, string> = {};
-      (vendasRes.data ?? []).forEach((l: any) => { leadEmpresaMap[l.id] = l.id_empresa; });
-
-      // Fetch itens_vendas for all vendas to calculate faturamento
-      let itensMap: Record<string, number> = {};
-      if (vendas.length > 0) {
-        const { data: itensData } = await supabase
-          .from('itens_vendas')
-          .select('id_vendas, valor')
-          .in('id_vendas', vendas.map((v: any) => v.id));
-        (itensData ?? []).forEach((i: any) => {
-          itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + Number(i.valor);
-        });
-      }
-
       const metrics: EmpresaMetrics[] = allEmpresas.map(emp => {
-        const empLeads = leads.filter(l => l.id_empresa === emp.id);
-        const empVendas = vendas.filter(v => leadEmpresaMap[v.id_leads] === emp.id);
-        const empFin = fins.find(f => f.id_empresa === emp.id);
+        const empLeads = leads.filter(l => l.empresa_id === emp.id);
+        const empVendas = vendas.filter(v => v.empresa_id === emp.id);
+        const empFin = fins.find(f => f.empresa_id === emp.id);
 
-        const faturamento = empVendas.reduce((acc: number, v: any) => acc + (itensMap[v.id] ?? 0), 0);
-        const investimentoTrafego = Number(empFin?.custo_anuncio ?? 0);
+        const faturamento = empVendas.reduce((acc: number, v: any) => acc + Number(v.valor_final), 0);
+        const investimentoTrafego = Number(empFin?.investimento_trafego ?? 0);
         const totalLeads = empLeads.length;
-        const leadsFechados = empLeads.filter(l => l.situacao_do_cliente === 'Fechado').length;
+        const leadsFechados = empLeads.filter(l => l.status === 'Fechado').length;
         const totalVendas = empVendas.length;
         const cac = totalVendas > 0 ? investimentoTrafego / totalVendas : 0;
         const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
         return {
           id: emp.id,
-          nome_empresa: emp.nome_empresa,
+          empresa_nome: emp.empresa_nome,
           nome_dono: emp.nome_dono,
           faturamento,
           investimentoTrafego,
@@ -141,144 +113,139 @@ export function AdminOverview() {
       const leadsTotal = metrics.reduce((a, m) => a + m.totalLeads, 0);
       const leadsFechadosTotal = metrics.reduce((a, m) => a + m.leadsFechados, 0);
 
-      setEmpresas(metrics);
       setTotals({
         empresasAtivas,
         faturamentoTotal,
         investimentoTotal,
         leadsTotal,
         leadsFechadosTotal,
-        mediaFaturamento: empresasAtivas > 0 ? faturamentoTotal / empresasAtivas : 0,
-        mediaCac: leadsFechadosTotal > 0 ? investimentoTotal / leadsFechadosTotal : 0,
-        mediaInvestimento: empresasAtivas > 0 ? investimentoTotal / empresasAtivas : 0,
-        mediaTicketMedio: leadsFechadosTotal > 0 ? faturamentoTotal / leadsFechadosTotal : 0,
+        mediaFaturamento: empresasAtivas ? faturamentoTotal / empresasAtivas : 0,
+        mediaInvestimento: empresasAtivas ? investimentoTotal / empresasAtivas : 0,
+        mediaTicketMedio: empresasAtivas ? metrics.reduce((a, m) => a + m.ticketMedio, 0) / empresasAtivas : 0,
+        mediaCac: empresasAtivas ? metrics.reduce((a, m) => a + m.cac, 0) / empresasAtivas : 0,
       });
+
+      setEmpresas(metrics.sort((a, b) => b.faturamento - a.faturamento));
       setLoading(false);
     };
 
     fetchAll();
-  }, [month, year, user?.id]);
-
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
-  const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+  }, [user?.id, month, year]);
 
   if (loading) {
-    return <p className="text-muted-foreground animate-pulse text-center py-8">Carregando painel...</p>;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <div key={i} className="h-32 rounded-2xl bg-secondary/50 animate-pulse" />)}
+        </div>
+      </div>
+    );
   }
 
+  const formatMoney = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            <span className="text-xs text-muted-foreground">Empresas Ativas</span>
+    <div className="space-y-6 fade-in">
+      {/* Resumo Global */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="metric-card bg-primary/5 border-primary/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Empresas Ativas</p>
           </div>
-          <p className="font-display text-2xl font-bold text-foreground">{totals.empresasAtivas}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet className="h-5 w-5 text-primary" />
-            <span className="text-xs text-muted-foreground">Faturamento Total</span>
-          </div>
-          <p className="font-display text-xl font-bold text-primary">{fmt(totals.faturamentoTotal)}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Receipt className="h-5 w-5 text-destructive" />
-            <span className="text-xs text-muted-foreground">Total em Tráfego</span>
-          </div>
-          <p className="font-display text-xl font-bold text-destructive">{fmt(totals.investimentoTotal)}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-5 w-5 text-info" />
-            <span className="text-xs text-muted-foreground">Total Leads</span>
-          </div>
-          <p className="font-display text-2xl font-bold text-foreground">{totals.leadsTotal}</p>
-          <p className="text-xs text-muted-foreground mt-1">{totals.leadsFechadosTotal} fechado{totals.leadsFechadosTotal !== 1 ? 's' : ''}</p>
-        </motion.div>
-      </div>
-
-      {/* Averages */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <span className="text-xs text-muted-foreground">Média Faturamento</span>
-          </div>
-          <p className="font-display text-lg font-bold text-foreground">{fmt(totals.mediaFaturamento)}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="h-5 w-5 text-warning" />
-            <span className="text-xs text-muted-foreground">Média CAC</span>
-          </div>
-          <p className="font-display text-lg font-bold text-foreground">{fmt(totals.mediaCac)}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Receipt className="h-5 w-5 text-info" />
-            <span className="text-xs text-muted-foreground">Média Investimento</span>
-          </div>
-          <p className="font-display text-lg font-bold text-foreground">{fmt(totals.mediaInvestimento)}</p>
-        </motion.div>
-
-        <motion.div variants={item} className="metric-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Tag className="h-5 w-5 text-primary" />
-            <span className="text-xs text-muted-foreground">Média Ticket Médio</span>
-          </div>
-          <p className="font-display text-lg font-bold text-foreground">{fmt(totals.mediaTicketMedio)}</p>
-        </motion.div>
-      </div>
-
-      {/* Per-empresa table */}
-      <motion.div variants={item} className="metric-card overflow-hidden">
-        <h3 className="font-display text-lg font-semibold text-foreground mb-4">Detalhamento por Empresa</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="pb-3 font-medium text-muted-foreground">Empresa</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">Faturamento</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">Tráfego</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">Leads</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">Fechados</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">CAC</th>
-                <th className="pb-3 font-medium text-muted-foreground text-right">Ticket</th>
-              </tr>
-            </thead>
-            <tbody>
-              {empresas.map(emp => (
-                <tr key={emp.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="py-3">
-                    <p className="font-medium text-foreground">{emp.nome_empresa}</p>
-                    {emp.nome_dono && <p className="text-xs text-muted-foreground">{emp.nome_dono}</p>}
-                  </td>
-                  <td className="py-3 text-right font-medium text-primary">{fmt(emp.faturamento)}</td>
-                  <td className="py-3 text-right text-destructive">{fmt(emp.investimentoTrafego)}</td>
-                  <td className="py-3 text-right text-foreground">{emp.totalLeads}</td>
-                  <td className="py-3 text-right text-foreground">{emp.leadsFechados}</td>
-                  <td className="py-3 text-right text-foreground">{fmt(emp.cac)}</td>
-                  <td className="py-3 text-right text-foreground">{fmt(emp.ticketMedio)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h3 className="text-2xl font-display font-bold text-foreground">{totals.empresasAtivas}</h3>
         </div>
-        {empresas.length === 0 && (
-          <p className="text-muted-foreground text-center py-6">Nenhuma empresa ativa encontrada.</p>
-        )}
-      </motion.div>
-    </motion.div>
+
+        <div className="metric-card bg-emerald-500/5 border-emerald-500/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Faturamento Global</p>
+          </div>
+          <h3 className="text-2xl font-display font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(totals.faturamentoTotal)}</h3>
+          <p className="text-xs text-muted-foreground mt-1">Média: {formatMoney(totals.mediaFaturamento)}/empresa</p>
+        </div>
+
+        <div className="metric-card bg-blue-500/5 border-blue-500/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+              <Users className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Leads Totais</p>
+          </div>
+          <h3 className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400">{totals.leadsTotal}</h3>
+          <p className="text-xs text-muted-foreground mt-1">{totals.leadsFechadosTotal} fechados</p>
+        </div>
+
+        <div className="metric-card bg-orange-500/5 border-orange-500/20">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-orange-500/10 rounded-lg text-orange-500">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Investimento Global</p>
+          </div>
+          <h3 className="text-2xl font-display font-bold text-orange-600 dark:text-orange-400">{formatMoney(totals.investimentoTotal)}</h3>
+          <p className="text-xs text-muted-foreground mt-1">Média: {formatMoney(totals.mediaInvestimento)}/empresa</p>
+        </div>
+      </div>
+
+      {/* Lista de Empresas com Metricas */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="p-5 border-b border-border flex justify-between items-center bg-secondary/30">
+          <h3 className="font-display font-bold text-lg text-foreground">Desempenho por Empresa</h3>
+        </div>
+
+        <div className="divide-y divide-border">
+          {empresas.map((emp) => (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              key={emp.id}
+              className="p-5 hover:bg-secondary/50 transition-colors"
+            >
+              <div className="flex flex-col md:flex-row gap-4 justify-between">
+
+                <div className="min-w-[200px]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <p className="font-medium text-foreground">{emp.empresa_nome}</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground ml-6">{emp.nome_dono || 'Sem responsável'}</p>
+                </div>
+
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3"/> Faturamento</p>
+                    <p className="font-bold text-emerald-500">{formatMoney(emp.faturamento)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3"/> Vendas/Leads</p>
+                    <p className="font-bold text-foreground">{emp.totalVendas} <span className="text-muted-foreground font-normal text-xs">/ {emp.totalLeads}</span></p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3"/> Ticket Médio</p>
+                    <p className="font-bold text-blue-500">{formatMoney(emp.ticketMedio)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Receipt className="h-3 w-3"/> CAC</p>
+                    <p className="font-bold text-orange-500">{formatMoney(emp.cac)}</p>
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          ))}
+
+          {empresas.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              Nenhuma métrica encontrada para este mês.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
