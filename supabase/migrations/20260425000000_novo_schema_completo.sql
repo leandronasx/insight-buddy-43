@@ -361,6 +361,41 @@ CREATE INDEX IF NOT EXISTS idx_hist_id_leads          ON public.historico_atendi
 CREATE INDEX IF NOT EXISTS idx_lembretes_id_leads     ON public.lembretes_automacoes(id_leads);
 CREATE INDEX IF NOT EXISTS idx_lembretes_disparado    ON public.lembretes_automacoes(disparado);
 
+
+
+
+-- ============================================================
+-- Mundaças em tabela leads(situacao_do_cliente, momento_funil, qualificacao)
+-- ============================================================
+
+
+-- Adiciona constraints de CHECK nas colunas da tabela leads
+
+ALTER TABLE public.leads
+  DROP CONSTRAINT IF EXISTS chk_situacao_do_cliente,
+  DROP CONSTRAINT IF EXISTS chk_momento_funil,
+  DROP CONSTRAINT IF EXISTS chk_qualificacao;
+
+ALTER TABLE public.leads
+  ADD CONSTRAINT chk_situacao_do_cliente
+    CHECK (situacao_do_cliente IS NULL OR situacao_do_cliente IN (
+      'Agendado', 'Fechado', 'Reabordar', 'Sem Interesse', 'Interesse Futuro'
+    ));
+
+ALTER TABLE public.leads
+  ADD CONSTRAINT chk_momento_funil
+    CHECK (momento_funil IS NULL OR momento_funil IN (
+      'Pre Orçamento', 'Pos Orçamento', 'Pos Venda'
+    ));
+
+ALTER TABLE public.leads
+  ADD CONSTRAINT chk_qualificacao
+    CHECK (qualificacao IS NULL OR qualificacao IN (
+      'Sim', 'Não'
+    ));
+
+
+
 -- ============================================================
 -- FIM DO SCHEMA
 -- ============================================================
