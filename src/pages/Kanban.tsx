@@ -9,21 +9,19 @@ import { Badge } from '@/components/ui/badge';
 import { ListSkeleton } from '@/components/LoadingSkeleton';
 
 const COLUMNS: { status: string; label: string; color: string; bg: string }[] = [
-  { status: 'Novo',          label: 'Novo',          color: 'text-blue-400',         bg: 'bg-blue-500/10 border-blue-500/20' },
-  { status: 'Em negociação', label: 'Em negociação', color: 'text-purple-400',       bg: 'bg-purple-500/10 border-purple-500/20' },
-  { status: 'Agendado',      label: 'Agendado',      color: 'text-yellow-400',       bg: 'bg-yellow-500/10 border-yellow-500/20' },
-  { status: 'Fechado',       label: 'Fechado',       color: 'text-green-400',        bg: 'bg-green-500/10 border-green-500/20' },
-  { status: 'Reabordar',     label: 'Reabordar',     color: 'text-orange-400',       bg: 'bg-orange-500/10 border-orange-500/20' },
-  { status: 'Sem Interesse', label: 'Sem Interesse', color: 'text-muted-foreground', bg: 'bg-muted/30 border-border' },
+  { status: 'Agendado',        label: 'Agendado',        color: 'text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/20' },
+  { status: 'Fechado',         label: 'Fechado',         color: 'text-green-400',   bg: 'bg-green-500/10 border-green-500/20' },
+  { status: 'Reabordar',       label: 'Reabordar',       color: 'text-yellow-400',  bg: 'bg-yellow-500/10 border-yellow-500/20' },
+  { status: 'Interesse Futuro',label: 'Interesse Futuro',color: 'text-purple-400',  bg: 'bg-purple-500/10 border-purple-500/20' },
+  { status: 'Sem Interesse',   label: 'Sem Interesse',   color: 'text-muted-foreground', bg: 'bg-muted/30 border-border' },
 ];
 
 const statusColors: Record<string, string> = {
-  'Novo':          'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'Em negociação': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  'Agendado':      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'Fechado':       'bg-green-500/20 text-green-400 border-green-500/30',
-  'Reabordar':     'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  'Sem Interesse': 'bg-muted text-muted-foreground border-border',
+  'Agendado':        'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'Fechado':         'bg-green-500/20 text-green-400 border-green-500/30',
+  'Reabordar':       'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'Interesse Futuro':'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  'Sem Interesse':   'bg-muted text-muted-foreground border-border',
 };
 
 function whatsappUrl(telefone: string | null, nome: string) {
@@ -48,18 +46,13 @@ export default function Kanban() {
     );
   }, [leads, search]);
 
-  // Agrupa leads por situacao_do_cliente
   const byStatus = useMemo(() => {
     const map: Record<string, Lead[]> = {};
     COLUMNS.forEach(c => { map[c.status] = []; });
     filtered.forEach(l => {
-      const s = l.situacao_do_cliente || 'Novo';
-      if (map[s] !== undefined) {
-        map[s].push(l);
-      } else {
-        // Situação não mapeada vai para Novo
-        map['Novo'].push(l);
-      }
+      const s = l.situacao_do_cliente || 'Agendado';
+      if (map[s] !== undefined) map[s].push(l);
+      else map['Agendado'].push(l);
     });
     return map;
   }, [filtered]);
@@ -71,12 +64,9 @@ export default function Kanban() {
     if (!dragging || !empresa) return;
     const lead = leads.find(l => l.id === dragging);
     if (!lead || lead.situacao_do_cliente === novoStatus) {
-      setDragging(null);
-      setDragOver(null);
-      return;
+      setDragging(null); setDragOver(null); return;
     }
     try {
-      // Atualiza apenas situacao_do_cliente, preserva o resto
       await saveLead.mutateAsync({
         id: lead.id,
         nome: lead.nome,
@@ -96,49 +86,36 @@ export default function Kanban() {
     } catch (e: any) {
       toast.error('Erro ao mover lead: ' + e.message);
     }
-    setDragging(null);
-    setDragOver(null);
+    setDragging(null); setDragOver(null);
   };
 
   if (isLoading) return <ListSkeleton />;
 
   return (
     <div className="space-y-4">
-      {/* Search bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar lead..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Buscar lead..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <span className="text-sm text-muted-foreground">{filtered.length} leads</span>
       </div>
 
-      {/* Board */}
       <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-220px)]">
         {COLUMNS.map(col => (
           <div
-            key={col.status}  // ← fix: usa col.status (que existe), não col.situacao_do_cliente
-            className={`flex-shrink-0 w-72 rounded-xl border ${col.bg} transition-all duration-200 ${
-              dragOver === col.status ? 'ring-2 ring-primary/50 scale-[1.01]' : ''
-            }`}
+            key={col.status}
+            className={`flex-shrink-0 w-72 rounded-xl border ${col.bg} transition-all duration-200 ${dragOver === col.status ? 'ring-2 ring-primary/50 scale-[1.01]' : ''}`}
             onDragOver={e => { e.preventDefault(); setDragOver(col.status); }}
             onDragLeave={() => setDragOver(null)}
             onDrop={() => handleDrop(col.status)}
           >
-            {/* Column header */}
             <div className="px-4 py-3 flex items-center justify-between border-b border-inherit">
               <span className={`font-display font-semibold text-sm ${col.color}`}>{col.label}</span>
               <Badge variant="outline" className={`text-xs ${col.color} border-current`}>
                 {byStatus[col.status]?.length ?? 0}
               </Badge>
             </div>
-
-            {/* Cards */}
             <div className="p-3 space-y-3 min-h-[200px]">
               {byStatus[col.status]?.map(lead => (
                 <motion.div
@@ -149,9 +126,7 @@ export default function Kanban() {
                   draggable
                   onDragStart={() => handleDragStart(lead.id)}
                   onDragEnd={handleDragEnd}
-                  className={`bg-card border border-border rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow select-none ${
-                    dragging === lead.id ? 'opacity-50' : ''
-                  }`}
+                  className={`bg-card border border-border rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow select-none ${dragging === lead.id ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
@@ -160,24 +135,25 @@ export default function Kanban() {
                       </div>
                       <span className="font-medium text-sm text-foreground leading-tight">{lead.nome}</span>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] flex-shrink-0 ${statusColors[lead.situacao_do_cliente || 'Novo'] ?? statusColors['Novo']}`}
-                    >
-                      {lead.situacao_do_cliente || 'Novo'}
+                    <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${statusColors[lead.situacao_do_cliente || 'Agendado'] ?? ''}`}>
+                      {lead.situacao_do_cliente || 'Agendado'}
                     </Badge>
                   </div>
-
                   {lead.telefone && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                      <Phone className="h-3 w-3" />
-                      <span>{lead.telefone}</span>
+                      <Phone className="h-3 w-3" /><span>{lead.telefone}</span>
                     </div>
                   )}
-
+                  {/* Qualificação badge */}
+                  {lead.qualificacao && (
+                    <div className="mb-2">
+                      <Badge variant="outline" className={`text-[10px] ${lead.qualificacao === 'Sim' ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                        Qualificado: {lead.qualificacao}
+                      </Badge>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
-                    {/* fix: origem_lead, não lead.origem */}
-                    <span className="text-[10px] text-muted-foreground">{lead.origem_lead || ''}</span>
+                    <span className="text-[10px] text-muted-foreground">{lead.momento_funil || ''}</span>
                     {lead.telefone && (
                       <a
                         href={whatsappUrl(lead.telefone, lead.nome)}
@@ -186,14 +162,12 @@ export default function Kanban() {
                         onClick={e => e.stopPropagation()}
                         className="flex items-center gap-1 text-[10px] text-green-400 hover:text-green-300 transition-colors"
                       >
-                        <MessageCircle className="h-3 w-3" />
-                        WhatsApp
+                        <MessageCircle className="h-3 w-3" />WhatsApp
                       </a>
                     )}
                   </div>
                 </motion.div>
               ))}
-
               {byStatus[col.status]?.length === 0 && (
                 <div className="flex items-center justify-center h-24 text-muted-foreground text-xs italic">
                   Nenhum lead aqui

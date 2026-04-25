@@ -17,12 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 
 const situacaoColors: Record<string, string> = {
-  'Novo':          'bg-blue-500/20 text-blue-400',
-  'Em negociação': 'bg-purple-500/20 text-purple-400',
-  'Agendado':      'bg-info/20 text-info',
-  'Fechado':       'bg-primary/20 text-primary',
-  'Reabordar':     'bg-warning/20 text-warning',
-  'Sem Interesse': 'bg-muted text-muted-foreground',
+  'Agendado':        'bg-blue-500/20 text-blue-400',
+  'Fechado':         'bg-green-500/20 text-green-400',
+  'Reabordar':       'bg-yellow-500/20 text-yellow-400',
+  'Sem Interesse':   'bg-muted text-muted-foreground',
+  'Interesse Futuro':'bg-purple-500/20 text-purple-400',
 };
 
 function whatsappUrl(telefone: string | null, nome: string) {
@@ -38,9 +37,9 @@ const emptyForm = {
   cnpj_cpf: '',
   endereco: '',
   origem_lead: 'Tráfego',
-  situacao_do_cliente: 'Novo',
-  momento_funil: 'Contato',
-  qualificacao: 'Morno',
+  situacao_do_cliente: 'Agendado',
+  momento_funil: 'Pre Orçamento',
+  qualificacao: 'Sim',
   data_contato: '',
   data_orcamento: '',
   robo_follow_ups: false,

@@ -6,9 +6,9 @@ import { getDateRange } from '@/lib/date-utils';
 
 // Valores conforme o novo schema (TEXT livre)
 export const ORIGENS_LEAD = ['Tráfego', 'Orgânico', 'Indicação', 'WhatsApp', 'Referência'] as const;
-export const SITUACOES_CLIENTE = ['Novo', 'Em negociação', 'Agendado', 'Fechado', 'Sem Interesse', 'Reabordar'] as const;
-export const MOMENTOS_FUNIL = ['Contato', 'Orçamento', 'Agendamento', 'Pós-venda'] as const;
-export const QUALIFICACOES = ['Quente', 'Morno', 'Frio'] as const;
+export const SITUACOES_CLIENTE = ['Agendado', 'Fechado', 'Reabordar', 'Sem Interesse', 'Interesse Futuro'] as const;
+export const MOMENTOS_FUNIL = ['Pre Orçamento', 'Pos Orçamento', 'Pos Venda'] as const;
+export const QUALIFICACOES = ['Sim', 'Não'] as const;
 
 export interface Lead {
   id: string;
