@@ -1,13 +1,32 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  MessageCircle, Zap, Lock, CheckCircle2, Phone,
-  ArrowRight, Send, Star, User, Search
+  MessageCircle, Zap, Lock, CheckCircle2,
+  ArrowRight, Send, Star, User, Search, AlertCircle, RotateCcw
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useLeads } from '@/hooks/useLeads';
+import { useEmpresa } from '@/hooks/useEmpresa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+
+// Ícones e cores por tipo de regra
+const TIPO_ICONS: Record<string, { icon: string; color: string }> = {
+  follow_up_pre_orcamento:  { icon: '💬', color: 'border-blue-500/30 bg-blue-500/5 text-blue-400' },
+  follow_up_pos_orcamento:  { icon: '🔁', color: 'border-purple-500/30 bg-purple-500/5 text-purple-400' },
+  lembrete_agendamento:     { icon: '📅', color: 'border-yellow-500/30 bg-yellow-500/5 text-yellow-400' },
+  pos_venda:                { icon: '⭐', color: 'border-green-500/30 bg-green-500/5 text-green-400' },
+};
+
+const TIPO_LABELS: Record<string, string> = {
+  follow_up_pre_orcamento: 'Follow-up Pré-orçamento',
+  follow_up_pos_orcamento: 'Follow-up Pós-orçamento',
+  lembrete_agendamento:    'Lembrete de Agendamento',
+  pos_venda:               'Pós-venda',
+};
 
 const PLAN_FEATURES = [
   { text: 'Atendimento automático 24h no WhatsApp', pro: true },
@@ -17,36 +36,20 @@ const PLAN_FEATURES = [
   { text: 'Pós-venda automático', pro: true },
   { text: 'Confirmação e remarcação de serviços', pro: true },
   { text: 'Envio manual via link para o cliente', pro: false },
-  { text: 'Follow-up manual com um clique', pro: false },
-  { text: 'Lembrete de agendamento manual', pro: false },
+  { text: 'Mensagens das suas regras de cadência', pro: false },
 ];
 
-const TEMPLATES = [
-  {
-    id: 'follow_up',
-    label: 'Follow-up',
-    icon: '🔁',
-    msg: (nome: string) => `Olá ${nome}! 👋 Tudo bem? Passando para saber se você ainda tem interesse no nosso serviço de higienização. Ficou alguma dúvida? Estou à disposição!`,
-  },
-  {
-    id: 'lembrete',
-    label: 'Lembrete de Agendamento',
-    icon: '📅',
-    msg: (nome: string) => `Olá ${nome}! 😊 Lembramos que você tem um serviço agendado conosco. Confirme sua presença respondendo SIM ou NÃO. Qualquer dúvida, é só falar!`,
-  },
-  {
-    id: 'pos_venda',
-    label: 'Pós-venda',
-    icon: '⭐',
-    msg: (nome: string) => `Olá ${nome}! Esperamos que tenha gostado do nosso serviço! 🧹✨ Pode nos dar uma nota? E se precisar novamente, é só chamar. Obrigado pela confiança!`,
-  },
-  {
-    id: 'orcamento',
-    label: 'Enviar Orçamento',
-    icon: '💰',
-    msg: (nome: string) => `Olá ${nome}! Segue o orçamento do serviço de higienização conforme conversado. Qualquer dúvida estou à disposição. Quando podemos agendar? 😊`,
-  },
-];
+interface Regra {
+  id: string;
+  tipo_lembrete: string;
+  cadencia_envio: number;
+  template_mensagem: string | null;
+}
+
+function renderMensagem(template: string | null, nome: string): string {
+  if (!template) return `Olá ${nome}! 👋`;
+  return template.replace(/\{nome\}/g, nome).replace(/\{dias\}/g, '?');
+}
 
 function whatsappLink(telefone: string | null, mensagem: string) {
   const num = (telefone || '').replace(/\D/g, '');
@@ -55,19 +58,38 @@ function whatsappLink(telefone: string | null, mensagem: string) {
 
 export default function Whatsapp() {
   const { leads } = useLeads();
+  const { empresa } = useEmpresa();
   const [search, setSearch] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id);
+  const [selectedRegra, setSelectedRegra] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
 
-  const template = TEMPLATES.find(t => t.id === selectedTemplate)!;
+  // Busca as regras criadas na página de Automações
+  const { data: regras = [], isLoading: loadingRegras } = useQuery({
+    queryKey: ['regras-whatsapp', empresa?.id],
+    queryFn: async () => {
+      if (!empresa) return [];
+      const { data } = await supabase
+        .from('regras_automacoes')
+        .select('id, tipo_lembrete, cadencia_envio, template_mensagem')
+        .eq('id_empresa', empresa.id)
+        .order('data_criacao', { ascending: false });
+      return (data ?? []) as Regra[];
+    },
+    enabled: !!empresa,
+  });
 
-  const filtered = leads.filter(l => {
-    if (!search.trim()) return true;
+  const regraAtual = regras.find(r => r.id === selectedRegra) ?? null;
+
+  const filteredLeads = useMemo(() => {
+    if (!search.trim()) return [];
     const q = search.toLowerCase();
-    return l.nome.toLowerCase().includes(q) || l.telefone?.includes(q);
-  }).slice(0, 10);
+    return leads.filter(l =>
+      l.nome.toLowerCase().includes(q) || l.telefone?.includes(q)
+    ).slice(0, 8);
+  }, [leads, search]);
 
   const lead = leads.find(l => l.id === selectedLead);
+  const mensagem = regraAtual && lead ? renderMensagem(regraAtual.template_mensagem, lead.nome) : '';
 
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
   const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
@@ -75,7 +97,7 @@ export default function Whatsapp() {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 max-w-5xl">
 
-      {/* Header banner */}
+      {/* Header */}
       <motion.div variants={item} className="metric-card border-green-500/30 bg-green-500/5">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
@@ -84,7 +106,7 @@ export default function Whatsapp() {
           <div className="flex-1">
             <h2 className="font-display font-bold text-foreground mb-1">Integração WhatsApp</h2>
             <p className="text-sm text-muted-foreground">
-              Envie mensagens manuais para seus leads com um clique. Para automações completas, ative o plano Pro.
+              Selecione uma regra de cadência e um lead para enviar a mensagem com um clique.
             </p>
           </div>
           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
@@ -95,30 +117,76 @@ export default function Whatsapp() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Send manual message */}
+        {/* Envio Manual */}
         <motion.div variants={item} className="space-y-4">
           <h3 className="font-display font-semibold text-foreground">Envio Manual</h3>
 
-          {/* Template selector */}
-          <div className="grid grid-cols-2 gap-2">
-            {TEMPLATES.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTemplate(t.id)}
-                className={`text-left px-3 py-2.5 rounded-lg border transition-all text-sm
-                  ${selectedTemplate === t.id
-                    ? 'border-primary/50 bg-primary/10 text-primary'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/30'
-                  }`}
-              >
-                <span className="mr-1">{t.icon}</span> {t.label}
-              </button>
-            ))}
+          {/* Regras de cadência */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              Regra de Cadência
+            </label>
+
+            {loadingRegras && (
+              <div className="space-y-2">
+                {[1,2].map(i => <div key={i} className="h-12 bg-card animate-pulse rounded-lg" />)}
+              </div>
+            )}
+
+            {!loadingRegras && regras.length === 0 && (
+              <div className="metric-card border-dashed flex flex-col items-center py-6 text-center gap-2">
+                <RotateCcw className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">Nenhuma regra criada ainda</p>
+                <Link to="/automacoes">
+                  <Button size="sm" variant="outline" className="gap-1 mt-1">
+                    Criar regras de cadência →
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            {regras.length > 0 && (
+              <div className="space-y-2">
+                {regras.map(r => {
+                  const tipoInfo = TIPO_ICONS[r.tipo_lembrete] ?? { icon: '💬', color: 'border-border bg-card text-foreground' };
+                  const label = TIPO_LABELS[r.tipo_lembrete] ?? r.tipo_lembrete;
+                  const isSelected = selectedRegra === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => setSelectedRegra(isSelected ? null : r.id)}
+                      className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'border-primary/50 bg-primary/10'
+                          : `${tipoInfo.color} hover:border-primary/30`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span>{tipoInfo.icon}</span>
+                          <span className={`font-medium text-sm ${isSelected ? 'text-primary' : ''}`}>{label}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {r.cadencia_envio} dia{r.cadencia_envio !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      {r.template_mensagem && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          {r.template_mensagem.replace(/\{nome\}/g, '...')}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Lead search */}
+          {/* Busca de lead */}
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium">Selecionar Lead</label>
+            <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              Selecionar Lead
+            </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -130,34 +198,32 @@ export default function Whatsapp() {
             </div>
             {search && (
               <div className="border border-border rounded-lg overflow-hidden divide-y divide-border bg-card">
-                {filtered.length === 0 && (
+                {filteredLeads.length === 0 && (
                   <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum lead encontrado</div>
                 )}
-                {filtered.map(l => (
+                {filteredLeads.map(l => (
                   <button
                     key={l.id}
                     onClick={() => { setSelectedLead(l.id); setSearch(''); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-secondary/50 transition-colors
-                      ${selectedLead === l.id ? 'bg-primary/10' : ''}
-                    `}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
+                      selectedLead === l.id ? 'bg-primary/10' : ''
+                    }`}
                   >
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-foreground">{l.nome}</p>
+                    <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground truncate">{l.nome}</p>
                       {l.telefone && <p className="text-xs text-muted-foreground">{l.telefone}</p>}
                     </div>
-                    {selectedLead === l.id && <CheckCircle2 className="h-4 w-4 text-primary ml-auto" />}
+                    {selectedLead === l.id && <CheckCircle2 className="h-4 w-4 text-primary ml-auto flex-shrink-0" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Selected lead preview */}
-          {lead && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+          {/* Preview e envio */}
+          {lead && regraAtual && (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               className="metric-card border-primary/20 bg-primary/5"
             >
               <div className="flex items-center gap-3 mb-3">
@@ -169,23 +235,18 @@ export default function Whatsapp() {
                   <p className="text-xs text-muted-foreground">{lead.telefone || 'Sem telefone'}</p>
                 </div>
               </div>
-
-              {/* Message preview */}
               <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 mb-3">
-                <p className="text-xs text-foreground/80 leading-relaxed">
-                  {template.msg(lead.nome)}
-                </p>
+                <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{mensagem}</p>
               </div>
-
               <a
-                href={lead.telefone ? whatsappLink(lead.telefone, template.msg(lead.nome)) : '#'}
+                href={lead.telefone ? whatsappLink(lead.telefone, mensagem) : '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium transition-colors
-                  ${lead.telefone
+                className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  lead.telefone
                     ? 'bg-green-500 hover:bg-green-400 text-white'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
-                  }`}
+                }`}
               >
                 <Send className="h-4 w-4" />
                 Abrir no WhatsApp
@@ -195,9 +256,16 @@ export default function Whatsapp() {
               )}
             </motion.div>
           )}
+
+          {lead && !regraAtual && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+              <AlertCircle className="h-4 w-4 text-warning flex-shrink-0" />
+              <p className="text-xs text-warning">Selecione uma regra de cadência para ver a mensagem</p>
+            </div>
+          )}
         </motion.div>
 
-        {/* Pro plan features */}
+        {/* Plano Pro */}
         <motion.div variants={item} className="space-y-4">
           <h3 className="font-display font-semibold text-foreground">Plano Pro — Automações</h3>
           <div className="metric-card border-dashed border-yellow-500/40 bg-yellow-500/5">
@@ -224,7 +292,6 @@ export default function Whatsapp() {
                 </div>
               ))}
             </div>
-
             <div className="mt-5 pt-4 border-t border-yellow-500/20">
               <Button className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold gap-2">
                 <Star className="h-4 w-4" />
@@ -237,11 +304,10 @@ export default function Whatsapp() {
             </div>
           </div>
 
-          {/* Quick stats */}
           <div className="grid grid-cols-2 gap-3">
             <div className="metric-card text-center">
               <p className="text-2xl font-display font-bold text-green-400">{leads.length}</p>
-              <p className="text-xs text-muted-foreground mt-1">Leads com acesso</p>
+              <p className="text-xs text-muted-foreground mt-1">Total de leads</p>
             </div>
             <div className="metric-card text-center">
               <p className="text-2xl font-display font-bold text-primary">

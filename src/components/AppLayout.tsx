@@ -52,7 +52,7 @@ const navGroups = [
     items: [
       { to: '/agenda', icon: CalendarDays, label: 'Agenda', badge: null as 'alert' | 'warn' | null },
       { to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', badge: null as 'alert' | 'warn' | null },
-      { to: '/automacoes', icon: RotateCcw, label: 'Automações', badge: null as 'alert' | 'warn' | null },
+      { to: '/automacoes', icon: RotateCcw, label: 'Regras de Cadência', badge: null as 'alert' | 'warn' | null },
     ],
   },
   {
@@ -205,7 +205,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {["/", "/vendas", "/leads/kanban", "/agenda", "/setup"].includes(location.pathname) && (
+            {["/", "/vendas", "/leads/kanban", "/setup"].includes(location.pathname) && (
               <MonthSelector />
             )}
             <div className="hidden md:block">

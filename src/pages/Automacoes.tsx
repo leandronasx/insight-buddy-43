@@ -202,14 +202,14 @@ export default function Automacoes() {
 
       <motion.div variants={item} className="flex items-center justify-between">
         <div>
-          <h2 className="font-display font-bold text-xl text-foreground">Regras de Automação</h2>
+          <h2 className="font-display font-bold text-xl text-foreground">Regras de Cadência</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure mensagens automáticas de follow-up, agendamento e pós-venda
+            Configure cadência e templates de mensagens para seus leads
           </p>
         </div>
         <Button onClick={openNew} className="gap-2">
           <Plus className="h-4 w-4" />
-          Nova Regra
+          Nova Regra de Cadência
         </Button>
       </motion.div>
 
@@ -309,7 +309,7 @@ export default function Automacoes() {
         <DialogContent aria-describedby={undefined} className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display">
-              {editingId ? 'Editar Regra' : 'Nova Regra de Automação'}
+              {editingId ? 'Editar Regra' : 'Nova Regra de Cadência de Automação'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
