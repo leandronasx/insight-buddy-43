@@ -1,8 +1,11 @@
-import { useState, forwardRef } from 'react';
+import { useState, useRef, forwardRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
+
+const MAX_ATTEMPTS = 5;
+const COOLDOWN_SECONDS = 30;
 
 function LoginInner() {
   const { signIn } = useAuth();
@@ -10,18 +13,48 @@ function LoginInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCooldown = () => {
+    setCooldown(COOLDOWN_SECONDS);
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          setAttempts(0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cooldown > 0) return;
+
     setError('');
     setLoading(true);
 
     const result = await signIn(email, password);
+
     if (result.error) {
-      setError(result.error.message);
+      const next = attempts + 1;
+      setAttempts(next);
+      if (next >= MAX_ATTEMPTS) {
+        setError(`Muitas tentativas. Aguarde ${COOLDOWN_SECONDS} segundos.`);
+        startCooldown();
+      } else {
+        setError(`E-mail ou senha incorretos. Tentativa ${next} de ${MAX_ATTEMPTS}.`);
+      }
     }
+
     setLoading(false);
   };
+
+  const isBlocked = cooldown > 0;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -45,7 +78,9 @@ function LoginInner() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@exemplo.com"
                 required
+                disabled={isBlocked}
                 className="bg-secondary border-border"
+                autoComplete="email"
               />
             </div>
             <div>
@@ -56,14 +91,29 @@ function LoginInner() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                disabled={isBlocked}
                 className="bg-secondary border-border"
+                autoComplete="current-password"
               />
             </div>
 
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-destructive text-sm">{error}</p>
+                {isBlocked && (
+                  <p className="text-muted-foreground text-xs mt-1">
+                    Desbloqueio em: <span className="font-mono font-bold">{cooldown}s</span>
+                  </p>
+                )}
+              </div>
+            )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Carregando...' : 'Entrar'}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || isBlocked}
+            >
+              {loading ? 'Entrando...' : isBlocked ? `Aguarde ${cooldown}s` : 'Entrar'}
             </Button>
           </form>
         </div>
@@ -72,7 +122,6 @@ function LoginInner() {
   );
 }
 
-// Wrap with forwardRef so parent components (e.g. animations) can pass refs without warning
 const Login = forwardRef<HTMLDivElement>((_, ref) => (
   <div ref={ref}>
     <LoginInner />

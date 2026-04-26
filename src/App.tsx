@@ -18,7 +18,18 @@ import AutomacoesPage from "./pages/AutomacoesPage.tsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30 * 1000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

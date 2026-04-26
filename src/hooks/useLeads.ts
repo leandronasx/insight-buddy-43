@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
-import { useMonth } from '@/contexts/MonthContext';
-import { getDateRange } from '@/lib/date-utils';
 
 // Valores conforme o novo schema (TEXT livre)
 export const ORIGENS_LEAD = ['Tráfego', 'Orgânico', 'Indicação', 'WhatsApp', 'Referência'] as const;
@@ -34,27 +32,24 @@ export interface Lead {
 
 export function useLeads() {
   const { empresa } = useEmpresa();
-  const { month, year } = useMonth();
   const queryClient = useQueryClient();
 
-  const queryKey = ['leads', empresa?.id, month, year];
+  const queryKey = ['leads', empresa?.id];
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
       if (!empresa) return [];
-      const { start, end } = getDateRange(month, year);
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .eq('id_empresa', empresa.id)
-        .gte('data_criacao', start)
-        .lt('data_criacao', end)
         .order('data_criacao', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
     enabled: !!empresa,
+    staleTime: 2 * 60 * 1000,
   });
 
   const saveLead = useMutation({

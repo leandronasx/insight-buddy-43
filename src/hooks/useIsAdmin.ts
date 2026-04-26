@@ -21,6 +21,7 @@ export function useIsAdmin() {
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   return {
