@@ -120,7 +120,7 @@ export function AdminOverview() {
           .select('id_vendas, valor')
           .in('id_vendas', vendas.map(v => v.id));
         (itensData ?? []).forEach((i: any) => {
-          itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + Number(i.valor);
+          itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + Number(i.valor) - Number(i.bonus ?? 0);
         });
       }
 

@@ -60,7 +60,7 @@ export default function Agenda() {
 
   // Stats for the month
   const totalMes = Object.values(vendaByDay).flat().length;
-  const totalValorMes = Object.values(vendaByDay).flat().reduce((s, v) => s + v.valor_total, 0);
+  const totalValorMes = Object.values(vendaByDay).flat().reduce((s, v) => s + v.valor_final, 0);
 
   return (
     <div className="space-y-6">
@@ -180,7 +180,7 @@ export default function Agenda() {
                         </div>
                       </div>
                       <Badge variant="outline" className="text-xs text-positive border-positive/30 bg-positive/10">
-                        {formatCurrency(v.valor_total)}
+                        {formatCurrency(v.valor_final)}
                       </Badge>
                     </div>
 

@@ -83,7 +83,7 @@ export function useDashboardData() {
       const leadsFechados = leads.filter(l => l.situacao_do_cliente === 'Fechado').length;
       const totalVendas = vendas.length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0), 0);
+      const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0) - Number(i.bonus ?? 0), 0);
       const custoAnuncio = Number(fin?.custo_anuncio ?? 0);
       const custoOperacional = Number(fin?.custo_operacional ?? 0);
       const metaFaturamento = Number(fin?.meta_financeira ?? 0);
@@ -135,14 +135,14 @@ export function useChartData() {
       if (vendaIds.length > 0) {
         const { data: itensData } = await supabase
           .from('itens_vendas')
-          .select('valor, id_vendas')
+          .select('valor, bonus, id_vendas')
           .in('id_vendas', vendaIds);
         itens = itensData ?? [];
       }
 
       const itensByVenda: Record<string, number> = {};
       itens.forEach(i => {
-        itensByVenda[i.id_vendas] = (itensByVenda[i.id_vendas] ?? 0) + Number(i.valor);
+        itensByVenda[i.id_vendas] = (itensByVenda[i.id_vendas] ?? 0) + Number(i.valor) - Number(i.bonus ?? 0);
       });
 
       return months.map((mes, i) => {
