@@ -60,7 +60,9 @@ export default function Vendas() {
   if (isLoading) return <ListSkeleton />;
 
   const today = new Date().toISOString().split('T')[0];
-  const totalItens = itemRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+  const totalBruto = itemRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+  const totalBonus = itemRows.reduce((s, r) => s + (parseFloat(r.bonus) || 0), 0);
+  const totalItens = totalBruto - totalBonus;
 
   const openNew = () => {
     setEditingVenda(null);
@@ -134,7 +136,7 @@ export default function Vendas() {
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
             ['Lead', 'Status', 'Data Venda', 'Data Serviço', 'Total'],
-            filtered.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_total)])
+            filtered.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_final)])
           )
         }>
           <Download className="h-4 w-4 mr-1" /> Exportar
@@ -142,7 +144,7 @@ export default function Vendas() {
         <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova Venda</Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">{filtered.length} vendas · Total: {formatCurrency(filtered.reduce((s, v) => s + v.valor_total, 0))}</p>
+      <p className="text-xs text-muted-foreground">{filtered.length} vendas · Total: {formatCurrency(filtered.reduce((s, v) => s + v.valor_final, 0))}</p>
 
       {/* List */}
       <div className="space-y-2">
@@ -163,7 +165,7 @@ export default function Vendas() {
                   {v.itens.length > 0 && <span>{v.itens.length} item(ns)</span>}
                 </div>
               </div>
-              <span className="font-display font-bold text-positive flex-shrink-0">{formatCurrency(v.valor_total)}</span>
+              <span className="font-display font-bold text-positive flex-shrink-0">{formatCurrency(v.valor_final)}</span>
             </div>
 
             <AnimatePresence>
@@ -265,11 +267,13 @@ export default function Vendas() {
                     className="flex-1"
                   />
                   <Input
-                    placeholder="Bônus"
+                    placeholder="Desconto R$"
                     type="number"
+                    min="0"
                     value={row.bonus}
                     onChange={e => updateItemRow(i, 'bonus', e.target.value)}
                     className="flex-1"
+                    title="Desconto/bônus aplicado sobre este item"
                   />
                   {itemRows.length > 1 && (
                     <button onClick={() => removeItemRow(i)} className="text-destructive hover:text-destructive/80 flex-shrink-0">
@@ -278,9 +282,21 @@ export default function Vendas() {
                   )}
                 </div>
               ))}
-              {totalItens > 0 && (
-                <div className="text-right text-sm font-semibold text-positive">
-                  Total: {formatCurrency(totalItens)}
+              {totalBruto > 0 && (
+                <div className="text-right space-y-0.5">
+                  {totalBonus > 0 && (
+                    <>
+                      <div className="text-xs text-muted-foreground">
+                        Subtotal: {formatCurrency(totalBruto)}
+                      </div>
+                      <div className="text-xs text-yellow-400">
+                        Desconto: - {formatCurrency(totalBonus)}
+                      </div>
+                    </>
+                  )}
+                  <div className="text-sm font-bold text-positive">
+                    Total Final: {formatCurrency(totalItens)}
+                  </div>
                 </div>
               )}
             </div>

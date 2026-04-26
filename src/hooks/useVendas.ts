@@ -25,8 +25,9 @@ export interface ItemVenda {
 
 export interface VendaComItens extends Venda {
   itens: ItemVenda[];
-  valor_total: number;
-  bonus_total: number;
+  valor_total: number;   // soma bruta dos valores
+  bonus_total: number;  // soma dos descontos/bônus
+  valor_final: number;  // valor_total - bonus_total (valor cobrado)
 }
 
 export interface LeadOption {
@@ -103,6 +104,7 @@ export function useVendas() {
       itens,
       valor_total: itens.reduce((s, i) => s + Number(i.valor), 0),
       bonus_total: itens.reduce((s, i) => s + Number(i.bonus ?? 0), 0),
+      get valor_final() { return this.valor_total - this.bonus_total; },
     };
   });
 

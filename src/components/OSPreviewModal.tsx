@@ -59,8 +59,8 @@ export function OSPreviewModal({ open, onClose, venda, empresa, lead }: OSPrevie
 
   const osNum = getOsNumber(venda);
   const subtotal = venda.valor_total;
-  const desconto = 0;
-  const total = venda.valor_total;
+  const desconto = venda.bonus_total;
+  const total = venda.valor_final;
 
   // Primary color for accent (fallback to green)
   const accentColor = empresa.cor_primaria || '#22c55e';
