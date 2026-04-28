@@ -84,14 +84,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { data: notif } = useNotificacoes();
   useApplyBranding();
 
-  // Determine badge type per route
+  // Determine badge type per route usando novo formato de lembretes
   function getNavBadge(to: string): 'alert' | 'warn' | null {
+    const lembretes = notif?.lembretes ?? [];
+    const total = notif?.totalAlertas ?? 0;
     if (to === '/leads' || to === '/leads/kanban') {
-      if ((notif?.leadsSemContato7dias.length ?? 0) > 0) return 'alert';
-      if ((notif?.leadsSemContato3dias.length ?? 0) > 0) return 'warn';
+      if (total > 0) return 'alert';
     }
     if (to === '/agenda') {
-      if ((notif?.agendadosHoje ?? 0) > 0) return 'warn';
+      const temAgendamento = lembretes.some(l => l.tipo_lembrete === 'lembrete_agendamento');
+      if (temAgendamento) return 'warn';
+    }
+    if (to === '/whatsapp') {
+      if (total > 0) return 'warn';
     }
     return null;
   }

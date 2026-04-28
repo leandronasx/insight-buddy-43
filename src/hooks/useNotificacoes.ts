@@ -1,98 +1,104 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 
-export interface LeadSemContato {
+export interface LembreteNotificacao {
   id: string;
-  nome: string;
-  telefone: string | null;
-  situacao_do_cliente: string | null;
-  data_atualizacao: string;
-  diasSemContato: number;
+  tipo_lembrete: string;
+  data_execucao: string;
+  mensagem: string;
+  data_servico: string | null;
+  disparado: boolean;
 }
 
 export interface NotificacoesData {
-  leadsSemContato3dias: LeadSemContato[];
-  leadsSemContato7dias: LeadSemContato[];
-  agendadosHoje: number;
-  agendadosAmanha: number;
+  lembretes: LembreteNotificacao[];
   totalAlertas: number;
 }
 
-function diffDias(dateStr: string): number {
-  const now = new Date();
-  const past = new Date(dateStr);
-  return Math.floor((now.getTime() - past.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function isDateDay(dateStr: string | null, targetDate: Date): boolean {
-  if (!dateStr) return false;
-  const d = new Date(dateStr + 'T00:00:00');
+function isHoje(dateStr: string): boolean {
+  const hoje = new Date();
+  const d    = new Date(dateStr + 'T00:00:00');
   return (
-    d.getFullYear() === targetDate.getFullYear() &&
-    d.getMonth() === targetDate.getMonth() &&
-    d.getDate() === targetDate.getDate()
+    d.getFullYear() === hoje.getFullYear() &&
+    d.getMonth()    === hoje.getMonth() &&
+    d.getDate()     === hoje.getDate()
   );
 }
 
+// Ícone por tipo
+export const LEMBRETE_ICONS: Record<string, string> = {
+  follow_up_pre_orcamento: '💬',
+  follow_up_pos_orcamento: '🔁',
+  lembrete_agendamento:    '📅',
+  pos_venda:               '⭐',
+};
+
+export const LEMBRETE_LABELS: Record<string, string> = {
+  follow_up_pre_orcamento: 'Follow-up Pré-orçamento',
+  follow_up_pos_orcamento: 'Follow-up Pós-orçamento',
+  lembrete_agendamento:    'Lembrete de Agendamento',
+  pos_venda:               'Pós-venda',
+};
+
 export function useNotificacoes() {
   const { empresa } = useEmpresa();
+  const queryClient = useQueryClient();
+  const queryKey    = ['notificacoes', empresa?.id];
 
-  return useQuery<NotificacoesData>({
-    queryKey: ['notificacoes', empresa?.id],
+  // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
+  useEffect(() => {
+    if (!empresa) return;
+    const lastRun = sessionStorage.getItem('lembretes_gerados');
+    const agora   = Date.now();
+    if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return; // 10 min cooldown
+
+    supabase.functions.invoke('gerar-lembretes').then(() => {
+      sessionStorage.setItem('lembretes_gerados', String(agora));
+      queryClient.invalidateQueries({ queryKey });
+    }).catch(() => {/* silencioso se não deployada */});
+  }, [empresa?.id]);
+
+  // 2. Lê lembretes de hoje não disparados
+  const query = useQuery<NotificacoesData>({
+    queryKey,
     queryFn: async (): Promise<NotificacoesData> => {
-      if (!empresa) return { leadsSemContato3dias: [], leadsSemContato7dias: [], agendadosHoje: 0, agendadosAmanha: 0, totalAlertas: 0 };
+      if (!empresa) return { lembretes: [], totalAlertas: 0 };
 
-      const since = new Date();
-      since.setDate(since.getDate() - 60);
+      const hoje = new Date().toISOString().split('T')[0];
 
-      // Leads ativos sem estar fechados/sem interesse
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('id, nome, telefone, situacao_do_cliente, data_atualizacao')
+      const { data } = await supabase
+        .from('lembretes_automacoes')
+        .select('id, tipo_lembrete, data_execucao, mensagem, data_servico, disparado')
         .eq('id_empresa', empresa.id)
-        .not('situacao_do_cliente', 'in', '("Sem Interesse","Fechado")')
-        .gte('data_atualizacao', since.toISOString())
-        .order('data_atualizacao', { ascending: true });
+        .eq('data_execucao', hoje)
+        .order('tipo_lembrete');
 
-      const leads = leadsData ?? [];
-      const leadIds = leads.map(l => l.id);
+      const lembretes = (data ?? []) as LembreteNotificacao[];
+      const naoDisparados = lembretes.filter(l => !l.disparado);
 
-      // Agendamentos de hoje e amanhã via vendas
-      let vendas: any[] = [];
-      if (leadIds.length > 0) {
-        const { data: vendasData } = await supabase
-          .from('vendas')
-          .select('data_servico')
-          .in('id_leads', leadIds)
-          .not('data_servico', 'is', null);
-        vendas = vendasData ?? [];
-      }
-
-      const hoje = new Date();
-      const amanha = new Date();
-      amanha.setDate(amanha.getDate() + 1);
-
-      const semContato: LeadSemContato[] = leads.map(l => ({
-        ...l,
-        diasSemContato: diffDias(l.data_atualizacao),
-      }));
-
-      const leadsSemContato3dias = semContato.filter(l => l.diasSemContato >= 3 && l.diasSemContato < 7);
-      const leadsSemContato7dias = semContato.filter(l => l.diasSemContato >= 7);
-      const agendadosHoje = vendas.filter(v => isDateDay(v.data_servico, hoje)).length;
-      const agendadosAmanha = vendas.filter(v => isDateDay(v.data_servico, amanha)).length;
-
-      const totalAlertas =
-        leadsSemContato7dias.length +
-        Math.ceil(leadsSemContato3dias.length / 2) +
-        (agendadosHoje > 0 ? 1 : 0) +
-        (agendadosAmanha > 0 ? 1 : 0);
-
-      return { leadsSemContato3dias, leadsSemContato7dias, agendadosHoje, agendadosAmanha, totalAlertas };
+      return {
+        lembretes: naoDisparados,
+        totalAlertas: naoDisparados.length,
+      };
     },
     enabled: !!empresa,
     refetchInterval: 5 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
   });
-}
+
+  // 3. Mutation para marcar como disparado
+  const marcarDisparado = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      await supabase
+        .from('lembretes_automacoes')
+        .update({ disparado: true })
+        .in('id', ids);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
+  return { ...query, marcarDisparado };
+} 
