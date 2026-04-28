@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Phone, Search, Download, MessageCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, Search, Download } from 'lucide-react';
+import { useCadenciaLeads } from '@/hooks/useCadenciaLeads';
+import { WhatsappCadenciaBtn } from '@/components/WhatsappCadenciaBtn';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useLeads, type Lead, ORIGENS_LEAD, SITUACOES_CLIENTE, MOMENTOS_FUNIL, QUALIFICACOES } from '@/hooks/useLeads';
 import { usePagination } from '@/hooks/usePagination';
@@ -51,6 +53,7 @@ const emptyForm = {
 export default function Leads() {
   const { empresa } = useEmpresa();
   const { leads, isLoading, saveLead, deleteLead } = useLeads();
+  const { data: cadenciaMap } = useCadenciaLeads(leads);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -208,17 +211,13 @@ export default function Leads() {
                   {lead.momento_funil && <span className="text-primary">{lead.momento_funil}</span>}
                 </div>
               </div>
-              {lead.telefone && (
-                <a
-                  href={whatsappUrl(lead.telefone, lead.nome)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="text-green-400 hover:text-green-300 transition-colors flex-shrink-0"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </a>
-              )}
+              <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
+                <WhatsappCadenciaBtn
+                  telefone={lead.telefone}
+                  cadencia={cadenciaMap?.get(lead.id) ?? null}
+                  size="md"
+                />
+              </div>
             </div>
 
             <AnimatePresence>

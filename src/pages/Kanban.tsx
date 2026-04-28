@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Phone, MessageCircle, User, Search } from 'lucide-react';
+import { Phone, User, Search } from 'lucide-react';
+import { useCadenciaLeads } from '@/hooks/useCadenciaLeads';
+import { WhatsappCadenciaBtn } from '@/components/WhatsappCadenciaBtn';
 import { useLeads, type Lead } from '@/hooks/useLeads';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { Input } from '@/components/ui/input';
@@ -24,14 +26,9 @@ const statusColors: Record<string, string> = {
   'Sem Interesse':   'bg-muted text-muted-foreground border-border',
 };
 
-function whatsappUrl(telefone: string | null, nome: string) {
-  const num = (telefone || '').replace(/\D/g, '');
-  const msg = encodeURIComponent(`Olá ${nome}, tudo bem?`);
-  return `https://wa.me/55${num}?text=${msg}`;
-}
-
 export default function Kanban() {
   const { leads, isLoading, saveLead } = useLeads();
+  const { data: cadenciaMap } = useCadenciaLeads(leads);
   const { empresa } = useEmpresa();
   const [search, setSearch] = useState('');
   const [dragging, setDragging] = useState<string | null>(null);
@@ -154,17 +151,13 @@ export default function Kanban() {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground">{lead.momento_funil || ''}</span>
-                    {lead.telefone && (
-                      <a
-                        href={whatsappUrl(lead.telefone, lead.nome)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="flex items-center gap-1 text-[10px] text-green-400 hover:text-green-300 transition-colors"
-                      >
-                        <MessageCircle className="h-3 w-3" />WhatsApp
-                      </a>
-                    )}
+                    <div onClick={e => e.stopPropagation()}>
+                      <WhatsappCadenciaBtn
+                        telefone={lead.telefone}
+                        cadencia={cadenciaMap?.get(lead.id) ?? null}
+                        size="sm"
+                      />
+                    </div>
                   </div>
                 </motion.div>
               ))}
