@@ -165,6 +165,7 @@ export default function Leads() {
         </div>
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
+            'leads_export.csv',
             ['Nome', 'Telefone', 'Origem', 'Situação', 'Data Contato'],
             filtered.map(l => [l.nome, l.telefone, l.origem_lead, l.situacao_do_cliente, l.data_contato ?? ''])
           )

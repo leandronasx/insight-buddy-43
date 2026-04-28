@@ -135,6 +135,7 @@ export default function Vendas() {
         </div>
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
+            'vendas_export.csv',
             ['Lead', 'Status', 'Data Venda', 'Data Serviço', 'Total'],
             filtered.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_final)])
           )
