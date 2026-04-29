@@ -200,14 +200,14 @@ export default function Automacoes() {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 max-w-4xl">
 
-      <motion.div variants={item} className="flex items-center justify-between">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-display font-bold text-xl text-foreground">Regras de Cadência</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             Configure cadência e templates de mensagens para seus leads
           </p>
         </div>
-        <Button onClick={openNew} className="gap-2">
+        <Button onClick={openNew} className="gap-2 w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Nova Regra de Cadência
         </Button>

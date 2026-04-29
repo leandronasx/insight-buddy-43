@@ -143,17 +143,25 @@ export default function Whatsapp() {
 
       {/* Header */}
       <motion.div variants={item} className="metric-card border-green-500/30 bg-green-500/5">
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
-            <MessageCircle className="h-6 w-6 text-green-400" />
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="h-12 w-12 rounded-xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="h-6 w-6 text-green-400" />
+            </div>
+            <div className="flex-1 sm:hidden flex justify-between items-center">
+               <h2 className="font-display font-bold text-foreground">Integração WhatsApp</h2>
+               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] flex-shrink-0">
+                 Manual ativo
+               </Badge>
+            </div>
           </div>
           <div className="flex-1">
-            <h2 className="font-display font-bold text-foreground mb-1">Integração WhatsApp</h2>
+            <h2 className="hidden sm:block font-display font-bold text-foreground mb-1">Integração WhatsApp</h2>
             <p className="text-sm text-muted-foreground">
               Selecione uma regra → aparecem os leads elegíveis hoje. Selecione o lead → só a mensagem da cadência dele fica ativa.
             </p>
           </div>
-          <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
+          <Badge className="hidden sm:inline-flex bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
             Manual ativo
           </Badge>
         </div>
@@ -163,12 +171,17 @@ export default function Whatsapp() {
 
         {/* Envio Manual */}
         <motion.div variants={item} className="space-y-4">
-          <h3 className="font-display font-semibold text-foreground">Envio Manual</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 className="font-display font-semibold text-foreground">Envio Manual</h3>
+            <Link to="/automacoes" className="text-[10px] text-primary hover:underline flex items-center gap-1 w-fit">
+              <RotateCcw className="h-3 w-3" /> Configurar regras
+            </Link>
+          </div>
 
           {/* Regras */}
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-              Regra de Cadência
+              1. Selecionar Regra de Cadência
             </label>
 
             {loadingRegras && (
@@ -240,9 +253,9 @@ export default function Whatsapp() {
           {/* Busca de lead */}
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-              Selecionar Lead
+              2. Selecionar Lead
               {regraAtual && (
-                <span className="ml-2 text-green-400 normal-case">
+                <span className="ml-2 text-green-400 normal-case block sm:inline mt-1 sm:mt-0">
                   — filtrando por "{TIPO_LABELS[regraAtual.tipo_lembrete]}"
                 </span>
               )}
