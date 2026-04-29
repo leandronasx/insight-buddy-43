@@ -329,7 +329,7 @@ export interface Database {
       lembretes_automacoes: {
         Row: {
           id: string
-          id_leads: string
+          id_empresa: string
           tipo_lembrete: string
           data_execucao: string | null
           disparado: boolean
@@ -340,7 +340,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          id_leads: string
+          id_empresa: string
           tipo_lembrete: string
           data_execucao?: string | null
           disparado?: boolean
@@ -351,7 +351,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          id_leads?: string
+          id_empresa?: string
           tipo_lembrete?: string
           data_execucao?: string | null
           disparado?: boolean
