@@ -193,7 +193,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile nav overlay */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-background/95 pt-16 px-4 pb-4 overflow-y-auto">
+        <div className="md:hidden fixed inset-0 z-40 bg-sidebar pt-20 px-4 pb-4 overflow-y-auto">
           {renderNav(() => setMobileOpen(false))}
           <button
             onClick={signOut}
