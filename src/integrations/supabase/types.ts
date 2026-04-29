@@ -296,6 +296,29 @@ export interface Database {
           }
         ]
       }
+      os: {
+        Row: {
+          id: string
+          id_vendas: string
+          enviado: boolean | null
+          data_criacao: string
+          data_atualizacao: string
+        }
+        Insert: {
+          id?: string
+          id_vendas: string
+          enviado?: boolean | null
+          data_criacao?: string
+          data_atualizacao?: string
+        }
+        Update: {
+          id?: string
+          id_vendas?: string
+          enviado?: boolean | null
+          data_criacao?: string
+          data_atualizacao?: string
+        }
+      }
       regras_automacoes: {
         Row: {
           id: string
