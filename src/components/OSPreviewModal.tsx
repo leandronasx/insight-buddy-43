@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { gerarOrdemServicoPDF } from '@/lib/pdf-ordem-servico';
 import { formatCurrency } from '@/lib/date-utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { VendaComItens, LeadOption } from '@/hooks/useVendas';
 import type { Empresa } from '@/hooks/useEmpresa';
 
@@ -47,6 +48,13 @@ export function OSPreviewModal({ open, onClose, venda, empresa, lead }: OSPrevie
     setGerando(true);
     try {
       await gerarOrdemServicoPDF({ venda, empresa, lead });
+      
+      // Salva log na tabela OS
+      await supabase.from('os').insert({
+        id_vendas: venda.id,
+        enviado: true,
+      });
+
       toast.success('Ordem de Serviço gerada com sucesso!');
       onClose();
     } catch (err) {

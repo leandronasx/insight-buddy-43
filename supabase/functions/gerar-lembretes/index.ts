@@ -70,127 +70,16 @@ Deno.serve(async (req) => {
     hoje.setHours(0, 0, 0, 0);
     const hojeStr = toDateStr(hoje);
 
-    // Busca todas as empresas (ou só a do usuário)
-    let empresasQuery = admin.from("empresas").select("id, nome_empresa");
-    if (empresaIdFiltro) empresasQuery = empresasQuery.eq("id", empresaIdFiltro);
-    const { data: empresas } = await empresasQuery;
-    if (!empresas || empresas.length === 0) {
-      return new Response(JSON.stringify({ ok: true, gerados: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Delega o cálculo para a Stored Procedure no banco de dados
+    const { error } = await admin.rpc("gerar_lembretes_automacoes", {
+      p_id_empresa: empresaIdFiltro || null,
+    });
+
+    if (error) {
+      throw error;
     }
 
-    let totalGerados = 0;
-
-    for (const empresa of empresas) {
-      // Regras de cadência da empresa
-      const { data: regras } = await admin
-        .from("regras_automacoes")
-        .select("tipo_lembrete, cadencia_envio, template_mensagem")
-        .eq("id_empresa", empresa.id);
-
-      if (!regras || regras.length === 0) continue;
-
-      // Leads da empresa com situações relevantes
-      const { data: leads } = await admin
-        .from("leads")
-        .select("id, nome, situacao_do_cliente, data_contato, data_orcamento")
-        .eq("id_empresa", empresa.id)
-        .not("situacao_do_cliente", "in", '("Sem Interesse")');
-
-      if (!leads || leads.length === 0) continue;
-
-      const leadIds = leads.map((l: any) => l.id);
-
-      // Vendas com data_servico
-      const { data: vendas } = await admin
-        .from("vendas")
-        .select("id_leads, data_servico")
-        .in("id_leads", leadIds)
-        .not("data_servico", "is", null)
-        .order("data_servico", { ascending: false });
-
-      const dataServicoPorLead: Record<string, string> = {};
-      (vendas ?? []).forEach((v: any) => {
-        if (!dataServicoPorLead[v.id_leads]) {
-          dataServicoPorLead[v.id_leads] = v.data_servico;
-        }
-      });
-
-      // Conta por tipo quantos leads precisam de mensagem hoje
-      const contagemPorTipo: Record<string, { count: number; dataServico?: string }> = {};
-
-      for (const lead of leads as any[]) {
-        const situacao   = lead.situacao_do_cliente ?? "";
-        const tiposLead  = SITUACAO_TIPOS[situacao] ?? [];
-
-        for (const tipo of tiposLead) {
-          const regra = regras.find((r: any) => r.tipo_lembrete === tipo);
-          if (!regra) continue;
-
-          let elegivel = false;
-          let dataServico: string | undefined;
-
-          if (tipo === "follow_up_pre_orcamento" && lead.data_contato) {
-            const ref = new Date(lead.data_contato); ref.setHours(0,0,0,0);
-            const dias = diffDias(ref, hoje);
-            if (dias > 0 && dias % regra.cadencia_envio === 0) elegivel = true;
-          }
-          if (tipo === "follow_up_pos_orcamento" && lead.data_orcamento) {
-            const ref = new Date(lead.data_orcamento); ref.setHours(0,0,0,0);
-            const dias = diffDias(ref, hoje);
-            if (dias > 0 && dias % regra.cadencia_envio === 0) elegivel = true;
-          }
-          if (tipo === "lembrete_agendamento" && dataServicoPorLead[lead.id]) {
-            const ref = new Date(dataServicoPorLead[lead.id] + "T00:00:00"); ref.setHours(0,0,0,0);
-            const diasAntes = diffDias(hoje, ref);
-            if (diasAntes > 0 && diasAntes === regra.cadencia_envio) {
-              elegivel = true;
-              dataServico = dataServicoPorLead[lead.id];
-            }
-          }
-          if (tipo === "pos_venda" && dataServicoPorLead[lead.id]) {
-            const ref = new Date(dataServicoPorLead[lead.id] + "T00:00:00"); ref.setHours(0,0,0,0);
-            const dias = diffDias(ref, hoje);
-            if (dias > 0 && dias % regra.cadencia_envio === 0) elegivel = true;
-          }
-
-          if (elegivel) {
-            if (!contagemPorTipo[tipo]) contagemPorTipo[tipo] = { count: 0 };
-            contagemPorTipo[tipo].count++;
-            if (dataServico) contagemPorTipo[tipo].dataServico = dataServico;
-          }
-        }
-      }
-
-      // Grava um lembrete por tipo (upsert — não duplica se já existir)
-      for (const [tipo, { count, dataServico }] of Object.entries(contagemPorTipo)) {
-        if (count === 0) continue;
-
-        const label = TIPO_LABELS[tipo] ?? tipo;
-        let mensagem = `${count} lead${count > 1 ? "s" : ""} de ${label} para mandar mensagem hoje. Não deixe esperando!`;
-        if (tipo === "lembrete_agendamento" && dataServico) {
-          const ds = new Date(dataServico + "T00:00:00").toLocaleDateString("pt-BR");
-          mensagem = `${count} lead${count > 1 ? "s" : ""} de ${label} para hoje. Serviço${count > 1 ? "s" : ""} agendado${count > 1 ? "s" : ""} para ${ds}. Não deixe esquecer!`;
-        }
-
-        await admin.from("lembretes_automacoes").upsert({
-          id_empresa:    empresa.id,
-          tipo_lembrete: tipo,
-          data_execucao: hojeStr,
-          disparado:     false,
-          mensagem,
-          data_servico:  dataServico ?? null,
-        }, {
-          onConflict: "id_empresa,tipo_lembrete,data_execucao",
-          ignoreDuplicates: false,
-        });
-
-        totalGerados++;
-      }
-    }
-
-    return new Response(JSON.stringify({ ok: true, gerados: totalGerados }), {
+    return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

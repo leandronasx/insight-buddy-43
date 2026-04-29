@@ -92,7 +92,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       if (total > 0) return 'alert';
     }
     if (to === '/agenda') {
-      const temAgendamento = lembretes.some(l => l.tipo_lembrete === 'lembrete_agendamento');
+      const temAgendamento = lembretes.some(l => l.tipo_lembrete === 'lembrete_agendamento' && !l.disparado);
       if (temAgendamento) return 'warn';
     }
     if (to === '/whatsapp') {
