@@ -34,14 +34,14 @@ Deno.serve(async (req) => {
       });
     }
  
-    // Verifica permissão admin
-    const { data: usuarioData } = await adminClient
-      .from("usuarios")
-      .select("permissao")
-      .eq("id", user.id)
+    // Verifica permissão admin via user_roles
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
       .maybeSingle();
  
-    if (usuarioData?.permissao !== "admin") {
+    if (roleData?.role !== "admin") {
       return new Response(JSON.stringify({ error: "Apenas admins podem criar empresas" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

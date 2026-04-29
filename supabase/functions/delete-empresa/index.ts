@@ -33,13 +33,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: usuarioData } = await adminClient
-      .from("usuarios")
-      .select("permissao")
-      .eq("id", user.id)
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (usuarioData?.permissao !== "admin") {
+    if (roleData?.role !== "admin") {
       return new Response(JSON.stringify({ error: "Apenas admins podem excluir empresas" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -37,14 +37,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin via usuarios.permissao (new schema)
-    const { data: usuarioData } = await adminClient
-      .from("usuarios")
-      .select("permissao")
-      .eq("id", user.id)
+    // Check admin via user_roles.role (new schema)
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!usuarioData || usuarioData.permissao !== "admin") {
+    if (!roleData || roleData.role !== "admin") {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
