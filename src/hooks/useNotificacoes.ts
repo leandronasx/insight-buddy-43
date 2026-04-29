@@ -76,11 +76,12 @@ export function useNotificacoes() {
         .order('tipo_lembrete');
 
       const lembretes = (data ?? []) as LembreteNotificacao[];
-      const naoDisparados = lembretes.filter(l => !l.disparado);
+      // Badge só conta os não lidos, mas mostramos todos do dia
+      const naoLidos = lembretes.filter(l => !l.disparado);
 
       return {
-        lembretes: naoDisparados,
-        totalAlertas: naoDisparados.length,
+        lembretes,          // todos do dia (para leitura no painel)
+        totalAlertas: naoLidos.length,  // badge só conta não lidos
       };
     },
     enabled: !!empresa,
@@ -101,4 +102,4 @@ export function useNotificacoes() {
   });
 
   return { ...query, marcarDisparado };
-} 
+}

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, X, MessageCircle, CalendarDays, RotateCcw, Star } from 'lucide-react';
+import { Bell, X, MessageCircle, CalendarDays, RotateCcw, Star, CheckCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotificacoes, LEMBRETE_ICONS, LEMBRETE_LABELS } from '@/hooks/useNotificacoes';
+import { Button } from '@/components/ui/button';
 
 const TIPO_COLORS: Record<string, string> = {
   follow_up_pre_orcamento: 'text-blue-400 bg-blue-500/15',
@@ -19,16 +20,16 @@ const TIPO_ICONS_COMP: Record<string, React.ReactNode> = {
 };
 
 export function NotificacoesBell() {
-  const [open, setOpen]       = useState(false);
-  const [shown, setShown]     = useState(false);
-  const ref                   = useRef<HTMLDivElement>(null);
+  const [open, setOpen]   = useState(false);
+  const [shown, setShown] = useState(false);
+  const ref               = useRef<HTMLDivElement>(null);
   const { data, isLoading, marcarDisparado } = useNotificacoes();
 
-  const lembretes   = data?.lembretes ?? [];
-  const total       = data?.totalAlertas ?? 0;
-  const hasAlerts   = total > 0;
+  const lembretes  = data?.lembretes ?? [];
+  const total      = data?.totalAlertas ?? 0;  // apenas não lidos
+  const hasUnread  = total > 0;
 
-  // Fecha ao clicar fora
+  // Fecha ao clicar fora — SEM marcar como lido
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -37,47 +38,48 @@ export function NotificacoesBell() {
     return () => document.removeEventListener('mousedown', handle);
   }, [open]);
 
-  // Push notification quando novos lembretes chegam
+  // Push notification quando há lembretes não lidos (1x por sessão)
   useEffect(() => {
-    if (!hasAlerts || shown) return;
+    if (!hasUnread || shown) return;
     setShown(true);
-
+    const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Higi$Controle — Tem clientes esperando! 📬', {
-        body: `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para enviar hoje. Não deixe esperando!`,
-        icon: '/favicon.ico',
+        body: msg, icon: '/favicon.ico',
       });
     } else if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().then(perm => {
         if (perm === 'granted') {
           new Notification('Higi$Controle — Tem clientes esperando! 📬', {
-            body: `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para enviar hoje. Não deixe esperando!`,
-            icon: '/favicon.ico',
+            body: msg, icon: '/favicon.ico',
           });
         }
       });
     }
-  }, [hasAlerts, total]);
+  }, [hasUnread, total]);
 
-  // Ao abrir o painel, marca todos como disparado
-  const handleOpen = () => {
-    const novoEstado = !open;
-    setOpen(novoEstado);
-    if (novoEstado && lembretes.length > 0) {
-      const ids = lembretes.map(l => l.id);
-      marcarDisparado.mutate(ids);
-    }
+  // Marcar UM lembrete como lido
+  const marcarUm = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    marcarDisparado.mutate([id]);
+  };
+
+  // Marcar TODOS como lidos
+  const marcarTodos = () => {
+    const ids = lembretes.filter(l => !l.disparado).map(l => l.id);
+    if (ids.length > 0) marcarDisparado.mutate(ids);
   };
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={handleOpen}
+        onClick={() => setOpen(o => !o)}
         className="relative p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
         aria-label="Notificações"
       >
         <Bell className="h-5 w-5" />
-        {hasAlerts && !isLoading && (
+        {hasUnread && !isLoading && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -101,10 +103,12 @@ export function NotificacoesBell() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-primary" />
-                <span className="font-display font-semibold text-sm text-foreground">Notificações</span>
-                {hasAlerts && (
+                <span className="font-display font-semibold text-sm text-foreground">
+                  Notificações do dia
+                </span>
+                {hasUnread && (
                   <span className="text-[10px] bg-destructive/20 text-destructive rounded-full px-1.5 py-0.5 font-medium">
-                    {total}
+                    {total} não lidos
                   </span>
                 )}
               </div>
@@ -113,7 +117,7 @@ export function NotificacoesBell() {
               </button>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto">
+            <div className="max-h-[460px] overflow-y-auto">
               {isLoading && (
                 <div className="py-8 flex items-center justify-center">
                   <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -126,7 +130,7 @@ export function NotificacoesBell() {
                     <Bell className="h-5 w-5 text-primary" />
                   </div>
                   <p className="text-sm font-medium text-foreground">Tudo em dia!</p>
-                  <p className="text-xs text-muted-foreground mt-1">Nenhum alerta de cadência para hoje</p>
+                  <p className="text-xs text-muted-foreground mt-1">Nenhum lembrete de cadência para hoje</p>
                 </div>
               )}
 
@@ -135,27 +139,55 @@ export function NotificacoesBell() {
                 const iconComp   = TIPO_ICONS_COMP[l.tipo_lembrete];
                 const emoji      = LEMBRETE_ICONS[l.tipo_lembrete] ?? '📌';
                 const label      = LEMBRETE_LABELS[l.tipo_lembrete] ?? l.tipo_lembrete;
+                const lido       = l.disparado;
 
                 return (
-                  <div key={l.id} className="px-4 py-3 border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                    <Link to="/whatsapp" onClick={() => setOpen(false)}>
-                      <div className="flex items-start gap-3">
-                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                          {iconComp}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-xs font-semibold text-foreground">{emoji} {label}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed">{l.mensagem}</p>
-                          {l.data_servico && (
-                            <p className="text-[10px] text-yellow-400 mt-1">
-                              📅 Serviço: {new Date(l.data_servico + 'T00:00:00').toLocaleDateString('pt-BR')}
-                            </p>
+                  <div
+                    key={l.id}
+                    className={`px-4 py-3 border-b border-border/50 transition-colors ${
+                      lido ? 'opacity-50' : 'hover:bg-secondary/30'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                        {iconComp}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="text-xs font-semibold text-foreground">
+                            {emoji} {label}
+                          </span>
+                          {/* Botão marcar como lido individual */}
+                          {!lido && (
+                            <button
+                              onClick={e => marcarUm(l.id, e)}
+                              className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5 flex-shrink-0"
+                              title="Marcar como lido"
+                            >
+                              <CheckCheck className="h-3 w-3" />
+                            </button>
+                          )}
+                          {lido && (
+                            <span className="text-[10px] text-muted-foreground flex-shrink-0">✓ lido</span>
                           )}
                         </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{l.mensagem}</p>
+                        {l.data_servico && (
+                          <p className="text-[10px] text-yellow-400 mt-1">
+                            📅 Serviço: {new Date(l.data_servico + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          </p>
+                        )}
+                        {!lido && (
+                          <Link
+                            to="/whatsapp"
+                            onClick={() => setOpen(false)}
+                            className="text-[10px] text-primary hover:underline mt-1 inline-block"
+                          >
+                            Enviar mensagens →
+                          </Link>
+                        )}
                       </div>
-                    </Link>
+                    </div>
                   </div>
                 );
               })}
@@ -163,10 +195,24 @@ export function NotificacoesBell() {
 
             {/* Footer */}
             <div className="px-4 py-2.5 border-t border-border bg-secondary/20 flex items-center justify-between">
-              <Link to="/whatsapp" onClick={() => setOpen(false)} className="text-xs text-primary hover:underline">
-                Ir para WhatsApp →
-              </Link>
-              <Link to="/leads" onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">
+              {hasUnread ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7 gap-1 text-muted-foreground hover:text-foreground"
+                  onClick={marcarTodos}
+                >
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  Marcar todos como lidos
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">Todos lidos</span>
+              )}
+              <Link
+                to="/leads"
+                onClick={() => setOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
                 Ver leads →
               </Link>
             </div>
