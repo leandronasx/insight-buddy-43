@@ -2,22 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-// Permissões do schema: 'admin' | 'manager' | 'viewer'
-export type Permissao = 'admin' | 'manager' | 'viewer';
+export type Role = 'admin' | 'manager' | 'viewer';
 
 export function useIsAdmin() {
   const { user } = useAuth();
 
-  const { data: permissao = null, isLoading: loading } = useQuery({
-    queryKey: ['permissao', user?.id],
-    queryFn: async (): Promise<Permissao | null> => {
+  const { data: role = null, isLoading: loading } = useQuery({
+    queryKey: ['role', user?.id],
+    queryFn: async (): Promise<Role | null> => {
       if (!user) return null;
       const { data } = await supabase
-        .from('usuarios')
-        .select('permissao')
-        .eq('id', user.id)
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
         .maybeSingle();
-      return (data?.permissao as Permissao) ?? null;
+      return (data?.role as Role) ?? null;
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
@@ -25,10 +24,10 @@ export function useIsAdmin() {
   });
 
   return {
-    isAdmin:   permissao === 'admin',
-    isManager: permissao === 'manager',
-    isViewer:  permissao === 'viewer',
-    permissao,
+    isAdmin:   role === 'admin',
+    isManager: role === 'manager',
+    isViewer:  role === 'viewer',
+    permissao: role,
     loading,
   };
 }

@@ -104,7 +104,7 @@ export function AdminOverview() {
       }
 
       // 4. Itens das vendas — incluindo bonus para calcular valor real
-      let itensMap: Record<string, number> = {};
+      const itensMap: Record<string, number> = {};
       if (vendas.length > 0) {
         const { data: itensData } = await supabase
           .from('itens_vendas')
