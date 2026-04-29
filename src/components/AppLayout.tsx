@@ -119,7 +119,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 onClick={onClickItem}
                 className={`group flex items-center gap-3 px-4 py-3 sm:px-3 sm:py-2.5 rounded-lg text-base sm:text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-sidebar-foreground active:bg-sidebar-accent/40 sm:hover:bg-sidebar-accent/60'
                 }`}
               >
@@ -148,7 +148,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 onClick={onClickItem}
                 className={`group flex items-center gap-3 px-4 py-3 sm:px-3 sm:py-2.5 rounded-lg text-base sm:text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-sidebar-foreground active:bg-sidebar-accent/40 sm:hover:bg-sidebar-accent/60'
                 }`}
               >
@@ -197,7 +197,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {renderNav(() => setMobileOpen(false))}
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-3 mt-4 rounded-lg text-base font-medium text-destructive"
+            className="flex items-center gap-3 px-4 py-3 mt-4 rounded-lg text-base font-medium text-destructive active:bg-destructive/10"
           >
             <LogOut className="h-5 w-5" />
             Sair
