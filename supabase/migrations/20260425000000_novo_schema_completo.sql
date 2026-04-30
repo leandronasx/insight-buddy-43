@@ -4,12 +4,12 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================
--- 2. ESTRUTURA DE TABELAS (ORDEM DE DEPENDÊNCIA)
+-- 2. TABELAS (DDL)
 -- ============================================================
 
 -- USUÁRIOS
 CREATE TABLE IF NOT EXISTS public.usuarios (
-    id               UUID PRIMARY KEY, -- UID do Auth.Users
+    id               UUID PRIMARY KEY,
     email            TEXT NOT NULL UNIQUE,
     senha            TEXT,
     status           TEXT NOT NULL DEFAULT 'ativo'::text,
@@ -18,51 +18,36 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
     data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- NOVA TABELA: ROLES (Identificada no dump de políticas)
+-- ROLES DE USUÁRIO
 CREATE TABLE IF NOT EXISTS public.user_roles (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id          UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    role             TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'viewer')),
-    data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id)
+    user_id          UUID NOT NULL UNIQUE,
+    role             TEXT NOT NULL,
+    data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- EMPRESAS
 CREATE TABLE IF NOT EXISTS public.empresas (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_usuario       UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    id_usuario       UUID NOT NULL,
     nome_empresa     TEXT NOT NULL,
     nome_dono        TEXT,
-    telefone         TEXT,
     cnpj_cpf         TEXT UNIQUE,
     endereco         TEXT,
     logo_url         TEXT,
     cor_primaria     TEXT,
     cor_secundaria   TEXT,
+    telefone         TEXT,
     data_inicio      DATE,
     data_termino     DATE,
     data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- FINANCEIRO
-CREATE TABLE IF NOT EXISTS public.financeiro (
-    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_empresa        UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
-    ano               SMALLINT NOT NULL,
-    mes               SMALLINT NOT NULL,
-    meta_financeira   NUMERIC DEFAULT 0,
-    custo_operacional NUMERIC DEFAULT 0,
-    custo_anuncio     NUMERIC DEFAULT 0,
-    data_criacao      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    data_atualizacao  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE (id_empresa, ano, mes)
-);
-
 -- LEADS
 CREATE TABLE IF NOT EXISTS public.leads (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_empresa          UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
+    id_empresa          UUID NOT NULL,
     nome                TEXT NOT NULL,
     telefone            TEXT,
     email               TEXT,
@@ -82,10 +67,10 @@ CREATE TABLE IF NOT EXISTS public.leads (
     data_atualizacao    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- VENDAS E ITENS
+-- VENDAS
 CREATE TABLE IF NOT EXISTS public.vendas (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_leads         UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+    id_leads         UUID NOT NULL,
     data_venda       DATE NOT NULL DEFAULT CURRENT_DATE,
     data_servico     DATE,
     horario_servico  TIME WITH TIME ZONE,
@@ -94,9 +79,10 @@ CREATE TABLE IF NOT EXISTS public.vendas (
     data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- ITENS DE VENDAS
 CREATE TABLE IF NOT EXISTS public.itens_vendas (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_vendas        UUID NOT NULL REFERENCES public.vendas(id) ON DELETE CASCADE,
+    id_vendas        UUID NOT NULL,
     estofado         TEXT NOT NULL,
     valor            NUMERIC NOT NULL DEFAULT 0,
     bonus            NUMERIC DEFAULT 0,
@@ -104,10 +90,24 @@ CREATE TABLE IF NOT EXISTS public.itens_vendas (
     data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- AUTOMAÇÕES
+-- FINANCEIRO
+CREATE TABLE IF NOT EXISTS public.financeiro (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_empresa        UUID NOT NULL,
+    ano               SMALLINT NOT NULL,
+    mes               SMALLINT NOT NULL,
+    meta_financeira   NUMERIC DEFAULT 0,
+    custo_operacional NUMERIC DEFAULT 0,
+    custo_anuncio     NUMERIC DEFAULT 0,
+    data_criacao      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    data_atualizacao  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (id_empresa, ano, mes)
+);
+
+-- REGRAS DE AUTOMAÇÃO
 CREATE TABLE IF NOT EXISTS public.regras_automacoes (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_empresa        UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
+    id_empresa        UUID NOT NULL,
     tipo_lembrete     TEXT NOT NULL,
     cadencia_envio    INTEGER NOT NULL DEFAULT 1,
     template_mensagem TEXT,
@@ -115,103 +115,112 @@ CREATE TABLE IF NOT EXISTS public.regras_automacoes (
     data_atualizacao  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- LEMBRETES GERADOS
 CREATE TABLE IF NOT EXISTS public.lembretes_automacoes (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    id_leads         UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+    id_empresa       UUID,
     tipo_lembrete    TEXT NOT NULL,
-    data_execucao    TIMESTAMP WITH TIME ZONE,
+    data_execucao    DATE,
     disparado        BOOLEAN DEFAULT FALSE,
     mensagem         TEXT,
     data_servico     DATE,
-    id_empresa       UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (id_empresa, tipo_lembrete, data_execucao)
+);
+
+-- ORDENS DE SERVIÇO E HISTÓRICO
+CREATE TABLE IF NOT EXISTS public.os (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_vendas        UUID NOT NULL,
+    enviado          BOOLEAN DEFAULT FALSE,
+    data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.historico_atendimento (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_leads         UUID NOT NULL,
+    data_interacao   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    tipo             TEXT NOT NULL,
+    mensagem         TEXT,
     data_criacao     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     data_atualizacao TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
--- 3. FUNÇÕES E TRIGGERS
+-- 3. CHAVES ESTRANGEIRAS (RELACIONAMENTOS)
+-- ============================================================
+ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+ALTER TABLE public.empresas ADD CONSTRAINT empresas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+ALTER TABLE public.financeiro ADD CONSTRAINT financeiro_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+ALTER TABLE public.regras_automacoes ADD CONSTRAINT regras_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+ALTER TABLE public.leads ADD CONSTRAINT leads_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+ALTER TABLE public.lembretes_automacoes ADD CONSTRAINT lembretes_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+ALTER TABLE public.vendas ADD CONSTRAINT vendas_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+ALTER TABLE public.itens_vendas ADD CONSTRAINT itens_vendas_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+ALTER TABLE public.os ADD CONSTRAINT os_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+ALTER TABLE public.historico_atendimento ADD CONSTRAINT historico_atendimento_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+
+-- ============================================================
+-- 4. FUNÇÕES (STORED PROCEDURES)
 -- ============================================================
 
--- Atualização automática de Timestamp
-CREATE OR REPLACE FUNCTION public.fn_set_data_atualizacao()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.data_atualizacao = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION public.fn_set_data_atualizacao() RETURNS TRIGGER AS $$
+BEGIN NEW.data_atualizacao = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
 
--- Cadastro Automático de Regras (Cadência 25 dias)
-CREATE OR REPLACE FUNCTION public.fn_configurar_regras_padrao_empresa()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.fn_get_user_role() RETURNS TEXT AS $$
+BEGIN RETURN (SELECT role FROM public.user_roles WHERE user_id = auth.uid()); END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.fn_criar_perfil_usuario() RETURNS TRIGGER AS $$
+BEGIN INSERT INTO public.usuarios (id, email, permissao, status) VALUES (NEW.id, NEW.email, 'viewer', 'ativo'); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.fn_configurar_regras_padrao_empresa() RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO public.regras_automacoes (id_empresa, tipo_lembrete, cadencia_envio, template_mensagem)
     VALUES 
-        (NEW.id, 'follow_up_pos_orcamento', 2, 'Olá, {nome}! Espero que esteja tudo bem...'),
-        (NEW.id, 'follow_up_pos_orcamento', 23, '{nome}, como não tivemos retorno, vamos encerrar seu atendimento...'),
-        (NEW.id, 'pos_venda', 360, 'Olá, {nome}! Faz um ano desde sua última limpeza!');
+        (NEW.id, 'follow_up_pos_orcamento', 2, 'Olá, {nome}! Viu nossa proposta?'),
+        (NEW.id, 'follow_up_pos_orcamento', 5, '{nome}, percebo que você gostou do nosso serviço, mas ainda não avançou...'),
+        (NEW.id, 'pos_venda', 360, 'Olá, {nome}! Faz um ano desde sua última limpeza! Vamos agendar?');
     RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+END; $$ LANGUAGE plpgsql;
 
--- Vinculação de Triggers
-DROP TRIGGER IF EXISTS trg_configurar_regras_empresa ON public.empresas;
-CREATE TRIGGER trg_configurar_regras_empresa
-    AFTER INSERT ON public.empresas
-    FOR EACH ROW EXECUTE FUNCTION public.fn_configurar_regras_padrao_empresa();
+CREATE OR REPLACE FUNCTION public.fn_get_dashboard_data(p_empresa_id UUID, p_start TIMESTAMP, p_end TIMESTAMP, p_month INT, p_year INT)
+RETURNS JSON AS $$
+DECLARE
+    v_total_leads INT; v_faturamento NUMERIC; v_total_vendas INT;
+    v_custo_anuncio NUMERIC; v_custo_operacional NUMERIC; v_meta_financeira NUMERIC;
+BEGIN
+    SELECT COUNT(*) INTO v_total_leads FROM public.leads WHERE id_empresa = p_empresa_id AND data_criacao >= p_start AND data_criacao < p_end;
+    SELECT COUNT(DISTINCT v.id), COALESCE(SUM(iv.valor - COALESCE(iv.bonus, 0)), 0) INTO v_total_vendas, v_faturamento
+    FROM public.vendas v JOIN public.leads l ON v.id_leads = l.id LEFT JOIN public.itens_vendas iv ON v.id = iv.id_vendas
+    WHERE l.id_empresa = p_empresa_id AND v.data_venda >= p_start::date AND v.data_venda < p_end::date;
+    SELECT COALESCE(custo_anuncio, 0), COALESCE(custo_operacional, 0), COALESCE(meta_financeira, 0)
+    INTO v_custo_anuncio, v_custo_operacional, v_meta_financeira FROM public.financeiro WHERE id_empresa = p_empresa_id AND mes = p_month AND ano = p_year;
+    RETURN json_build_object('totalLeads', v_total_leads, 'totalVendas', v_total_vendas, 'faturamento', v_faturamento, 'custoAnuncio', v_custo_anuncio, 'custoOperacional', v_custo_operacional, 'metaFaturamento', v_meta_financeira);
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
--- 4. POLÍTICAS DE RLS (BASEADAS NO DUMP ATUAL)
+-- 5. TRIGGERS
 -- ============================================================
 
--- Habilitar RLS em todas
-ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+CREATE TRIGGER trg_configurar_regras_empresa AFTER INSERT ON public.empresas FOR EACH ROW EXECUTE FUNCTION fn_configurar_regras_padrao_empresa();
+CREATE TRIGGER trg_set_data_atualizacao_usuarios BEFORE UPDATE ON public.usuarios FOR EACH ROW EXECUTE FUNCTION fn_set_data_atualizacao();
+CREATE TRIGGER trg_set_data_atualizacao_empresas BEFORE UPDATE ON public.empresas FOR EACH ROW EXECUTE FUNCTION fn_set_data_atualizacao();
+CREATE TRIGGER trg_set_data_atualizacao_leads BEFORE UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION fn_set_data_atualizacao();
+CREATE TRIGGER trg_set_data_atualizacao_vendas BEFORE UPDATE ON public.vendas FOR EACH ROW EXECUTE FUNCTION fn_set_data_atualizacao();
+
+-- ============================================================
+-- 6. POLÍTICAS DE RLS
+-- ============================================================
+
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.empresas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.itens_vendas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financeiro ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.regras_automacoes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.os ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.historico_atendimento ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lembretes_automacoes ENABLE ROW LEVEL SECURITY;
 
--- POLÍTICAS GERAIS (Admin ou Próprio)
-CREATE POLICY "user_roles_select_own" ON public.user_roles FOR SELECT USING (user_id = auth.uid());
-
-CREATE POLICY "leads: acesso_total_admin_ou_proprio" ON public.leads 
-FOR ALL USING (
-    (SELECT role FROM user_roles WHERE user_id = auth.uid()) = 'admin' OR 
-    EXISTS (SELECT 1 FROM empresas e WHERE e.id = leads.id_empresa AND e.id_usuario = auth.uid())
-);
-
-CREATE POLICY "vendas: acesso_admin_ou_dono" ON public.vendas 
-FOR ALL USING (
-    (SELECT role FROM user_roles WHERE user_id = auth.uid()) = 'admin' OR 
-    EXISTS (SELECT 1 FROM leads l JOIN empresas e ON e.id = l.id_empresa WHERE l.id = vendas.id_leads AND e.id_usuario = auth.uid())
-);
-
-CREATE POLICY "itens_vendas: acesso_admin_ou_dono" ON public.itens_vendas 
-FOR ALL USING (
-    (SELECT role FROM user_roles WHERE user_id = auth.uid()) = 'admin' OR 
-    EXISTS (SELECT 1 FROM vendas v JOIN leads l ON l.id = v.id_leads JOIN empresas e ON e.id = l.id_empresa WHERE v.id = itens_vendas.id_vendas AND e.id_usuario = auth.uid())
-);
-
-CREATE POLICY "financeiro: acesso_admin_ou_dono" ON public.financeiro 
-FOR ALL USING (
-    (SELECT role FROM user_roles WHERE user_id = auth.uid()) = 'admin' OR 
-    EXISTS (SELECT 1 FROM empresas e WHERE e.id = financeiro.id_empresa AND e.id_usuario = auth.uid())
-);
-
-CREATE POLICY "lembretes_automacoes: acesso" ON public.lembretes_automacoes 
-FOR ALL USING (
-    (SELECT permissao FROM usuarios WHERE id = auth.uid()) = 'admin' OR 
-    EXISTS (SELECT 1 FROM empresas e WHERE e.id = lembretes_automacoes.id_empresa AND e.id_usuario = auth.uid())
-);
-
-CREATE POLICY "os: somente das proprias vendas" ON public.os FOR ALL 
-USING (id_vendas IN (SELECT v.id FROM vendas v JOIN leads l ON l.id = v.id_leads JOIN empresas e ON e.id = l.id_empresa WHERE e.id_usuario = auth.uid()));
-
-CREATE POLICY "historico_atendimento: somente dos proprios leads" ON public.historico_atendimento FOR ALL 
-USING (id_leads IN (SELECT l.id FROM leads l JOIN empresas e ON e.id = l.id_empresa WHERE e.id_usuario = auth.uid()));
+CREATE POLICY "usuarios: acesso" ON public.usuarios FOR ALL USING (auth.uid() = id);
+CREATE POLICY "empresas: acesso" ON public.empresas FOR ALL USING (id_usuario = auth.uid() OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "leads: acesso" ON public.leads FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = leads.id_empresa AND e.id_usuario = auth.uid()) OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "financeiro: acesso" ON public.financeiro FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = financeiro.id_empresa AND e.id_usuario = auth.uid()) OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');

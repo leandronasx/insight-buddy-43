@@ -62,7 +62,6 @@ export interface Database {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           }
@@ -74,12 +73,12 @@ export interface Database {
           id_usuario: string
           nome_empresa: string
           nome_dono: string | null
-          telefone: string | null
           cnpj_cpf: string | null
           endereco: string | null
           logo_url: string | null
           cor_primaria: string | null
           cor_secundaria: string | null
+          telefone: string | null
           data_inicio: string | null
           data_termino: string | null
           data_criacao: string
@@ -90,12 +89,12 @@ export interface Database {
           id_usuario: string
           nome_empresa: string
           nome_dono?: string | null
-          telefone?: string | null
           cnpj_cpf?: string | null
           endereco?: string | null
           logo_url?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
+          telefone?: string | null
           data_inicio?: string | null
           data_termino?: string | null
           data_criacao?: string
@@ -106,12 +105,12 @@ export interface Database {
           id_usuario?: string
           nome_empresa?: string
           nome_dono?: string | null
-          telefone?: string | null
           cnpj_cpf?: string | null
           endereco?: string | null
           logo_url?: string | null
           cor_primaria?: string | null
           cor_secundaria?: string | null
+          telefone?: string | null
           data_inicio?: string | null
           data_termino?: string | null
           data_criacao?: string
@@ -121,7 +120,6 @@ export interface Database {
           {
             foreignKeyName: "empresas_id_usuario_fkey"
             columns: ["id_usuario"]
-            isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           }
@@ -139,7 +137,7 @@ export interface Database {
           origem_lead: string | null
           situacao_do_cliente: 'Agendado' | 'Fechado' | 'Reabordar' | 'Sem Interesse' | 'Interesse Futuro' | null
           momento_funil: 'Pre Orçamento' | 'Pos Orçamento' | 'Pos Venda' | null
-          qualificacao: 'Sim' | 'Não' | null
+          qualificacao: string | null
           robo_pos_vendas: boolean
           robo_follow_ups: boolean
           robo_atendimento: boolean
@@ -158,9 +156,9 @@ export interface Database {
           cnpj_cpf?: string | null
           endereco?: string | null
           origem_lead?: string | null
-          situacao_do_cliente?: 'Agendado' | 'Fechado' | 'Reabordar' | 'Sem Interesse' | 'Interesse Futuro' | null
-          momento_funil?: 'Pre Orçamento' | 'Pos Orçamento' | 'Pos Venda' | null
-          qualificacao?: 'Sim' | 'Não' | null
+          situacao_do_cliente?: string | null
+          momento_funil?: string | null
+          qualificacao?: string | null
           robo_pos_vendas?: boolean
           robo_follow_ups?: boolean
           robo_atendimento?: boolean
@@ -179,9 +177,9 @@ export interface Database {
           cnpj_cpf?: string | null
           endereco?: string | null
           origem_lead?: string | null
-          situacao_do_cliente?: 'Agendado' | 'Fechado' | 'Reabordar' | 'Sem Interesse' | 'Interesse Futuro' | null
-          momento_funil?: 'Pre Orçamento' | 'Pos Orçamento' | 'Pos Venda' | null
-          qualificacao?: 'Sim' | 'Não' | null
+          situacao_do_cliente?: string | null
+          momento_funil?: string | null
+          qualificacao?: string | null
           robo_pos_vendas?: boolean
           robo_follow_ups?: boolean
           robo_atendimento?: boolean
@@ -195,7 +193,6 @@ export interface Database {
           {
             foreignKeyName: "leads_id_empresa_fkey"
             columns: ["id_empresa"]
-            isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           }
@@ -218,7 +215,7 @@ export interface Database {
           data_venda?: string
           data_servico?: string | null
           horario_servico?: string | null
-          status?: 'pendente' | 'confirmado' | 'cancelado' | 'concluido'
+          status?: string
           data_criacao?: string
           data_atualizacao?: string
         }
@@ -228,7 +225,7 @@ export interface Database {
           data_venda?: string
           data_servico?: string | null
           horario_servico?: string | null
-          status?: 'pendente' | 'confirmado' | 'cancelado' | 'concluido'
+          status?: string
           data_criacao?: string
           data_atualizacao?: string
         }
@@ -236,7 +233,6 @@ export interface Database {
           {
             foreignKeyName: "vendas_id_leads_fkey"
             columns: ["id_leads"]
-            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           }
@@ -274,7 +270,6 @@ export interface Database {
           {
             foreignKeyName: "itens_vendas_id_vendas_fkey"
             columns: ["id_vendas"]
-            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           }
@@ -318,40 +313,7 @@ export interface Database {
           {
             foreignKeyName: "financeiro_id_empresa_fkey"
             columns: ["id_empresa"]
-            isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      os: {
-        Row: {
-          id: string
-          id_vendas: string
-          enviado: boolean
-          data_criacao: string
-          data_atualizacao: string
-        }
-        Insert: {
-          id?: string
-          id_vendas: string
-          enviado?: boolean
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Update: {
-          id?: string
-          id_vendas?: string
-          enviado?: boolean
-          data_criacao?: string
-          data_atualizacao?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "os_id_vendas_fkey"
-            columns: ["id_vendas"]
-            isOneToOne: false
-            referencedRelation: "vendas"
             referencedColumns: ["id"]
           }
         ]
@@ -388,7 +350,6 @@ export interface Database {
           {
             foreignKeyName: "regras_automacoes_id_empresa_fkey"
             columns: ["id_empresa"]
-            isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           }
@@ -397,7 +358,6 @@ export interface Database {
       lembretes_automacoes: {
         Row: {
           id: string
-          id_leads: string
           id_empresa: string | null
           tipo_lembrete: string
           data_execucao: string | null
@@ -409,7 +369,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          id_leads: string
           id_empresa?: string | null
           tipo_lembrete: string
           data_execucao?: string | null
@@ -421,7 +380,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          id_leads?: string
           id_empresa?: string | null
           tipo_lembrete?: string
           data_execucao?: string | null
@@ -433,16 +391,8 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "lembretes_automacoes_id_leads_fkey"
-            columns: ["id_leads"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "lembretes_automacoes_id_empresa_fkey"
             columns: ["id_empresa"]
-            isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           }

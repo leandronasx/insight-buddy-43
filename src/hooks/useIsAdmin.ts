@@ -11,12 +11,12 @@ export function useIsAdmin() {
     queryKey: ['role', user?.id],
     queryFn: async (): Promise<Role | null> => {
       if (!user) return null;
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return (data?.role as Role) ?? null;
+      const { data, error } = await supabase.rpc('fn_get_user_role');
+      if (error) {
+        console.error('Error fetching role:', error);
+        return null;
+      }
+      return (data as Role) ?? null;
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
