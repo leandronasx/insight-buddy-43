@@ -34,69 +34,32 @@ export function useDashboardData() {
       if (!empresa) throw new Error('No empresa');
       const { start, end } = getDateRange(month, year);
 
-      // Leads criados no mês
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id_empresa', empresa.id)
-        .gte('data_criacao', start)
-        .lt('data_criacao', end);
+      const { data: metricsData, error } = await supabase.rpc('get_dashboard_metrics', {
+        p_empresa_id: empresa.id,
+        p_start: start,
+        p_end: end
+      });
 
-      const leads = leadsData ?? [];
-      const leadIds = leads.map(l => l.id);
+      if (error) throw error;
 
-      // Vendas do mês (via leads da empresa)
-      let vendas: any[] = [];
-      if (leadIds.length > 0) {
-        const { data: vendasData } = await supabase
-          .from('vendas')
-          .select('id, id_leads, status, data_venda')
-          .in('id_leads', leadIds)
-          .gte('data_venda', start)
-          .lt('data_venda', end);
-        vendas = vendasData ?? [];
-      }
-
-      // Itens das vendas para calcular faturamento
-      let itens: any[] = [];
-      if (vendas.length > 0) {
-        const { data: itensData } = await supabase
-          .from('itens_vendas')
-          .select('valor, bonus, id_vendas')
-          .in('id_vendas', vendas.map(v => v.id));
-        itens = itensData ?? [];
-      }
-
-      // Financeiro do mês
-      const { data: fin } = await supabase
-        .from('financeiro')
-        .select('*')
-        .eq('id_empresa', empresa.id)
-        .eq('mes', month)
-        .eq('ano', year)
-        .maybeSingle();
-
-      const totalLeads = leads.length;
-      const leadsTrafego = leads.filter(l => l.origem_lead === 'Tráfego').length;
-      const leadsOrganico = leads.filter(l => l.origem_lead === 'Orgânico').length;
-      const leadsIndicacao = leads.filter(l => l.origem_lead === 'Indicação').length;
-      const leadsFechados = leads.filter(l => l.situacao_do_cliente === 'Fechado').length;
-      const totalVendas = vendas.length;
-      const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0) - Number(i.bonus ?? 0), 0);
-      const custoAnuncio = Number(fin?.custo_anuncio ?? 0);
-      const custoOperacional = Number(fin?.custo_operacional ?? 0);
-      const metaFaturamento = Number(fin?.meta_financeira ?? 0);
-      const roi = custoAnuncio > 0 ? faturamento / custoAnuncio : 0;
-      const cac = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
-      const lucroLiquido = faturamento - (custoAnuncio + custoOperacional);
-      const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
+      const metrics = metricsData as any;
 
       return {
-        totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, totalVendas, conversao, faturamento,
-        custoAnuncio, custoOperacional, metaFaturamento,
-        roi, cac, lucroLiquido, ticketMedio,
+        totalLeads: Number(metrics.totalLeads ?? 0),
+        leadsTrafego: Number(metrics.leadsTrafego ?? 0),
+        leadsOrganico: Number(metrics.leadsOrganico ?? 0),
+        leadsIndicacao: Number(metrics.leadsIndicacao ?? 0),
+        leadsFechados: Number(metrics.leadsFechados ?? 0),
+        totalVendas: Number(metrics.totalVendas ?? 0),
+        conversao: Number(metrics.conversao ?? 0),
+        faturamento: Number(metrics.faturamento ?? 0),
+        custoAnuncio: Number(metrics.custoAnuncio ?? 0),
+        custoOperacional: Number(metrics.custoOperacional ?? 0),
+        metaFaturamento: Number(metrics.metaFaturamento ?? 0),
+        roi: Number(metrics.roi ?? 0),
+        cac: Number(metrics.cac ?? 0),
+        lucroLiquido: Number(metrics.lucroLiquido ?? 0),
+        ticketMedio: Number(metrics.ticketMedio ?? 0),
       };
     },
     enabled: !!empresa,
