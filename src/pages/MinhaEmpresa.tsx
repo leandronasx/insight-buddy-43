@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Upload, Save, Building2, User, MapPin, FileText, Palette, AlertCircle } from 'lucide-react';
+import { Upload, Save, Building2, User, MapPin, FileText, Palette, AlertCircle, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +15,7 @@ export default function MinhaEmpresa() {
   const [form, setForm] = useState({
     nome_empresa: '',
     nome_dono: '',
+    telefone: '',
     endereco: '',
     cnpj_cpf: '',
     cor_primaria: '#22c55e',
@@ -29,6 +30,7 @@ export default function MinhaEmpresa() {
       setForm({
         nome_empresa: empresa.nome_empresa || '',
         nome_dono: empresa.nome_dono || '',
+        telefone: empresa.telefone || '',
         endereco: empresa.endereco || '',
         cnpj_cpf: empresa.cnpj_cpf || '',
         // Garante valor hex válido — nunca passa 'NULL' ou null para input[type=color]
@@ -108,6 +110,7 @@ export default function MinhaEmpresa() {
       await updateEmpresa.mutateAsync({
         nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono || null,
+        telefone: form.telefone || null,
         endereco: form.endereco || null,
         cnpj_cpf: form.cnpj_cpf || null,
         cor_primaria: form.cor_primaria,
@@ -199,6 +202,19 @@ export default function MinhaEmpresa() {
             value={form.cnpj_cpf}
             onChange={e => setForm({ ...form, cnpj_cpf: e.target.value })}
             placeholder="00.000.000/0001-00"
+            className="bg-secondary border-border"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5" /> Telefone
+          </label>
+          <Input
+            type="tel"
+            value={form.telefone}
+            onChange={e => setForm({ ...form, telefone: e.target.value })}
+            placeholder="(11) 99999-9999"
             className="bg-secondary border-border"
           />
         </div>

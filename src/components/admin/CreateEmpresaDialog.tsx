@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 const emptyForm = {
   nome_empresa: '',
   nome_dono: '',
+  telefone: '',
   email: '',
   password: '',
   data_inicio: new Date().toISOString().split('T')[0],
@@ -35,6 +36,7 @@ export function CreateEmpresaDialog({ open, onOpenChange, onSuccess }: Props) {
         password: form.password,
         nome_empresa: form.nome_empresa,
         nome_dono: form.nome_dono || null,
+        telefone: form.telefone || null,
         data_inicio: form.data_inicio,
         data_termino: form.data_termino || null,
       },
@@ -82,6 +84,12 @@ export function CreateEmpresaDialog({ open, onOpenChange, onSuccess }: Props) {
             <Input value={form.nome_dono}
               onChange={e => setForm({ ...form, nome_dono: e.target.value })}
               className="bg-secondary border-border" placeholder="João Silva" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">Telefone</label>
+            <Input type="tel" value={form.telefone}
+              onChange={e => setForm({ ...form, telefone: e.target.value })}
+              className="bg-secondary border-border" placeholder="(11) 99999-9999" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">E-mail de Login *</label>
