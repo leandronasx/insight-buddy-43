@@ -105,9 +105,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <nav className="flex-1 space-y-4 overflow-y-auto">
       {navGroups.map(group => (
         <div key={group.label}>
-          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
             {group.label}
           </p>
+          <div className="space-y-1.5">
           {group.items.map(item => {
             const active = location.pathname === item.to;
             const badge = getNavBadge(item.to);
@@ -116,10 +117,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 onClick={onClickItem}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`group flex items-center gap-3 px-4 py-3 sm:px-3 sm:py-2.5 rounded-lg text-base sm:text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-sidebar-foreground active:bg-sidebar-accent/40 sm:hover:bg-sidebar-accent/60'
                 }`}
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -128,14 +129,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          </div>
         </div>
       ))}
 
       {isAdmin && (
         <div>
-          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
             Admin
           </p>
+          <div className="space-y-1.5">
           {adminItems.map(item => {
             const active = location.pathname === item.to;
             return (
@@ -143,10 +146,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 onClick={onClickItem}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`group flex items-center gap-3 px-4 py-3 sm:px-3 sm:py-2.5 rounded-lg text-base sm:text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-sidebar-foreground active:bg-sidebar-accent/40 sm:hover:bg-sidebar-accent/60'
                 }`}
               >
                 <item.icon className="h-4 w-4" />
@@ -154,6 +157,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          </div>
         </div>
       )}
     </nav>
@@ -189,11 +193,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile nav overlay */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-background/95 pt-16 px-4 pb-4 overflow-y-auto">
+        <div className="md:hidden fixed inset-0 z-40 bg-sidebar pt-20 px-4 pb-4 overflow-y-auto">
           {renderNav(() => setMobileOpen(false))}
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-3 mt-4 rounded-lg text-base font-medium text-destructive"
+            className="flex items-center gap-3 px-4 py-3 mt-4 rounded-lg text-base font-medium text-destructive active:bg-destructive/10"
           >
             <LogOut className="h-5 w-5" />
             Sair
@@ -202,7 +206,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main content */}
-      <main className="flex-1 md:p-6 p-4 pt-16 md:pt-6 overflow-auto">
+      <main className="flex-1 md:p-6 p-4 pt-20 pb-20 md:pt-6 overflow-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             {empresa && (
