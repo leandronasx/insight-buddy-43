@@ -62,8 +62,7 @@ export async function drawHeader({ doc, layout, theme, empresa, venda }: HeaderA
   if (empresa.cnpj_cpf) compLines.push(`CNPJ/CPF: ${empresa.cnpj_cpf}`);
   if (empresa.endereco) compLines.push(empresa.endereco);
   const contactLine: string[] = [];
-  if ((empresa as any).telefone) contactLine.push((empresa as any).telefone);
-  if ((empresa as any).email) contactLine.push((empresa as any).email);
+  if (empresa.telefone) contactLine.push(empresa.telefone);
   if (contactLine.length) compLines.push(contactLine.join('  •  '));
   compLines.slice(0, 3).forEach((l, i) => {
     doc.text(l, textStartX, headerTop + 19 + i * 4);
