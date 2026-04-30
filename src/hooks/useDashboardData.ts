@@ -34,69 +34,50 @@ export function useDashboardData() {
       if (!empresa) throw new Error('No empresa');
       const { start, end } = getDateRange(month, year);
 
-      // Leads criados no mês
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id_empresa', empresa.id)
-        .gte('data_criacao', start)
-        .lt('data_criacao', end);
+      const { data: rpcData, error } = await supabase.rpc('fn_get_dashboard_data', {
+        p_empresa_id: empresa.id,
+        p_month: month,
+        p_year: year,
+        p_start: start,
+        p_end: end
+      });
 
-      const leads = leadsData ?? [];
-      const leadIds = leads.map(l => l.id);
-
-      // Vendas do mês (via leads da empresa)
-      let vendas: any[] = [];
-      if (leadIds.length > 0) {
-        const { data: vendasData } = await supabase
-          .from('vendas')
-          .select('id, id_leads, status, data_venda')
-          .in('id_leads', leadIds)
-          .gte('data_venda', start)
-          .lt('data_venda', end);
-        vendas = vendasData ?? [];
+      if (error) {
+        console.error('Error fetching dashboard data via RPC:', error);
+        throw error;
       }
 
-      // Itens das vendas para calcular faturamento
-      let itens: any[] = [];
-      if (vendas.length > 0) {
-        const { data: itensData } = await supabase
-          .from('itens_vendas')
-          .select('valor, bonus, id_vendas')
-          .in('id_vendas', vendas.map(v => v.id));
-        itens = itensData ?? [];
-      }
+      const raw = rpcData as unknown as Record<string, unknown>;
+      const faturamento = Number(raw?.faturamento ?? 0);
+      const custoAnuncio = Number(raw?.custoAnuncio ?? 0);
+      const custoOperacional = Number(raw?.custoOperacional ?? 0);
+      const metaFaturamento = Number(raw?.metaFaturamento ?? 0);
+      const totalLeads = Number(raw?.totalLeads ?? 0);
+      const leadsFechados = Number(raw?.leadsFechados ?? 0);
+      const totalVendas = Number(raw?.totalVendas ?? 0);
 
-      // Financeiro do mês
-      const { data: fin } = await supabase
-        .from('financeiro')
-        .select('*')
-        .eq('id_empresa', empresa.id)
-        .eq('mes', month)
-        .eq('ano', year)
-        .maybeSingle();
-
-      const totalLeads = leads.length;
-      const leadsTrafego = leads.filter(l => l.origem_lead === 'Tráfego').length;
-      const leadsOrganico = leads.filter(l => l.origem_lead === 'Orgânico').length;
-      const leadsIndicacao = leads.filter(l => l.origem_lead === 'Indicação').length;
-      const leadsFechados = leads.filter(l => l.situacao_do_cliente === 'Fechado').length;
-      const totalVendas = vendas.length;
       const conversao = totalLeads > 0 ? (leadsFechados / totalLeads) * 100 : 0;
-      const faturamento = itens.reduce((s, i) => s + Number(i.valor ?? 0) - Number(i.bonus ?? 0), 0);
-      const custoAnuncio = Number(fin?.custo_anuncio ?? 0);
-      const custoOperacional = Number(fin?.custo_operacional ?? 0);
-      const metaFaturamento = Number(fin?.meta_financeira ?? 0);
       const roi = custoAnuncio > 0 ? faturamento / custoAnuncio : 0;
       const cac = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
       const lucroLiquido = faturamento - (custoAnuncio + custoOperacional);
       const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
       return {
-        totalLeads, leadsTrafego, leadsOrganico, leadsIndicacao,
-        leadsFechados, totalVendas, conversao, faturamento,
-        custoAnuncio, custoOperacional, metaFaturamento,
-        roi, cac, lucroLiquido, ticketMedio,
+        totalLeads,
+        leadsTrafego: Number(raw?.leadsTrafego ?? 0),
+        leadsOrganico: Number(raw?.leadsOrganico ?? 0),
+        leadsIndicacao: Number(raw?.leadsIndicacao ?? 0),
+        leadsFechados,
+        totalVendas,
+        conversao,
+        faturamento,
+        custoAnuncio,
+        custoOperacional,
+        metaFaturamento,
+        roi,
+        cac,
+        lucroLiquido,
+        ticketMedio,
       };
     },
     enabled: !!empresa,
@@ -131,7 +112,7 @@ export function useChartData() {
         .lt('data_venda', `${year + 1}-01-01`);
 
       const vendaIds = (vendas ?? []).map(v => v.id);
-      let itens: any[] = [];
+      let itens: unknown[] = [];
       if (vendaIds.length > 0) {
         const { data: itensData } = await supabase
           .from('itens_vendas')
