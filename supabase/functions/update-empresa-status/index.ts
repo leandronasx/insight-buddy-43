@@ -5,10 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// NOTE: The new schema has no 'status' column on empresas.
-// This function now updates data_termino to deactivate (set a past date)
-// or clears it to reactivate. Also supports updating nome_empresa and other fields.
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -37,7 +33,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin via user_roles.role (new schema)
+    // Verifica admin via user_roles
     const { data: roleData } = await adminClient
       .from("user_roles")
       .select("role")
@@ -51,12 +47,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { empresa_id, data_termino, nome_empresa, nome_dono } = await req.json();
+    const { empresa_id, data_termino, nome_empresa, nome_dono, telefone } = await req.json();
 
     const updateData: Record<string, unknown> = {};
     if (data_termino !== undefined) updateData.data_termino = data_termino;
     if (nome_empresa !== undefined) updateData.nome_empresa = nome_empresa;
     if (nome_dono !== undefined) updateData.nome_dono = nome_dono;
+    if (telefone !== undefined) updateData.telefone = telefone || null;
 
     const { error } = await adminClient
       .from("empresas")
