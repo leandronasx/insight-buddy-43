@@ -4,7 +4,7 @@ import { Building2, Users, Wallet, Receipt, Tag, DollarSign, CalendarDays } from
 import { supabase } from '@/integrations/supabase/client';
 import { useMonth } from '@/contexts/MonthContext';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/lib/date-utils';
+import { formatCurrency, getDateRange } from '@/lib/date-utils';
 
 interface EmpresaMetrics {
   id: string;
@@ -47,112 +47,52 @@ export function AdminOverview() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const fetchData = async () => {
+const fetchData = async () => {
       setLoading(true);
 
-      // Datas do mês selecionado
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const endMonth  = month === 12 ? 1 : month + 1;
-      const endYear   = month === 12 ? year + 1 : year;
-      const endDate   = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+      const { start: startDate, end: endDate } = getDateRange(month, year);
 
-      // 1. Busca todas as empresas clientes (exclui a conta admin)
-      const { data: allEmpresas, error } = await supabase
-        .from('empresas')
-        .select('id, nome_empresa, nome_dono')
-        .neq('id_usuario', user.id)
-        .order('nome_empresa');
+      const { data, error } = await supabase.rpc('fn_get_admin_overview', {
+        p_start: startDate,
+        p_end: endDate,
+        p_month: month,
+        p_year: year
+      });
 
       if (error) {
-        console.error('AdminOverview - erro ao buscar empresas:', error.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!allEmpresas || allEmpresas.length === 0) {
+        console.error('AdminOverview - erro ao buscar dados RPC:', error.message);
         setEmpresas([]);
         setTotals(EMPTY_TOTALS);
         setLoading(false);
         return;
       }
 
-      const empresaIds = allEmpresas.map(e => e.id);
+      // @ts-expect-error Data is JSON stringified array or array
+      const parsedData = (typeof data === 'string' ? JSON.parse(data) : data) || [];
 
-      // 2. Leads do mês selecionado
-      const { data: todosLeadsData } = await supabase
-        .from('leads')
-        .select('id, id_empresa, situacao_do_cliente')
-        .in('id_empresa', empresaIds)
-        .gte('data_criacao', startDate)
-        .lt('data_criacao', endDate);
-
-      const todosLeads = todosLeadsData ?? [];
-      const leadEmpresaMap: Record<string, string> = {};
-      todosLeads.forEach(l => { leadEmpresaMap[l.id] = l.id_empresa; });
-      const todosLeadIds = todosLeads.map(l => l.id);
-
-      // 3. Vendas do mês selecionado (via lead IDs de todas as empresas)
-      let vendas: { id: string; id_leads: string; data_venda: string; status: string }[] = [];
-      if (todosLeadIds.length > 0) {
-        const { data: vendasData } = await supabase
-          .from('vendas')
-          .select('id, id_leads, data_venda, status')
-          .in('id_leads', todosLeadIds)
-          .gte('data_venda', startDate)
-          .lt('data_venda', endDate);
-        vendas = vendasData ?? [];
-      }
-
-      // 4. Itens das vendas — incluindo bonus para calcular valor real
-      const itensMap: Record<string, number> = {};
-      if (vendas.length > 0) {
-        const { data: itensData } = await supabase
-          .from('itens_vendas')
-          .select('id_vendas, valor, bonus')
-          .in('id_vendas', vendas.map(v => v.id));
-
-        (itensData ?? []).forEach((i: { id_vendas: string; valor: number | null; bonus: number | null }) => {
-          const valorReal = Number(i.valor ?? 0) - Number(i.bonus ?? 0);
-          itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + valorReal;
-        });
-      }
-
-      // 5. Financeiro do mês por empresa
-      const { data: finsData } = await supabase
-        .from('financeiro')
-        .select('id_empresa, custo_anuncio, meta_financeira')
-        .in('id_empresa', empresaIds)
-        .eq('mes', month)
-        .eq('ano', year);
-      const fins = finsData ?? [];
-
-      // 6. Métricas por empresa
-      const metrics: EmpresaMetrics[] = allEmpresas.map(emp => {
-        // Todos os leads da empresa (sem filtro de mês)
-        const empLeads      = todosLeads.filter(l => l.id_empresa === emp.id);
-        const totalLeads    = empLeads.length;
-        const leadsFechados = empLeads.filter(l => l.situacao_do_cliente === 'Fechado').length;
-
-        // Vendas do mês desta empresa
-        const empVendas  = vendas.filter(v => leadEmpresaMap[v.id_leads] === emp.id);
-        const totalVendas = empVendas.length;
-        const faturamento = empVendas.reduce((s, v) => s + (itensMap[v.id] ?? 0), 0);
-
-        const empFin     = fins.find(f => f.id_empresa === emp.id);
-        const custoAnuncio = Number(empFin?.custo_anuncio ?? 0);
-        const cac        = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
+      // Mapeia o resultado e calcula ticket médio e CAC
+      const metrics: EmpresaMetrics[] = parsedData.map((emp: Record<string, unknown>) => {
+        const totalVendas = Number(emp.totalVendas ?? 0);
+        const faturamento = Number(emp.faturamento ?? 0);
+        const custoAnuncio = Number(emp.custoAnuncio ?? 0);
+        const cac = totalVendas > 0 ? custoAnuncio / totalVendas : 0;
         const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
         return {
           id: emp.id,
           nome_empresa: emp.nome_empresa,
           nome_dono: emp.nome_dono,
-          faturamento, custoAnuncio, totalLeads,
-          leadsFechados, totalVendas, cac, ticketMedio,
+          totalLeads: Number(emp.totalLeads ?? 0),
+          leadsFechados: Number(emp.leadsFechados ?? 0),
+          totalVendas,
+          faturamento,
+          custoAnuncio,
+          cac,
+          ticketMedio
         };
       });
 
-      // 7. Totais
+      // Calcula os totais globais
       const n = metrics.length || 1;
       const t: Totals = {
         empresasAtivas:    metrics.length,

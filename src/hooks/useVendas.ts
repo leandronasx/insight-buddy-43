@@ -60,34 +60,33 @@ export function useVendas(params: UseVendasParams = {}) {
       if (!empresa) return { vendas: [], totalCount: 0 };
       const { start, end } = getDateRange(month, year);
 
-      // Busca todos os leads da empresa para limitar as vendas
-      const { data: todosLeads } = await supabase
-        .from('leads')
-        .select('id, nome')
-        .eq('id_empresa', empresa.id);
-
-      const todosLeadIds = (todosLeads ?? []).map(l => l.id);
-
-      if (todosLeadIds.length === 0) return { vendas: [], totalCount: 0 };
-
+      // Restringe as vendas apenas aos leads da empresa usando inner join
       let query = supabase
         .from('vendas')
-        .select('*', { count: 'exact' })
-        .in('id_leads', todosLeadIds)
+        .select('*, leads!inner(id_empresa)', { count: 'exact' })
+        .eq('leads.id_empresa', empresa.id)
         .gte('data_venda', start)
         .lt('data_venda', end);
 
       if (search.trim()) {
-        const q = `%${search.trim()}%`;
-        // Find matching leads in JS
-        const leadsMatchingSearch = (todosLeads ?? [])
-          .filter(l => l.nome.toLowerCase().includes(search.trim().toLowerCase()))
-          .map(l => l.id)
-          .slice(0, 100); // Prevent URI Too Long error
+        const safeSearch = search.trim().replace(/"/g, '');
+        const q = `%${safeSearch}%`;
 
-        if (leadsMatchingSearch.length > 0) {
-          query = query.or(`status.ilike.${q},id_leads.in.(${leadsMatchingSearch.join(',')})`);
+        // Verifica se a busca bate com algum nome de lead
+        const { data: matchingLeads } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('id_empresa', empresa.id)
+          .ilike('nome', q)
+          .limit(100);
+
+        const leadsIds = (matchingLeads ?? []).map(l => l.id);
+
+        if (leadsIds.length > 0) {
+          // Se encontrou leads com esse nome, traz as vendas deles
+          query = query.in('id_leads', leadsIds);
         } else {
+          // Se não encontrou leads, assume que está buscando por status da venda
           query = query.ilike('status', q);
         }
       }

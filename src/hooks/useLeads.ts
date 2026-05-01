@@ -55,7 +55,8 @@ export function useLeads(params: UseLeadsParams = {}) {
         .eq('id_empresa', empresa.id);
 
       if (search.trim()) {
-        const q = `%${search.trim()}%`;
+        const safeSearch = search.trim().replace(/"/g, '');
+        const q = `"%${safeSearch}%"`;
         query = query.or(`nome.ilike.${q},telefone.ilike.${q},origem_lead.ilike.${q},situacao_do_cliente.ilike.${q}`);
       }
 
