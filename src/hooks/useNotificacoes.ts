@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 
@@ -45,7 +45,7 @@ export const LEMBRETE_LABELS: Record<string, string> = {
 export function useNotificacoes() {
   const { empresa } = useEmpresa();
   const queryClient = useQueryClient();
-  const queryKey    = ['notificacoes', empresa?.id];
+  const queryKey    = useMemo(() => ['notificacoes', empresa?.id], [empresa?.id]);
 
   // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
   useEffect(() => {
@@ -58,7 +58,7 @@ export function useNotificacoes() {
       sessionStorage.setItem('lembretes_gerados', String(agora));
       queryClient.invalidateQueries({ queryKey });
     }).catch(() => {/* silencioso se não deployada */});
-  }, [empresa?.id]);
+  }, [empresa, queryClient, queryKey]);
 
   // 2. Lê lembretes de hoje não disparados
   const query = useQuery<NotificacoesData>({

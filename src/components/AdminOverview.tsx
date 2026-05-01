@@ -92,7 +92,7 @@ export function AdminOverview() {
       const todosLeadIds = todosLeads.map(l => l.id);
 
       // 3. Vendas do mês selecionado (via lead IDs de todas as empresas)
-      let vendas: any[] = [];
+      let vendas: { id: string; id_leads: string; data_venda: string; status: string }[] = [];
       if (todosLeadIds.length > 0) {
         const { data: vendasData } = await supabase
           .from('vendas')
@@ -111,7 +111,7 @@ export function AdminOverview() {
           .select('id_vendas, valor, bonus')
           .in('id_vendas', vendas.map(v => v.id));
 
-        (itensData ?? []).forEach((i: any) => {
+        (itensData ?? []).forEach((i: { id_vendas: string; valor: number | null; bonus: number | null }) => {
           const valorReal = Number(i.valor ?? 0) - Number(i.bonus ?? 0);
           itensMap[i.id_vendas] = (itensMap[i.id_vendas] ?? 0) + valorReal;
         });

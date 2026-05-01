@@ -80,8 +80,8 @@ export default function Kanban() {
         robo_pos_vendas: lead.robo_pos_vendas,
       });
       toast.success(`Lead movido para "${novoStatus}"`);
-    } catch (e: any) {
-      toast.error('Erro ao mover lead: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao mover lead: ' + (e instanceof Error ? e.message : String(e)));
     }
     setDragging(null); setDragOver(null);
   };

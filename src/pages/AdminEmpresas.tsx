@@ -46,7 +46,7 @@ export default function AdminEmpresas() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
 
-  const fetchEmpresas = async () => {
+  const fetchEmpresas = useCallback(async () => {
     setLoading(true);
     // Busca todas as empresas — admin vê todas via RLS (policy usa permissao = 'admin')
     // Exclui a empresa do próprio admin para não aparecer na lista de clientes
@@ -68,12 +68,12 @@ export default function AdminEmpresas() {
       setEmpresas((data as Empresa[]) ?? []);
     }
     setLoading(false);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (isAdmin && user) fetchEmpresas();
     else if (!adminLoading) setLoading(false);
-  }, [isAdmin, adminLoading, user?.id]);
+  }, [isAdmin, adminLoading, user, fetchEmpresas]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return empresas;

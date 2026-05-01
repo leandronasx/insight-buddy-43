@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Search, Download, X, Eye } from 'lucide-react';
@@ -42,7 +42,7 @@ export default function Vendas() {
   const [form, setForm] = useState({ id_leads: '', status: 'pendente', data_venda: '', data_servico: '', horario_servico: '' });
   const [itemRows, setItemRows] = useState<ItemRow[]>([{ estofado: '', valor: '', bonus: '0' }]);
 
-  const getLeadName = (leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—';
+  const getLeadName = useCallback((leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—', [leadOptions]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return vendas;
@@ -52,10 +52,10 @@ export default function Vendas() {
       v.status.toLowerCase().includes(q) ||
       v.itens.some(i => i.estofado.toLowerCase().includes(q))
     );
-  }, [vendas, search, leadOptions]);
+  }, [vendas, search, getLeadName]);
 
   const pagination = usePagination(filtered);
-  useEffect(() => { pagination.resetPage(); }, [search]);
+  useEffect(() => { pagination.resetPage(); }, [search, pagination.resetPage]);
 
   if (isLoading) return <ListSkeleton />;
 
@@ -93,7 +93,7 @@ export default function Vendas() {
       await saveVenda.mutateAsync({
         ...(editingVenda ? { id: editingVenda.id } : {}),
         id_leads: form.id_leads,
-        status: form.status as any,
+        status: form.status as "pendente" | "confirmado" | "cancelado" | "concluido",
         data_venda: form.data_venda || today,
         data_servico: form.data_servico || null,
         horario_servico: form.horario_servico || null,
@@ -104,8 +104,8 @@ export default function Vendas() {
       setModalOpen(false);
       setSelectedId(null);
       toast.success(editingVenda ? 'Venda atualizada!' : 'Venda criada!');
-    } catch (e: any) {
-      toast.error('Erro ao salvar: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao salvar: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -115,8 +115,8 @@ export default function Vendas() {
       await deleteVenda.mutateAsync(deleteId);
       setSelectedId(null);
       toast.success('Venda excluída!');
-    } catch (e: any) {
-      toast.error('Erro ao excluir: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao excluir: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setDeleteId(null); }
   };
 

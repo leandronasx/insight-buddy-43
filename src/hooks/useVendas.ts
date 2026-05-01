@@ -88,7 +88,7 @@ export function useVendas() {
         .in('id_vendas', vendaIds);
       if (error) throw error;
       const map: Record<string, ItemVenda[]> = {};
-      (data ?? []).forEach((item: any) => {
+      (data ?? []).forEach((item: ItemVenda) => {
         if (!map[item.id_vendas]) map[item.id_vendas] = [];
         map[item.id_vendas].push(item);
       });

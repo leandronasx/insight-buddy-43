@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -18,7 +18,7 @@ export function usePagination<T>(items: T[], perPage = ITEMS_PER_PAGE) {
   const prevPage = () => goToPage(safeCurrentPage - 1);
 
   // Reset to page 1 when items change significantly
-  const resetPage = () => setPage(1);
+  const resetPage = useCallback(() => setPage(1), []);
 
   return {
     items: paginatedItems,

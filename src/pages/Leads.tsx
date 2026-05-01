@@ -73,7 +73,7 @@ export default function Leads() {
   }, [leads, search]);
 
   const pagination = usePagination(filtered);
-  useEffect(() => { pagination.resetPage(); }, [search]);
+  useEffect(() => { pagination.resetPage(); }, [search, pagination.resetPage]);
 
   if (isLoading) return <ListSkeleton />;
 
@@ -132,8 +132,8 @@ export default function Leads() {
       setModalOpen(false);
       setSelectedId(null);
       toast.success(editingLead ? 'Lead atualizado!' : 'Lead criado!');
-    } catch (error: any) {
-      toast.error('Erro ao salvar lead: ' + error.message);
+    } catch (error) {
+      toast.error('Erro ao salvar lead: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -143,8 +143,8 @@ export default function Leads() {
       await deleteLead.mutateAsync(deleteId);
       setSelectedId(null);
       toast.success('Lead excluído!');
-    } catch (error: any) {
-      toast.error('Erro ao excluir lead: ' + error.message);
+    } catch (error) {
+      toast.error('Erro ao excluir lead: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setDeleteId(null);
     }

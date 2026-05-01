@@ -76,8 +76,8 @@ export default function SetupMensal() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-chart'] });
       toast.success(`Setup de ${label} salvo com sucesso!`);
-    } catch (error: any) {
-      toast.error('Erro ao salvar: ' + error.message);
+    } catch (error) {
+      toast.error('Erro ao salvar: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
