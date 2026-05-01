@@ -29,13 +29,19 @@ export function NotificacoesBell() {
   const total      = data?.totalAlertas ?? 0;  // apenas não lidos
   const hasUnread  = total > 0;
 
-  // Fecha ao clicar fora — SEM marcar como lido
+  // Fecha ao clicar/tocar fora — SEM marcar como lido
   useEffect(() => {
-    function handle(e: MouseEvent) {
+    function handle(e: MouseEvent | TouchEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    if (open) {
+      document.addEventListener('mousedown', handle);
+      document.addEventListener('touchstart', handle);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handle);
+      document.removeEventListener('touchstart', handle);
+    };
   }, [open]);
 
   // Push notification quando há lembretes não lidos (1x por sessão)
@@ -92,13 +98,19 @@ export function NotificacoesBell() {
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="fixed top-[60px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-96 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
-          >
+          <>
+            {/* Backdrop mobile — fecha ao tocar fora */}
+            <div
+              className="sm:hidden fixed inset-0 z-[55] bg-black/40"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="fixed top-[60px] left-4 right-4 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-96 bg-card border border-border rounded-xl shadow-xl z-[60] overflow-hidden"
+            >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
@@ -217,6 +229,7 @@ export function NotificacoesBell() {
               </Link>
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
