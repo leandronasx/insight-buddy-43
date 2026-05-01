@@ -151,16 +151,56 @@ CREATE TABLE IF NOT EXISTS public.historico_atendimento (
 -- ============================================================
 -- 3. CHAVES ESTRANGEIRAS (RELACIONAMENTOS)
 -- ============================================================
-ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-ALTER TABLE public.empresas ADD CONSTRAINT empresas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-ALTER TABLE public.financeiro ADD CONSTRAINT financeiro_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.regras_automacoes ADD CONSTRAINT regras_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.leads ADD CONSTRAINT leads_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.lembretes_automacoes ADD CONSTRAINT lembretes_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.vendas ADD CONSTRAINT vendas_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
-ALTER TABLE public.itens_vendas ADD CONSTRAINT itens_vendas_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
-ALTER TABLE public.os ADD CONSTRAINT os_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
-ALTER TABLE public.historico_atendimento ADD CONSTRAINT historico_atendimento_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_roles_user_id_fkey') THEN
+        ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'empresas_id_usuario_fkey') THEN
+        ALTER TABLE public.empresas ADD CONSTRAINT empresas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'financeiro_id_empresa_fkey') THEN
+        ALTER TABLE public.financeiro ADD CONSTRAINT financeiro_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'regras_automacoes_id_empresa_fkey') THEN
+        ALTER TABLE public.regras_automacoes ADD CONSTRAINT regras_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'leads_id_empresa_fkey') THEN
+        ALTER TABLE public.leads ADD CONSTRAINT leads_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lembretes_automacoes_id_empresa_fkey') THEN
+        ALTER TABLE public.lembretes_automacoes ADD CONSTRAINT lembretes_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vendas_id_leads_fkey') THEN
+        ALTER TABLE public.vendas ADD CONSTRAINT vendas_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'itens_vendas_id_vendas_fkey') THEN
+        ALTER TABLE public.itens_vendas ADD CONSTRAINT itens_vendas_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'os_id_vendas_fkey') THEN
+        ALTER TABLE public.os ADD CONSTRAINT os_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'historico_atendimento_id_leads_fkey') THEN
+        ALTER TABLE public.historico_atendimento ADD CONSTRAINT historico_atendimento_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- ============================================================
 -- 4. FUNÇÕES (STORED PROCEDURES)
@@ -221,27 +261,6 @@ ALTER TABLE public.vendas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financeiro ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "usuarios: acesso" ON public.usuarios FOR ALL USING (auth.uid() = id);
-CREATE POLICY "empresas: acesso" ON public.empresas FOR ALL USING (id_usuario = auth.uid() OR public.fn_get_user_role() = 'admin');
-CREATE POLICY "leads: acesso" ON public.leads FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = leads.id_empresa AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-CREATE POLICY "financeiro: acesso" ON public.financeiro FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = financeiro.id_empresa AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
--- Adicionando RLS para tabelas restantes
-ALTER TABLE public.itens_vendas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.regras_automacoes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.lembretes_automacoes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.os ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.historico_atendimento ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "itens_vendas: acesso" ON public.itens_vendas FOR ALL USING (EXISTS (SELECT 1 FROM vendas v JOIN leads l ON v.id_leads = l.id JOIN empresas e ON l.id_empresa = e.id WHERE v.id = itens_vendas.id_vendas AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "regras_automacoes: acesso" ON public.regras_automacoes FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = regras_automacoes.id_empresa AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "lembretes_automacoes: acesso" ON public.lembretes_automacoes FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = lembretes_automacoes.id_empresa AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "vendas: acesso" ON public.vendas FOR ALL USING (EXISTS (SELECT 1 FROM leads l JOIN empresas e ON l.id_empresa = e.id WHERE l.id = vendas.id_leads AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "os: acesso" ON public.os FOR ALL USING (EXISTS (SELECT 1 FROM vendas v JOIN leads l ON v.id_leads = l.id JOIN empresas e ON l.id_empresa = e.id WHERE v.id = os.id_vendas AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "historico_atendimento: acesso" ON public.historico_atendimento FOR ALL USING (EXISTS (SELECT 1 FROM leads l JOIN empresas e ON l.id_empresa = e.id WHERE l.id = historico_atendimento.id_leads AND e.id_usuario = auth.uid()) OR public.fn_get_user_role() = 'admin');
-
-CREATE POLICY "user_roles: select" ON public.user_roles FOR SELECT USING (user_id = auth.uid() OR public.fn_get_user_role() = 'admin');
+CREATE POLICY "empresas: acesso" ON public.empresas FOR ALL USING (id_usuario = auth.uid() OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "leads: acesso" ON public.leads FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = leads.id_empresa AND e.id_usuario = auth.uid()) OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "financeiro: acesso" ON public.financeiro FOR ALL USING (EXISTS (SELECT 1 FROM empresas e WHERE e.id = financeiro.id_empresa AND e.id_usuario = auth.uid()) OR (SELECT role FROM public.user_roles WHERE user_id = auth.uid()) = 'admin');
