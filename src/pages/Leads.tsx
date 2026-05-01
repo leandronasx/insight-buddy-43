@@ -52,32 +52,33 @@ const emptyForm = {
 
 export default function Leads() {
   const { empresa } = useEmpresa();
-  const { leads, isLoading, saveLead, deleteLead } = useLeads();
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+
+  // Debounce search input
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1); // reset page on search
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const { leads, totalCount, isLoading, saveLead, deleteLead } = useLeads({ page, perPage: 10, search });
   const { data: cadenciaMap } = useCadenciaLeads(leads);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
   const [form, setForm] = useState(emptyForm);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return leads;
-    const q = search.toLowerCase();
-    return leads.filter(l =>
-      l.nome.toLowerCase().includes(q) ||
-      l.telefone?.toLowerCase().includes(q) ||
-      l.origem_lead?.toLowerCase().includes(q) ||
-      l.situacao_do_cliente?.toLowerCase().includes(q)
-    );
-  }, [leads, search]);
-
-  const pagination = usePagination(filtered);
-  useEffect(() => { pagination.resetPage(); }, [search, pagination.resetPage]);
-
-  if (isLoading) return <ListSkeleton />;
+  if (isLoading && leads.length === 0) return <ListSkeleton />;
 
   const today = new Date().toISOString().split('T')[0];
+  const totalPages = Math.max(1, Math.ceil(totalCount / 10));
 
   const openNew = () => {
     setEditingLead(null);
@@ -158,8 +159,8 @@ export default function Leads() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar lead..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -167,10 +168,10 @@ export default function Leads() {
           downloadCSV(
             'leads_export.csv',
             ['Nome', 'Telefone', 'Origem', 'Situação', 'Data Contato'],
-            filtered.map(l => [l.nome, l.telefone, l.origem_lead, l.situacao_do_cliente, l.data_contato ?? ''])
+            leads.map(l => [l.nome, l.telefone, l.origem_lead, l.situacao_do_cliente, l.data_contato ?? ''])
           )
         }>
-          <Download className="h-4 w-4 mr-1" /> Exportar
+          <Download className="h-4 w-4 mr-1" /> Exportar (Página Atual)
         </Button>
         <Button size="sm" onClick={openNew}>
           <Plus className="h-4 w-4 mr-1" /> Novo Lead
@@ -178,11 +179,11 @@ export default function Leads() {
       </div>
 
       {/* Count */}
-      <p className="text-xs text-muted-foreground">{filtered.length} leads encontrados</p>
+      <p className="text-xs text-muted-foreground">{totalCount} leads encontrados</p>
 
       {/* List */}
       <div className="space-y-2">
-        {pagination.items.map(lead => (
+        {leads.map(lead => (
           <motion.div
             key={lead.id}
             layout
@@ -241,7 +242,7 @@ export default function Leads() {
           </motion.div>
         ))}
 
-        {pagination.items.length === 0 && (
+        {leads.length === 0 && (
           <div className="metric-card text-center py-12 text-muted-foreground">
             Nenhum lead encontrado
           </div>
@@ -249,12 +250,12 @@ export default function Leads() {
       </div>
 
       <PaginationControls
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        onPageChange={pagination.goToPage}
-        hasNext={pagination.hasNext}
-        hasPrev={pagination.hasPrev}
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalCount}
+        onPageChange={setPage}
+        hasNext={page < totalPages}
+        hasPrev={page > 1}
       />
 
       {/* FAB */}

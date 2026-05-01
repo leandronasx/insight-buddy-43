@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Kanban() {
-  const { leads, isLoading, saveLead } = useLeads();
+  const { leads, isLoading, saveLead } = useLeads({ perPage: 1000 });
   const { data: cadenciaMap } = useCadenciaLeads(leads);
   const { empresa } = useEmpresa();
   const [search, setSearch] = useState('');

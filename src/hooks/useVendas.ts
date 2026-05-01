@@ -39,41 +39,78 @@ export interface LeadOption {
   endereco: string | null;
 }
 
-export function useVendas() {
+export interface UseVendasParams {
+  page?: number;
+  perPage?: number;
+  search?: string;
+}
+
+export function useVendas(params: UseVendasParams = {}) {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
   const queryClient = useQueryClient();
+  const { page = 1, perPage = 10, search = '' } = params;
 
-  const queryKey = ['vendas', empresa?.id, month, year];
+  const queryKey = ['vendas', empresa?.id, month, year, page, perPage, search];
 
   // Busca vendas via leads da empresa
-  const { data: vendas = [], isLoading } = useQuery({
+  const { data: vendasData, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!empresa) return [];
+      if (!empresa) return { vendas: [], totalCount: 0 };
       const { start, end } = getDateRange(month, year);
 
-      // Primeiro busca leads da empresa
-      const { data: leadsData } = await supabase
+      // Busca todos os leads da empresa para limitar as vendas
+      const { data: todosLeads } = await supabase
         .from('leads')
-        .select('id')
+        .select('id, nome')
         .eq('id_empresa', empresa.id);
 
-      const leadIds = (leadsData ?? []).map(l => l.id);
-      if (leadIds.length === 0) return [];
+      const todosLeadIds = (todosLeads ?? []).map(l => l.id);
 
-      const { data, error } = await supabase
+      if (todosLeadIds.length === 0) return { vendas: [], totalCount: 0 };
+
+      let query = supabase
         .from('vendas')
-        .select('*')
-        .in('id_leads', leadIds)
+        .select('*', { count: 'exact' })
+        .in('id_leads', todosLeadIds)
         .gte('data_venda', start)
-        .lt('data_venda', end)
-        .order('data_venda', { ascending: false });
+        .lt('data_venda', end);
+
+      if (search.trim()) {
+        const q = `%${search.trim()}%`;
+        // Find matching leads in JS
+        const leadsMatchingSearch = (todosLeads ?? [])
+          .filter(l => l.nome.toLowerCase().includes(search.trim().toLowerCase()))
+          .map(l => l.id)
+          .slice(0, 100); // Prevent URI Too Long error
+
+        if (leadsMatchingSearch.length > 0) {
+          query = query.or(`status.ilike.${q},id_leads.in.(${leadsMatchingSearch.join(',')})`);
+        } else {
+          query = query.ilike('status', q);
+        }
+      }
+
+      const from = (page - 1) * perPage;
+      const to = from + perPage - 1;
+
+      const { data, error, count } = await query
+        .order('data_venda', { ascending: false })
+        .range(from, to);
+
       if (error) throw error;
-      return (data ?? []) as Venda[];
+
+      return {
+        vendas: (data ?? []) as Venda[],
+        totalCount: count ?? 0
+      };
     },
     enabled: !!empresa,
   });
+
+  const vendas = vendasData?.vendas ?? [];
+  const totalCount = vendasData?.totalCount ?? 0;
 
   // Busca itens das vendas
   const vendaIds = vendas.map(v => v.id);
@@ -164,11 +201,11 @@ export function useVendas() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['vendas'] });
       queryClient.invalidateQueries({ queryKey: ['itens-vendas'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 
-  return { vendas: vendasComItens, leadOptions, isLoading, saveVenda, deleteVenda };
+  return { vendas: vendasComItens, totalCount, leadOptions, isLoading, saveVenda, deleteVenda };
 }
