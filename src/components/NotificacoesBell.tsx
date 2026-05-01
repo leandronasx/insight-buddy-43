@@ -45,23 +45,22 @@ export function NotificacoesBell() {
   }, [open]);
 
   // Push notification quando há lembretes não lidos (1x por sessão)
+  // setTimeout de 3s: evita bloquear o render no Android quando permissão já está granted
   useEffect(() => {
     if (!hasUnread || shown) return;
     setShown(true);
-    const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
-    if ('Notification' in window && Notification.permission === 'granted') {
+
+    const fire = () => {
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') return;
+      const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
       new Notification('Higi$Controle — Tem clientes esperando! 📬', {
         body: msg, icon: '/favicon.ico',
       });
-    } else if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(perm => {
-        if (perm === 'granted') {
-          new Notification('Higi$Controle — Tem clientes esperando! 📬', {
-            body: msg, icon: '/favicon.ico',
-          });
-        }
-      });
-    }
+    };
+
+    const timer = setTimeout(fire, 3000);
+    return () => clearTimeout(timer);
   }, [hasUnread, total, shown]);
 
   // Marcar UM lembrete como lido
