@@ -106,6 +106,7 @@ export function useVendas(params: UseVendasParams = {}) {
       };
     },
     enabled: !!empresa,
+    placeholderData: (prev) => prev,
   });
 
   const vendas = vendasData?.vendas ?? [];

@@ -66,7 +66,7 @@ export default function Leads() {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  const { leads, totalCount, isLoading, saveLead, deleteLead } = useLeads({ page, perPage: 10, search });
+  const { leads, totalCount, isLoading, isFetching, saveLead, deleteLead } = useLeads({ page, perPage: 10, search });
   const { data: cadenciaMap } = useCadenciaLeads(leads);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -75,7 +75,8 @@ export default function Leads() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  if (isLoading && leads.length === 0) return <ListSkeleton />;
+  if (isLoading && !isFetching) return <ListSkeleton />;
+  if (leads.length === 0 && isLoading) return <ListSkeleton />;
 
   const today = new Date().toISOString().split('T')[0];
   const totalPages = Math.max(1, Math.ceil(totalCount / 10));
