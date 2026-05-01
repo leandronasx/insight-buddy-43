@@ -56,7 +56,7 @@ export function NotificacoesBell() {
         }
       });
     }
-  }, [hasUnread, total]);
+  }, [hasUnread, total, shown]);
 
   // Marcar UM lembrete como lido
   const marcarUm = (id: string, e: React.MouseEvent) => {

@@ -53,8 +53,8 @@ export function drawFooterAllPages({
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...theme.muted);
     const footerLeft: string[] = [empresa.nome_empresa];
-    if ((empresa as any).telefone) footerLeft.push((empresa as any).telefone);
-    if ((empresa as any).email) footerLeft.push((empresa as any).email);
+    if ('telefone' in empresa && typeof empresa.telefone === 'string') footerLeft.push(empresa.telefone);
+    if ('email' in empresa && typeof empresa.email === 'string') footerLeft.push(empresa.email);
     doc.text(footerLeft.join('  •  '), margin, footerY);
 
     const right = `Emitido em ${new Date().toLocaleDateString('pt-BR')}  •  Página ${p} de ${total}`;

@@ -30,27 +30,61 @@ export interface Lead {
   data_atualizacao: string;
 }
 
-export function useLeads() {
+export interface UseLeadsParams {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  statusFilter?: string; // para o Kanban, por exemplo
+}
+
+export function useLeads(params: UseLeadsParams = {}) {
   const { empresa } = useEmpresa();
   const queryClient = useQueryClient();
+  const { page = 1, perPage = 10, search = '', statusFilter = '' } = params;
 
-  const queryKey = ['leads', empresa?.id];
+  const queryKey = ['leads', empresa?.id, page, perPage, search, statusFilter];
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!empresa) return [];
-      const { data, error } = await supabase
+      if (!empresa) return { leads: [], totalCount: 0 };
+
+      let query = supabase
         .from('leads')
-        .select('*')
-        .eq('id_empresa', empresa.id)
-        .order('data_criacao', { ascending: false });
+        .select('*', { count: 'exact' })
+        .eq('id_empresa', empresa.id);
+
+      if (search.trim()) {
+        const safeSearch = search.trim().replace(/"/g, '');
+        const q = `"%${safeSearch}%"`;
+        query = query.or(`nome.ilike.${q},telefone.ilike.${q},origem_lead.ilike.${q},situacao_do_cliente.ilike.${q}`);
+      }
+
+      if (statusFilter) {
+        query = query.eq('situacao_do_cliente', statusFilter);
+      }
+
+      // Pagination
+      const from = (page - 1) * perPage;
+      const to = from + perPage - 1;
+
+      const { data, error, count } = await query
+        .order('data_criacao', { ascending: false })
+        .range(from, to);
+
       if (error) throw error;
-      return (data ?? []) as Lead[];
+
+      return {
+        leads: (data ?? []) as Lead[],
+        totalCount: count ?? 0,
+      };
     },
     enabled: !!empresa,
     staleTime: 2 * 60 * 1000,
   });
+
+  const leads = data?.leads ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
   const saveLead = useMutation({
     mutationFn: async ({ id, ...payload }: Partial<Lead> & { nome: string; id_empresa: string }) => {
@@ -62,7 +96,7 @@ export function useLeads() {
         if (error) throw error;
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   });
 
   const deleteLead = useMutation({
@@ -70,8 +104,8 @@ export function useLeads() {
       const { error } = await supabase.from('leads').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   });
 
-  return { leads, isLoading, saveLead, deleteLead };
+  return { leads, totalCount, isLoading, saveLead, deleteLead };
 }

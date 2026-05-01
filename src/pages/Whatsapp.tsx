@@ -412,7 +412,7 @@ export default function Whatsapp() {
               ))}
             </div>
             <div className="mt-5 pt-4 border-t border-yellow-500/20">
-              <Button className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold gap-2" onClick={() => window.open('https://wa.me/5511966085119?text=Quero+automação+do+whatsapp', '_blank')}>
+              <Button className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold gap-2" onClick={() => window.open('https://wa.me/5511966085119?text=Quero+automação+do+whatsapp!', '_blank')}>
                 <Star className="h-4 w-4" />
                 Ativar Plano Pro
                 <ArrowRight className="h-4 w-4" />

@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Kanban() {
-  const { leads, isLoading, saveLead } = useLeads();
+  const { leads, isLoading, saveLead } = useLeads({ perPage: 1000 });
   const { data: cadenciaMap } = useCadenciaLeads(leads);
   const { empresa } = useEmpresa();
   const [search, setSearch] = useState('');
@@ -80,8 +80,8 @@ export default function Kanban() {
         robo_pos_vendas: lead.robo_pos_vendas,
       });
       toast.success(`Lead movido para "${novoStatus}"`);
-    } catch (e: any) {
-      toast.error('Erro ao mover lead: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao mover lead: ' + (e instanceof Error ? e.message : String(e)));
     }
     setDragging(null); setDragOver(null);
   };

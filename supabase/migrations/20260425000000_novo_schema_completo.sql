@@ -151,16 +151,56 @@ CREATE TABLE IF NOT EXISTS public.historico_atendimento (
 -- ============================================================
 -- 3. CHAVES ESTRANGEIRAS (RELACIONAMENTOS)
 -- ============================================================
-ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-ALTER TABLE public.empresas ADD CONSTRAINT empresas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-ALTER TABLE public.financeiro ADD CONSTRAINT financeiro_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.regras_automacoes ADD CONSTRAINT regras_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.leads ADD CONSTRAINT leads_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.lembretes_automacoes ADD CONSTRAINT lembretes_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
-ALTER TABLE public.vendas ADD CONSTRAINT vendas_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
-ALTER TABLE public.itens_vendas ADD CONSTRAINT itens_vendas_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
-ALTER TABLE public.os ADD CONSTRAINT os_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
-ALTER TABLE public.historico_atendimento ADD CONSTRAINT historico_atendimento_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_roles_user_id_fkey') THEN
+        ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'empresas_id_usuario_fkey') THEN
+        ALTER TABLE public.empresas ADD CONSTRAINT empresas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'financeiro_id_empresa_fkey') THEN
+        ALTER TABLE public.financeiro ADD CONSTRAINT financeiro_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'regras_automacoes_id_empresa_fkey') THEN
+        ALTER TABLE public.regras_automacoes ADD CONSTRAINT regras_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'leads_id_empresa_fkey') THEN
+        ALTER TABLE public.leads ADD CONSTRAINT leads_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lembretes_automacoes_id_empresa_fkey') THEN
+        ALTER TABLE public.lembretes_automacoes ADD CONSTRAINT lembretes_automacoes_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.empresas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vendas_id_leads_fkey') THEN
+        ALTER TABLE public.vendas ADD CONSTRAINT vendas_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'itens_vendas_id_vendas_fkey') THEN
+        ALTER TABLE public.itens_vendas ADD CONSTRAINT itens_vendas_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'os_id_vendas_fkey') THEN
+        ALTER TABLE public.os ADD CONSTRAINT os_id_vendas_fkey FOREIGN KEY (id_vendas) REFERENCES public.vendas(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'historico_atendimento_id_leads_fkey') THEN
+        ALTER TABLE public.historico_atendimento ADD CONSTRAINT historico_atendimento_id_leads_fkey FOREIGN KEY (id_leads) REFERENCES public.leads(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- ============================================================
 -- 4. FUNÇÕES (STORED PROCEDURES)

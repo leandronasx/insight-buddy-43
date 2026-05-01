@@ -83,9 +83,9 @@ export default function MinhaEmpresa() {
       setLogoPreview(logo_url);
       toast.success('Logo atualizada!');
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('Logo upload error:', err);
-      setUploadError('Erro ao enviar logo: ' + err.message);
+      setUploadError('Erro ao enviar logo: ' + (err instanceof Error ? err.message : String(err)));
       toast.error('Erro ao enviar logo');
     } finally {
       setUploading(false);
@@ -117,8 +117,8 @@ export default function MinhaEmpresa() {
         cor_secundaria: form.cor_secundaria,
       });
       toast.success('Dados salvos com sucesso!');
-    } catch (err: any) {
-      toast.error('Erro ao salvar: ' + err.message);
+    } catch (err) {
+      toast.error('Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 

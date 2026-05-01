@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Search, Download, X, Eye } from 'lucide-react';
@@ -32,34 +32,36 @@ interface ItemRow { estofado: string; valor: string; bonus: string; }
 export default function Vendas() {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
-  const { vendas, leadOptions, isLoading, saveVenda, deleteVenda } = useVendas();
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1); // reset page
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const { vendas, totalCount, leadOptions, isLoading, saveVenda, deleteVenda } = useVendas({ page, perPage: 10, search });
+  
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [osPreviewVenda, setOsPreviewVenda] = useState<VendaComItens | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVenda, setEditingVenda] = useState<VendaComItens | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
   const [form, setForm] = useState({ id_leads: '', status: 'pendente', data_venda: '', data_servico: '', horario_servico: '' });
   const [itemRows, setItemRows] = useState<ItemRow[]>([{ estofado: '', valor: '', bonus: '0' }]);
 
-  const getLeadName = (leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—';
+  const getLeadName = useCallback((leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—', [leadOptions]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return vendas;
-    const q = search.toLowerCase();
-    return vendas.filter(v =>
-      getLeadName(v.id_leads).toLowerCase().includes(q) ||
-      v.status.toLowerCase().includes(q) ||
-      v.itens.some(i => i.estofado.toLowerCase().includes(q))
-    );
-  }, [vendas, search, leadOptions]);
-
-  const pagination = usePagination(filtered);
-  useEffect(() => { pagination.resetPage(); }, [search]);
-
-  if (isLoading) return <ListSkeleton />;
+  if (isLoading && vendas.length === 0) return <ListSkeleton />;
 
   const today = new Date().toISOString().split('T')[0];
+  const totalPages = Math.max(1, Math.ceil(totalCount / 10));
   const totalBruto = itemRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
   const totalBonus = itemRows.reduce((s, r) => s + (parseFloat(r.bonus) || 0), 0);
   const totalItens = totalBruto - totalBonus;
@@ -93,7 +95,7 @@ export default function Vendas() {
       await saveVenda.mutateAsync({
         ...(editingVenda ? { id: editingVenda.id } : {}),
         id_leads: form.id_leads,
-        status: form.status as any,
+        status: form.status as "pendente" | "confirmado" | "cancelado" | "concluido",
         data_venda: form.data_venda || today,
         data_servico: form.data_servico || null,
         horario_servico: form.horario_servico || null,
@@ -104,8 +106,8 @@ export default function Vendas() {
       setModalOpen(false);
       setSelectedId(null);
       toast.success(editingVenda ? 'Venda atualizada!' : 'Venda criada!');
-    } catch (e: any) {
-      toast.error('Erro ao salvar: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao salvar: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -115,8 +117,8 @@ export default function Vendas() {
       await deleteVenda.mutateAsync(deleteId);
       setSelectedId(null);
       toast.success('Venda excluída!');
-    } catch (e: any) {
-      toast.error('Erro ao excluir: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao excluir: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setDeleteId(null); }
   };
 
@@ -131,25 +133,25 @@ export default function Vendas() {
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar venda..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar venda..." value={searchInput} onChange={e => setSearchInput(e.target.value)} className="pl-9" />
         </div>
         <Button variant="outline" size="sm" onClick={() =>
           downloadCSV(
             'vendas_export.csv',
             ['Lead', 'Status', 'Data Venda', 'Data Serviço', 'Total'],
-            filtered.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_final)])
+            vendas.map(v => [getLeadName(v.id_leads), v.status, v.data_venda, v.data_servico ?? '', formatCurrency(v.valor_final)])
           )
         }>
-          <Download className="h-4 w-4 mr-1" /> Exportar
+          <Download className="h-4 w-4 mr-1" /> Exportar (Página Atual)
         </Button>
         <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova Venda</Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">{filtered.length} vendas · Total: {formatCurrency(filtered.reduce((s, v) => s + v.valor_final, 0))}</p>
+      <p className="text-xs text-muted-foreground">{totalCount} vendas encontradas</p>
 
       {/* List */}
       <div className="space-y-2">
-        {pagination.items.map(v => (
+        {vendas.map(v => (
           <motion.div key={v.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className="metric-card cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
             onClick={() => setSelectedId(selectedId === v.id ? null : v.id)}
@@ -189,13 +191,13 @@ export default function Vendas() {
           </motion.div>
         ))}
 
-        {pagination.items.length === 0 && (
+        {vendas.length === 0 && (
           <div className="metric-card text-center py-12 text-muted-foreground">Nenhuma venda encontrada</div>
         )}
       </div>
 
-      <PaginationControls page={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.totalItems}
-        onPageChange={pagination.goToPage} hasNext={pagination.hasNext} hasPrev={pagination.hasPrev} />
+      <PaginationControls page={page} totalPages={totalPages} totalItems={totalCount}
+        onPageChange={setPage} hasNext={page < totalPages} hasPrev={page > 1} />
 
       <button onClick={openNew} className="fab-button"><Plus className="h-6 w-6" /></button>
 

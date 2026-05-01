@@ -172,8 +172,8 @@ export default function Automacoes() {
       });
       setModalOpen(false);
       toast.success(editingId ? 'Regra atualizada!' : 'Regra criada!');
-    } catch (e: any) {
-      toast.error('Erro ao salvar: ' + e.message);
+    } catch (e) {
+      toast.error('Erro ao salvar: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -182,8 +182,8 @@ export default function Automacoes() {
     try {
       await deleteRegra.mutateAsync(deleteId);
       toast.success('Regra excluída!');
-    } catch (e: any) {
-      toast.error('Erro ao excluir: ' + e.message);
+    } catch (e) {
+      toast.error('Erro: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setDeleteId(null);
     }
