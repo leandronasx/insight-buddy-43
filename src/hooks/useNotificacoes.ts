@@ -54,7 +54,7 @@ export function useNotificacoes() {
     const agora   = Date.now();
     if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return; // 10 min cooldown
 
-    supabase.functions.invoke('gerar-lembretes').then(() => {
+    supabase.rpc('gerar_lembretes_automacoes', { p_id_empresa: empresa.id }).then(() => {
       sessionStorage.setItem('lembretes_gerados', String(agora));
       queryClient.invalidateQueries({ queryKey });
     }).catch(() => {/* silencioso se não deployada */});

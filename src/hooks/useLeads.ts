@@ -81,6 +81,7 @@ export function useLeads(params: UseLeadsParams = {}) {
     },
     enabled: !!empresa,
     staleTime: 2 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 
   const leads = data?.leads ?? [];

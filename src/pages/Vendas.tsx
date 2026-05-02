@@ -46,7 +46,7 @@ export default function Vendas() {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  const { vendas, totalCount, leadOptions, isLoading, saveVenda, deleteVenda } = useVendas({ page, perPage: 10, search });
+  const { vendas, totalCount, leadOptions, isLoading, isFetching, saveVenda, deleteVenda } = useVendas({ page, perPage: 10, search });
   
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [osPreviewVenda, setOsPreviewVenda] = useState<VendaComItens | null>(null);
@@ -58,7 +58,8 @@ export default function Vendas() {
 
   const getLeadName = useCallback((leadId: string) => leadOptions.find(l => l.id === leadId)?.nome ?? '—', [leadOptions]);
 
-  if (isLoading && vendas.length === 0) return <ListSkeleton />;
+  if (isLoading && !isFetching) return <ListSkeleton />;
+  if (vendas.length === 0 && isLoading) return <ListSkeleton />;
 
   const today = new Date().toISOString().split('T')[0];
   const totalPages = Math.max(1, Math.ceil(totalCount / 10));
