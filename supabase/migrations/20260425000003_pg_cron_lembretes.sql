@@ -43,23 +43,37 @@ BEGIN
             -- Define a data base para o cálculo
             v_data_base := NULL;
             v_data_servico := NULL;
+
+            -- Aplicando as regras exatas de negócio do cliente
             IF v_tipo = 'lembrete_agendamento' THEN
-                -- Exemplo: data do orçamento ou contato
-                v_data_base := COALESCE(r_lead.data_orcamento, r_lead.data_contato)::DATE;
-            ELSIF v_tipo = 'pos_venda' THEN
-                -- Ideal é usar a data_servico da venda
                 v_data_base := r_lead.data_servico::DATE;
                 v_data_servico := r_lead.data_servico::DATE;
-            ELSE
+                IF v_data_base IS NOT NULL THEN
+                    v_dias_passados := v_data_base - v_hoje; -- Dias ANTES da data do serviço
+                END IF;
+            ELSIF v_tipo = 'pos_venda' THEN
+                v_data_base := r_lead.data_servico::DATE;
+                v_data_servico := r_lead.data_servico::DATE;
+                IF v_data_base IS NOT NULL THEN
+                    v_dias_passados := v_hoje - v_data_base; -- Dias DEPOIS do serviço
+                END IF;
+            ELSIF v_tipo = 'follow_up_pos_orcamento' THEN
+                v_data_base := r_lead.data_orcamento::DATE;
+                IF v_data_base IS NOT NULL THEN
+                    v_dias_passados := v_hoje - v_data_base; -- Dias DEPOIS do orçamento
+                END IF;
+            ELSIF v_tipo = 'follow_up_pre_orcamento' THEN
                 v_data_base := r_lead.data_contato::DATE;
+                IF v_data_base IS NOT NULL THEN
+                    v_dias_passados := v_hoje - v_data_base; -- Dias DEPOIS do contato inicial
+                END IF;
             END IF;
 
-            -- Calcula quantos dias passaram
+            -- Se temos uma data válida para basear a cadência
             IF v_data_base IS NOT NULL THEN
-                v_dias_passados := v_hoje - v_data_base;
-
-                -- Se a cadência bater EXATAMENTE com os dias passados, agenda o lembrete
-                IF r_regra.cadencia_envio > 0 AND v_dias_passados > 0 AND v_dias_passados % r_regra.cadencia_envio = 0 THEN
+                -- Verificamos correspondência exata (=) de dias. A cadência 2 significa que vai enviar
+                -- exatamente quando se passarem 2 dias (ou faltarem 2 dias no caso de agendamento).
+                IF v_dias_passados = r_regra.cadencia_envio THEN
                     v_mensagem := REPLACE(COALESCE(r_regra.template_mensagem, ''), '{nome}', r_lead.nome);
 
                     IF NOT EXISTS (
@@ -72,7 +86,6 @@ BEGIN
                         INSERT INTO public.lembretes_automacoes (id_empresa, tipo_lembrete, data_execucao, mensagem, data_servico, disparado)
                         VALUES (r_lead.id_empresa, v_tipo, v_hoje, v_mensagem, v_data_servico, FALSE);
                     END IF;
-
                 END IF;
             END IF;
         END LOOP;
