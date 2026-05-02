@@ -30,10 +30,11 @@ BEGIN
         LOOP
             v_tipo := r_regra.tipo_lembrete;
 
-            -- Pula se a situação do cliente não bate com o tipo de lembrete
-            IF v_tipo = 'lembrete_agendamento' AND r_lead.situacao_do_cliente != 'Agendado' THEN CONTINUE; END IF;
-            IF v_tipo = 'pos_venda' AND r_lead.situacao_do_cliente != 'Fechado' THEN CONTINUE; END IF;
-            IF v_tipo LIKE 'follow_up_%' AND r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro') THEN CONTINUE; END IF;
+            -- Pula se a situação do cliente ou momento_funil não bate com o tipo de lembrete
+            IF v_tipo = 'lembrete_agendamento' AND (r_lead.momento_funil != 'Pos Orçamento' OR r_lead.situacao_do_cliente != 'Agendado') THEN CONTINUE; END IF;
+            IF v_tipo = 'pos_venda' AND (r_lead.momento_funil != 'Pos Venda' OR r_lead.situacao_do_cliente != 'Fechado') THEN CONTINUE; END IF;
+            IF v_tipo = 'follow_up_pre_orcamento' AND (r_lead.momento_funil != 'Pre Orçamento' OR r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro')) THEN CONTINUE; END IF;
+            IF v_tipo = 'follow_up_pos_orcamento' AND (r_lead.momento_funil != 'Pos Orçamento' OR r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro')) THEN CONTINUE; END IF;
 
             -- Verifica se o robô específico do lead está ativo para esse tipo
             IF v_tipo = 'pos_venda' AND r_lead.robo_pos_vendas = FALSE THEN CONTINUE; END IF;

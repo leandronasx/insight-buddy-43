@@ -19,9 +19,11 @@ BEGIN
         FOR r_regra IN
             SELECT * FROM public.regras_automacoes WHERE id_empresa = p_empresa_id
         LOOP
-            IF r_regra.tipo_lembrete = 'lembrete_agendamento' AND r_lead.situacao_do_cliente != 'Agendado' THEN CONTINUE; END IF;
-            IF r_regra.tipo_lembrete = 'pos_venda' AND r_lead.situacao_do_cliente != 'Fechado' THEN CONTINUE; END IF;
-            IF r_regra.tipo_lembrete LIKE 'follow_up_%' AND r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro') THEN CONTINUE; END IF;
+            -- Aplica regras restritas de momento_funil e situacao_do_cliente
+            IF r_regra.tipo_lembrete = 'lembrete_agendamento' AND (r_lead.momento_funil != 'Pos Orçamento' OR r_lead.situacao_do_cliente != 'Agendado') THEN CONTINUE; END IF;
+            IF r_regra.tipo_lembrete = 'pos_venda' AND (r_lead.momento_funil != 'Pos Venda' OR r_lead.situacao_do_cliente != 'Fechado') THEN CONTINUE; END IF;
+            IF r_regra.tipo_lembrete = 'follow_up_pre_orcamento' AND (r_lead.momento_funil != 'Pre Orçamento' OR r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro')) THEN CONTINUE; END IF;
+            IF r_regra.tipo_lembrete = 'follow_up_pos_orcamento' AND (r_lead.momento_funil != 'Pos Orçamento' OR r_lead.situacao_do_cliente NOT IN ('Reabordar', 'Interesse Futuro')) THEN CONTINUE; END IF;
 
             v_data_base := NULL;
             IF r_regra.tipo_lembrete = 'lembrete_agendamento' THEN
