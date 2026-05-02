@@ -4,7 +4,7 @@ VALUES ('logos', 'logos', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- 2. Habilitar RLS nas tabelas do storage (já habilitado por padrão em novos projetos, mas por garantia:)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY; -- Removido: o RLS ja vem habilitado por padrao e causa erro de ownership no Supabase
 
 -- 3. Remover políticas antigas para evitar conflitos se o script rodar novamente
 DROP POLICY IF EXISTS "Logos públicas para leitura" ON storage.objects;
