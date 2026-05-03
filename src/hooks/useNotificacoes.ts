@@ -57,7 +57,7 @@ export function useNotificacoes() {
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    supabase.rpc('gerar_lembretes_automacoes_v2', { 
+    supabase.rpc('gerar_lembretes_automacoes_v3', { 
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
     }).then(() => {
