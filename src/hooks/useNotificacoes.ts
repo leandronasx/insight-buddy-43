@@ -50,18 +50,18 @@ export function useNotificacoes() {
   // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
   useEffect(() => {
     if (!empresa) return;
-    const lastRun = sessionStorage.getItem('lembretes_gerados_v4');
+    const lastRun = sessionStorage.getItem('lembretes_gerados_v5');
     const agora   = Date.now();
     if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return; // 10 min cooldown
 
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    supabase.rpc('gerar_lembretes_automacoes_v4', { 
+    supabase.rpc('gerar_lembretes_automacoes_v5', { 
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
     }).then(() => {
-      sessionStorage.setItem('lembretes_gerados_v4', String(agora));
+      sessionStorage.setItem('lembretes_gerados_v5', String(agora));
       queryClient.invalidateQueries({ queryKey });
     }).catch(() => {/* silencioso se não deployada */});
   }, [empresa, queryClient, queryKey]);
