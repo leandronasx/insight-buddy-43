@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: true,
+        suppressWarnings: true
       }
     })
   ].filter(Boolean),
