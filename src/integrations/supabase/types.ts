@@ -494,6 +494,14 @@ export type Database = {
         Args: { p_id_empresa?: string }
         Returns: undefined
       }
+      gerar_lembretes_automacoes_v2: {
+        Args: { p_id_empresa: string; p_hoje: string }
+        Returns: undefined
+      }
+      fn_get_cadencia_leads_v2: {
+        Args: { p_empresa_id: string; p_lead_ids: string[]; p_hoje: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

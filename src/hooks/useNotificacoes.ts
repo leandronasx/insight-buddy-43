@@ -66,7 +66,8 @@ export function useNotificacoes() {
     queryFn: async (): Promise<NotificacoesData> => {
       if (!empresa) return { lembretes: [], totalAlertas: 0 };
 
-      const hoje = new Date().toISOString().split('T')[0];
+      const d = new Date();
+      const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const { data } = await supabase
         .from('lembretes_automacoes')
