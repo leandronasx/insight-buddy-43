@@ -41,7 +41,7 @@ export function PWAInstallPrompt() {
     localStorage.setItem('pwa-prompt-dismissed', 'true');
   };
 
-  if (!deferredPrompt || isDismissed || isInstalled) {
+  if (isDismissed || isInstalled) {
     return null;
   }
 
@@ -53,13 +53,18 @@ export function PWAInstallPrompt() {
         </div>
         <div>
           <h3 className="font-semibold text-foreground">Instalar Aplicativo</h3>
-          <p className="text-sm text-muted-foreground">Instale o Higi$Controle para um acesso mais rápido e melhor experiência.</p>
+          <p className="text-sm text-muted-foreground">
+            Instale o Higi$Controle para um acesso mais rápido e melhor experiência.
+            {!deferredPrompt && " (Adicione à tela inicial através do menu do seu navegador)"}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button onClick={handleInstall} size="sm" className="whitespace-nowrap">
-          Instalar Agora
-        </Button>
+        {deferredPrompt && (
+          <Button onClick={handleInstall} size="sm" className="whitespace-nowrap">
+            Instalar Agora
+          </Button>
+        )}
         <Button onClick={handleDismiss} variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </Button>
