@@ -54,15 +54,10 @@ export function useNotificacoes() {
     const agora   = Date.now();
     if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return; // 10 min cooldown
 
-    const d = new Date();
-    const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-    supabase.rpc('gerar_lembretes_automacoes_v2', { p_id_empresa: empresa.id, p_hoje: hoje }).then(() => {
+    supabase.rpc('gerar_lembretes_automacoes', { p_id_empresa: empresa.id }).then(() => {
       sessionStorage.setItem('lembretes_gerados', String(agora));
       queryClient.invalidateQueries({ queryKey });
-    }).catch((error) => {
-      console.error('Erro ao gerar lembretes_automacoes_v2:', error);
-    });
+    }).catch(() => {/* silencioso se não deployada */});
   }, [empresa, queryClient, queryKey]);
 
   // 2. Lê lembretes de hoje não disparados
