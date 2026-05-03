@@ -54,27 +54,32 @@ export function PWAInstallPrompt() {
   }
 
   return (
-    <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-center justify-between gap-4 mb-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1">
-        <div className="bg-primary/20 p-2 rounded-lg shrink-0 w-max">
+    <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shadow-sm relative">
+      <Button onClick={handleDismiss} variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-foreground shrink-0 md:hidden">
+        <X className="w-4 h-4" />
+      </Button>
+
+      <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1 pr-6 md:pr-0">
+        <div className="bg-primary/20 p-2 rounded-lg shrink-0">
           <Download className="w-5 h-5 text-primary" />
         </div>
-        <div>
-          <h3 className="font-semibold text-foreground">Instalar Aplicativo</h3>
-          <p className="text-sm text-muted-foreground">
-            Instale o Higi$Controle para um acesso mais rápido e melhor experiência.
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground text-sm md:text-base">Instalar Aplicativo</h3>
+          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+            Instale o sistema para um acesso rápido e melhor experiência.
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      <div className="flex items-center gap-2 mt-2 md:mt-0 w-full md:w-auto">
         {deferredPrompt ? (
-          <Button onClick={handleInstall} size="sm" className="whitespace-nowrap">
+          <Button onClick={handleInstall} size="sm" className="w-full md:w-auto whitespace-nowrap">
             Instalar Agora
           </Button>
         ) : (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size="sm" variant="secondary" className="whitespace-nowrap">
+              <Button size="sm" variant="secondary" className="w-full md:w-auto whitespace-nowrap">
                 Como instalar?
               </Button>
             </DialogTrigger>
@@ -129,7 +134,7 @@ export function PWAInstallPrompt() {
             </DialogContent>
           </Dialog>
         )}
-        <Button onClick={handleDismiss} variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
+        <Button onClick={handleDismiss} variant="ghost" size="icon" className="hidden md:flex shrink-0 text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </Button>
       </div>
