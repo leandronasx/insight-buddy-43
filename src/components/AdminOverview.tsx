@@ -52,7 +52,7 @@ const fetchData = async () => {
 
       const { start: startDate, end: endDate } = getDateRange(month, year);
 
-      const { data, error } = await supabase.rpc('fn_get_admin_overview', {
+      const { data, error } = await supabase.rpc('fn_get_admin_overview_v2', {
         p_start: startDate,
         p_end: endDate,
         p_month: month,

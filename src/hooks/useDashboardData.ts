@@ -34,7 +34,7 @@ export function useDashboardData() {
       if (!empresa) throw new Error('No empresa');
       const { start, end } = getDateRange(month, year);
 
-      const { data: rpcData, error } = await supabase.rpc('fn_get_dashboard_data', {
+      const { data: rpcData, error } = await supabase.rpc('fn_get_dashboard_data_v2', {
         p_empresa_id: empresa.id,
         p_month: month,
         p_year: year,
