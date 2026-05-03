@@ -70,12 +70,12 @@ export function useCadenciaLeads(leads: Lead[]) {
       const leadIds = leads.map(l => l.id);
 
       const d = new Date();
-      const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const { data, error } = await supabase.rpc('fn_get_cadencia_leads_v2', {
         p_empresa_id: empresa.id,
         p_lead_ids: leadIds,
-        p_hoje: hoje,
+        p_hoje: hojeStr
       });
 
       if (error) {
