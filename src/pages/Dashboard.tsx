@@ -5,6 +5,7 @@ import { useMonth } from '@/contexts/MonthContext';
 import { useDashboardData, useChartData } from '@/hooks/useDashboardData';
 import { formatCurrency } from '@/lib/date-utils';
 import { DashboardSkeleton } from '@/components/LoadingSkeleton';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 export default function Dashboard() {
   const { year } = useMonth();
@@ -23,6 +24,8 @@ export default function Dashboard() {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+      <PWAInstallPrompt />
+
       {/* Meta Status */}
       {data.metaFaturamento > 0 && (
         <motion.div
