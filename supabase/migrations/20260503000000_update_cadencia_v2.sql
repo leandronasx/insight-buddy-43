@@ -121,7 +121,30 @@ BEGIN
         ON CONFLICT (id_empresa, tipo_lembrete, data_execucao)
         DO UPDATE SET
             mensagem = EXCLUDED.mensagem,
-            data_servico = EXCLUDED.data_servico;
+            data_servico = EXCLUDED.data_servico,
+            disparado = FALSE;
+
+        -- Excluir as notificações antigas se todos os leads já foram despachados (qtd = 0 ou não tem lead elegível)
+        DELETE FROM public.lembretes_automacoes
+        WHERE id_empresa = v_empresa.id
+          AND data_execucao = v_hoje_date
+          AND tipo_lembrete NOT IN (
+              SELECT tipo_lembrete
+              FROM (
+                  SELECT
+                      tipo_lembrete,
+                      COUNT(lead_id) AS qtd
+                  FROM elegiveis
+                  WHERE NOT EXISTS (
+                      SELECT 1 FROM public.historico_atendimento ha
+                      WHERE ha.id_leads = elegiveis.lead_id
+                        AND ha.tipo = elegiveis.tipo_lembrete
+                        AND ha.data_criacao::DATE = v_hoje_date
+                  )
+                  GROUP BY tipo_lembrete
+              ) temp_agrupados
+              WHERE temp_agrupados.qtd > 0
+          );
     END LOOP;
 END;
 $$;
