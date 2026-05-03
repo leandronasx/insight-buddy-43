@@ -57,7 +57,9 @@ export function useNotificacoes() {
     supabase.rpc('gerar_lembretes_automacoes', { p_id_empresa: empresa.id }).then(() => {
       sessionStorage.setItem('lembretes_gerados', String(agora));
       queryClient.invalidateQueries({ queryKey });
-    }).catch(() => {/* silencioso se não deployada */});
+    }).catch((error) => {
+      console.error('Erro ao gerar lembretes_automacoes:', error);
+    });
   }, [empresa, queryClient, queryKey]);
 
   // 2. Lê lembretes de hoje não disparados
@@ -66,7 +68,8 @@ export function useNotificacoes() {
     queryFn: async (): Promise<NotificacoesData> => {
       if (!empresa) return { lembretes: [], totalAlertas: 0 };
 
-      const hoje = new Date().toISOString().split('T')[0];
+      const d = new Date();
+      const hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const { data } = await supabase
         .from('lembretes_automacoes')
