@@ -78,6 +78,12 @@ BEGIN
                 COUNT(lead_id)       AS qtd,
                 MAX(data_servico)    AS max_data_servico
             FROM elegiveis
+            WHERE NOT EXISTS (
+                SELECT 1 FROM public.historico_atendimento ha
+                WHERE ha.id_leads = elegiveis.lead_id
+                  AND ha.tipo = elegiveis.tipo_lembrete
+                  AND ha.data_criacao::DATE = v_hoje_date
+            )
             GROUP BY tipo_lembrete
         )
         INSERT INTO public.lembretes_automacoes (
@@ -111,6 +117,7 @@ BEGIN
             END,
             a.max_data_servico
         FROM agrupados a
+        WHERE a.qtd > 0
         ON CONFLICT (id_empresa, tipo_lembrete, data_execucao)
         DO UPDATE SET
             mensagem = EXCLUDED.mensagem,
@@ -191,8 +198,14 @@ BEGIN
             template_mensagem,
             cadencia_envio,
             ROW_NUMBER() OVER(PARTITION BY lead_id ORDER BY tipo_lembrete) AS rn
-        FROM CadenciasCalculadas
+        FROM CadenciasCalculadas cc
         WHERE dias_diferenca = cadencia_envio
+          AND NOT EXISTS (
+              SELECT 1 FROM public.historico_atendimento ha
+              WHERE ha.id_leads = cc.lead_id
+                AND ha.tipo = cc.tipo_lembrete
+                AND ha.data_criacao::DATE = v_hoje_date
+          )
     )
     SELECT COALESCE(json_object_agg(
         lead_id,

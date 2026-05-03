@@ -5,7 +5,7 @@ import {
   ArrowRight, Send, Star, User, Search, AlertCircle, RotateCcw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLeads } from '@/hooks/useLeads';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -13,6 +13,7 @@ import { useCadenciaLeads } from '@/hooks/useCadenciaLeads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 const TIPO_ICONS: Record<string, { icon: string; color: string }> = {
   follow_up_pre_orcamento: { icon: '💬', color: 'border-blue-500/30 bg-blue-500/5 text-blue-400' },
@@ -60,6 +61,19 @@ export default function Whatsapp() {
 
   // Mapa de cadência: leadId → { mensagem, tipo, label } | null
   const { data: cadenciaMap = new Map() } = useCadenciaLeads(leads);
+  const queryClient = useQueryClient();
+
+  const registrarHistorico = useMutation({
+    mutationFn: async (payload: { id_leads: string; tipo: string; mensagem: string }) => {
+      const { error } = await supabase.from('historico_atendimento').insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cadencia-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
+      toast.success('Mensagem registrada no histórico.');
+    },
+  });
 
   // Regras criadas pelo usuário
   const { data: regras = [], isLoading: loadingRegras } = useQuery({
@@ -338,6 +352,15 @@ export default function Whatsapp() {
                     href={leadAtual.telefone ? whatsappLink(leadAtual.telefone, mensagem) : '#'}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      if (leadAtual && cadenciaDoLead) {
+                        registrarHistorico.mutate({
+                          id_leads: leadAtual.id,
+                          tipo: cadenciaDoLead.tipo,
+                          mensagem: cadenciaDoLead.mensagem,
+                        });
+                      }
+                    }}
                     className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       leadAtual.telefone
                         ? 'bg-green-500 hover:bg-green-400 text-white'

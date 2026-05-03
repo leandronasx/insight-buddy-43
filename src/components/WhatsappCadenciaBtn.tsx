@@ -8,6 +8,9 @@
 import { MessageCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CadenciaMensagem } from '@/hooks/useCadenciaLeads';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface Props {
   telefone: string | null;
@@ -23,6 +26,24 @@ function whatsappLink(telefone: string, mensagem: string): string {
 export function WhatsappCadenciaBtn({ telefone, cadencia, size = 'md' }: Props) {
   const iconClass = size === 'sm' ? 'h-3 w-3' : 'h-5 w-5';
   const ativo = !!cadencia && !!telefone;
+  const queryClient = useQueryClient();
+
+  const registrarHistorico = useMutation({
+    mutationFn: async () => {
+      if (!cadencia) return;
+      const { error } = await supabase.from('historico_atendimento').insert({
+        id_leads: cadencia.leadId,
+        tipo: cadencia.tipo,
+        mensagem: cadencia.mensagem,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cadencia-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
+      toast.success('Mensagem de cadência registrada no histórico.');
+    },
+  });
 
   if (!ativo) {
     return (
@@ -35,7 +56,7 @@ export function WhatsappCadenciaBtn({ telefone, cadencia, size = 'md' }: Props) 
         <TooltipContent side="top" className="max-w-xs text-xs">
           {!telefone
             ? 'Lead sem telefone cadastrado'
-            : 'Nenhuma mensagem para enviar hoje — fora da cadência'}
+            : 'Nenhuma mensagem para enviar hoje — fora da cadência ou já enviada'}
         </TooltipContent>
       </Tooltip>
     );
@@ -48,7 +69,10 @@ export function WhatsappCadenciaBtn({ telefone, cadencia, size = 'md' }: Props) 
           href={whatsappLink(telefone!, cadencia!.mensagem)}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            registrarHistorico.mutate();
+          }}
           className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors"
         >
           <MessageCircle className={iconClass} />
