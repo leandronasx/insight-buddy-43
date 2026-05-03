@@ -1,4 +1,3 @@
-/* eslint-disable */
 define(['exports'], (function (exports) { 'use strict';
 
     // @ts-ignore
