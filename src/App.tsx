@@ -17,6 +17,7 @@ import WhatsappPage from "./pages/WhatsappPage.tsx";
 import AutomacoesPage from "./pages/AutomacoesPage.tsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt.tsx";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <PWAInstallPrompt />
           </BrowserRouter>
         </TooltipProvider>
       </MonthProvider>
