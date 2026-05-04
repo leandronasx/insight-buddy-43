@@ -1,22 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Share, MoreVertical } from 'lucide-react';
+import { X, Download, Share, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { useEmpresa } from '@/hooks/useEmpresa';
+import { useApplyBranding } from '@/hooks/useApplyBranding';
 
 export function PWAInstallPrompt() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const { empresa } = useEmpresa();
+  useApplyBranding();
+
+  const appName = empresa?.nome_empresa || 'Higi$Controle';
+  const logoUrl = empresa?.logo_url || '/apple-touch-icon.png';
 
   useEffect(() => {
-    // Check if already installed or dismissed
     if (localStorage.getItem('pwa-prompt-dismissed') === 'true') {
       setIsDismissed(true);
     }
@@ -49,94 +48,54 @@ export function PWAInstallPrompt() {
     localStorage.setItem('pwa-prompt-dismissed', 'true');
   };
 
-  if (isDismissed || isInstalled) {
+  if (isDismissed || isInstalled || !deferredPrompt) {
     return null;
   }
 
   return (
-    <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shadow-sm relative">
-      <Button onClick={handleDismiss} variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-foreground shrink-0 md:hidden">
-        <X className="w-4 h-4" />
-      </Button>
-
-      <div className="flex items-start md:items-center gap-3 md:gap-4 flex-1 pr-6 md:pr-0">
-        <div className="bg-primary/20 p-2 rounded-lg shrink-0">
-          <Download className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-foreground text-sm md:text-base">Instalar Aplicativo</h3>
-          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-            Instale o sistema para um acesso rápido e melhor experiência.
-          </p>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-2 mt-2 md:mt-0 w-full md:w-auto">
-        {deferredPrompt ? (
-          <Button onClick={handleInstall} size="sm" className="w-full md:w-auto whitespace-nowrap">
-            Instalar Agora
-          </Button>
-        ) : (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="secondary" className="w-full md:w-auto whitespace-nowrap">
-                Como instalar?
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Como instalar o aplicativo</DialogTitle>
-                <DialogDescription>
-                  Siga as instruções abaixo de acordo com o seu dispositivo para instalar o sistema e acessá-lo mais rapidamente.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-6 py-4">
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
-                    No iPhone (Safari)
-                  </h4>
-                  <div className="pl-8 text-sm text-muted-foreground space-y-2">
-                    <p className="flex items-center gap-2">
-                      1. Toque no ícone de compartilhar <Share className="w-4 h-4 inline" /> na barra inferior.
-                    </p>
-                    <p>2. Role a tela para baixo e selecione <strong>"Adicionar à Tela de Início"</strong>.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
-                    No Android (Chrome)
-                  </h4>
-                  <div className="pl-8 text-sm text-muted-foreground space-y-2">
-                    <p className="flex items-center gap-2">
-                      1. Toque no menu do navegador <MoreVertical className="w-4 h-4 inline" /> no canto superior direito.
-                    </p>
-                    <p>2. Selecione <strong>"Adicionar à tela inicial"</strong> ou <strong>"Instalar aplicativo"</strong>.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
-                    No Computador
-                  </h4>
-                  <div className="pl-8 text-sm text-muted-foreground space-y-2">
-                    <p>
-                      1. Clique no ícone de instalação <Download className="w-4 h-4 inline" /> na barra de endereços do seu navegador.
-                    </p>
-                    <p>2. Ou acesse o menu do navegador e clique em <strong>"Instalar Higi$Controle"</strong>.</p>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-        <Button onClick={handleDismiss} variant="ghost" size="icon" className="hidden md:flex shrink-0 text-muted-foreground hover:text-foreground">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:flex md:justify-center animate-in slide-in-from-bottom-full duration-500">
+      <div className="bg-card border border-border shadow-2xl rounded-2xl p-4 w-full md:max-w-md relative overflow-hidden flex flex-col gap-4">
+        {/* Close Button */}
+        <button 
+          onClick={handleDismiss} 
+          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary rounded-full p-1.5 transition-colors"
+        >
           <X className="w-4 h-4" />
-        </Button>
+        </button>
+
+        <div className="flex items-center gap-4">
+          {/* Logo */}
+          <div className="shrink-0 rounded-xl overflow-hidden bg-primary/10 w-14 h-14 flex items-center justify-center shadow-sm">
+            <img src={logoUrl} alt="Logo" className="w-10 h-10 object-contain" />
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 pr-6">
+            <h3 className="font-display font-semibold text-foreground text-base leading-tight">
+              Instalar {appName}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1 leading-snug">
+              Acesse direto da sua tela inicial, sem abrir o navegador
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 pt-1">
+          <Button 
+            onClick={handleDismiss} 
+            variant="ghost" 
+            className="flex-1 text-muted-foreground hover:text-foreground h-11"
+          >
+            Agora não
+          </Button>
+          <Button 
+            onClick={handleInstall} 
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground h-11 shadow-sm"
+          >
+            Instalar
+          </Button>
+        </div>
       </div>
     </div>
   );
