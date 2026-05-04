@@ -479,6 +479,16 @@ export type Database = {
         Args: { p_empresa_id: string; p_lead_ids: string[] }
         Returns: Json
       }
+      fn_get_dashboard_data_v2: {
+        Args: {
+          p_empresa_id: string
+          p_end: string
+          p_month: number
+          p_start: string
+          p_year: number
+        }
+        Returns: Json
+      }
       fn_get_dashboard_data: {
         Args: {
           p_empresa_id: string
