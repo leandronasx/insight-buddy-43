@@ -1,13 +1,16 @@
-CREATE OR REPLACE FUNCTION public.fn_get_dashboard_data_v2(
+DROP FUNCTION IF EXISTS public.fn_get_dashboard_data_v3(UUID, TEXT, TEXT, SMALLINT, SMALLINT);
+DROP FUNCTION IF EXISTS public.fn_get_dashboard_data_v3(UUID, TEXT, TEXT, INTEGER, INTEGER);
+
+CREATE OR REPLACE FUNCTION public.fn_get_dashboard_data_v3(
     p_empresa_id UUID,
     p_start      TEXT,
     p_end        TEXT,
-    p_month      SMALLINT,
-    p_year       SMALLINT
+    p_month      INTEGER,
+    p_year       INTEGER
 )
 RETURNS JSON
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 DECLARE
     v_total_leads         INT     := 0;
@@ -24,10 +27,10 @@ BEGIN
     -- Estatísticas de leads em uma única consulta
     SELECT
         COUNT(*),
-        COUNT(*) FILTER (WHERE origem_lead = 'Tráfego'),
-        COUNT(*) FILTER (WHERE origem_lead = 'Orgânico'),
-        COUNT(*) FILTER (WHERE origem_lead = 'Indicação'),
-        COUNT(*) FILTER (WHERE situacao_do_cliente = 'Fechado')
+        COUNT(*) FILTER (WHERE origem_lead ILIKE 'Tráfego%'),
+        COUNT(*) FILTER (WHERE origem_lead ILIKE 'Orgânico%'),
+        COUNT(*) FILTER (WHERE origem_lead ILIKE 'Indicação%'),
+        COUNT(*) FILTER (WHERE situacao_do_cliente ILIKE 'Fechado%')
     INTO
         v_total_leads,
         v_leads_trafego,
@@ -50,22 +53,22 @@ BEGIN
     JOIN public.leads l ON v.id_leads = l.id
     LEFT JOIN public.itens_vendas iv ON v.id = iv.id_vendas
     WHERE l.id_empresa = p_empresa_id
-      AND v.data_venda >= (p_start::TIMESTAMPTZ)::date
-      AND v.data_venda < (p_end::TIMESTAMPTZ)::date;
+      AND v.data_venda >= p_start::DATE
+      AND v.data_venda <= p_end::DATE;
 
     -- Informações financeiras do mês
     SELECT
-        COALESCE(custo_anuncio, 0),
-        COALESCE(custo_operacional, 0),
-        COALESCE(meta_financeira, 0)
+        COALESCE(MAX(custo_anuncio), 0),
+        COALESCE(MAX(custo_operacional), 0),
+        COALESCE(MAX(meta_financeira), 0)
     INTO
         v_custo_anuncio,
         v_custo_operacional,
         v_meta_financeira
     FROM public.financeiro
     WHERE id_empresa = p_empresa_id
-      AND mes = p_month
-      AND ano = p_year;
+      AND mes = p_month::SMALLINT
+      AND ano = p_year::SMALLINT;
 
     RETURN json_build_object(
         'totalLeads',        v_total_leads,
