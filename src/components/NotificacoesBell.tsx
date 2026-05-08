@@ -23,7 +23,7 @@ export function NotificacoesBell() {
   const [open, setOpen]   = useState(false);
   const [shown, setShown] = useState(false);
   const ref               = useRef<HTMLDivElement>(null);
-  const { data, isLoading, marcarDisparado } = useNotificacoes();
+  const { data, isLoading, marcarDisparado, subscribeToPushNotifications } = useNotificacoes();
 
   const lembretes  = data?.lembretes ?? [];
   const total      = data?.totalAlertas ?? 0;  // apenas não lidos
@@ -52,16 +52,29 @@ export function NotificacoesBell() {
 
     const fire = () => {
       if (!('Notification' in window)) return;
-      if (Notification.permission !== 'granted') return;
-      const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
-      new Notification('Higi$Controle — Tem clientes esperando! 📬', {
-        body: msg, icon: '/favicon.ico',
-      });
+      
+      // Request permission and subscribe if necessary
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            subscribeToPushNotifications();
+          }
+        });
+      } else if (Notification.permission === 'granted') {
+        // Already granted, ensure we are subscribed
+        subscribeToPushNotifications();
+        
+        // Show local notification for testing/immediate feedback
+        const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
+        new Notification('Higi$Controle — Tem clientes esperando! 📬', {
+          body: msg, icon: '/favicon.ico',
+        });
+      }
     };
 
     const timer = setTimeout(fire, 3000);
     return () => clearTimeout(timer);
-  }, [hasUnread, total, shown]);
+  }, [hasUnread, total, shown, subscribeToPushNotifications]);
 
   // Marcar UM lembrete como lido
   const marcarUm = (id: string, e: React.MouseEvent) => {

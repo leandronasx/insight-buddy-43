@@ -65,7 +65,7 @@ function LoginInner() {
       >
         <div className="glass-card p-8">
           <div className="text-center mb-8">
-            <h1 className="font-display text-3xl font-bold text-foreground mb-2">💰 Higi$Controle</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground mb-2">Higi$Controle</h1>
             <p className="text-muted-foreground">GTL gestão comercial</p>
           </div>
 
