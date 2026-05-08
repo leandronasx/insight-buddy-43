@@ -22,21 +22,30 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: 'Higi$Controle',
         short_name: 'Higi$Controle',
-        description: 'Lovable Generated Project',
+        description: 'Higi$Controle Gestão Comercial',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
+        start_url: '/',
+        id: '/',
         icons: [
           {
             src: 'android-chrome-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'android-chrome-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: 'android-chrome-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
