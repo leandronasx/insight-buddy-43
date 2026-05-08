@@ -42,10 +42,68 @@ export const LEMBRETE_LABELS: Record<string, string> = {
   pos_venda:               'Pós-venda',
 };
 
+// VAPID Public Key - deve ser substituída pela chave real gerada no backend
+export const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuB-5a2L4gG41lA9sD8V7ZkZ8k';
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export function useNotificacoes() {
   const { empresa } = useEmpresa();
   const queryClient = useQueryClient();
   const queryKey    = useMemo(() => ['notificacoes', empresa?.id], [empresa?.id]);
+
+  const subscribeToPushNotifications = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push notifications not supported by browser.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+
+      const subJSON = subscription.toJSON();
+
+      if (subJSON.endpoint && subJSON.keys) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Save subscription to Supabase
+        await supabase
+          .from('push_subscriptions')
+          .upsert({
+            user_id: user.id,
+            endpoint: subJSON.endpoint,
+            p256dh: subJSON.keys.p256dh,
+            auth: subJSON.keys.auth
+          }, { onConflict: 'user_id, endpoint' });
+      }
+
+    } catch (error) {
+      console.error('Error subscribing to push notifications:', error);
+    }
+  };
 
   // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
   useEffect(() => {
@@ -108,5 +166,5 @@ export function useNotificacoes() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  return { ...query, marcarDisparado };
+  return { ...query, marcarDisparado, subscribeToPushNotifications };
 }

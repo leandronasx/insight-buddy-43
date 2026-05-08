@@ -214,7 +214,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {["/", "/vendas", , "/admin/dashboard", "/setup"].includes(location.pathname) && (
+            {["/", "/vendas", "/admin/dashboard", "/setup"].includes(location.pathname) && (
               <MonthSelector />
             )}
             <div className="hidden md:block">

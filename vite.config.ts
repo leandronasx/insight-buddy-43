@@ -17,7 +17,13 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
+      injectManifest: {
+        injectionPoint: undefined
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'placeholder.svg'],
       manifest: {
         name: 'Higi$Controle',
