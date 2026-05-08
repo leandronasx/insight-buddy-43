@@ -93,7 +93,7 @@ export function useNotificacoes() {
         if (!user) return;
 
         // Save subscription to Supabase
-        await supabase
+        const { error } = await supabase
           .from('push_subscriptions')
           .upsert({
             user_id: user.id,
@@ -101,6 +101,11 @@ export function useNotificacoes() {
             p256dh: subJSON.keys.p256dh,
             auth: subJSON.keys.auth
           }, { onConflict: 'user_id, endpoint' });
+
+        if (error) {
+           console.error('Error saving push subscription to Supabase:', error);
+           throw error;
+        }
       }
 
     } catch (error) {
@@ -169,5 +174,25 @@ export function useNotificacoes() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  return { ...query, marcarDisparado, subscribeToPushNotifications };
+  const testPushNotification = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const res = await supabase.functions.invoke('send-web-push', {
+        body: {
+          user_id: user.id,
+          title: 'Teste de Notificação',
+          body: 'Esta é uma notificação de teste disparada em background.',
+        }
+      });
+
+      console.log('Teste de push finalizado:', res);
+      return res;
+    } catch (e) {
+      console.error('Erro ao testar push:', e);
+    }
+  };
+
+  return { ...query, marcarDisparado, subscribeToPushNotifications, testPushNotification };
 }

@@ -23,7 +23,7 @@ export function NotificacoesBell() {
   const [open, setOpen]   = useState(false);
   const [shown, setShown] = useState(false);
   const ref               = useRef<HTMLDivElement>(null);
-  const { data, isLoading, marcarDisparado, subscribeToPushNotifications } = useNotificacoes();
+  const { data, isLoading, marcarDisparado, subscribeToPushNotifications, testPushNotification } = useNotificacoes();
 
   const lembretes  = data?.lembretes ?? [];
   const total      = data?.totalAlertas ?? 0;  // apenas não lidos
@@ -66,9 +66,23 @@ export function NotificacoesBell() {
 
         // Show local notification for testing/immediate feedback
         const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
-        new Notification('Higi$Controle — Tem clientes esperando! 📬', {
-          body: msg, icon: '/favicon.ico',
-        });
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification('Higi$Controle — Tem clientes esperando! 📬', {
+              body: msg,
+              icon: '/favicon.ico',
+            });
+          }).catch(() => {
+             // Fallback se sw falhar
+             new Notification('Higi$Controle — Tem clientes esperando! 📬', {
+               body: msg, icon: '/favicon.ico',
+             });
+          });
+        } else {
+          new Notification('Higi$Controle — Tem clientes esperando! 📬', {
+            body: msg, icon: '/favicon.ico',
+          });
+        }
       }
     };
 
@@ -136,9 +150,18 @@ export function NotificacoesBell() {
                   </span>
                 )}
               </div>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={testPushNotification}
+                  className="text-xs text-primary hover:underline"
+                  title="Testar Push Background"
+                >
+                  Testar Push
+                </button>
+                <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="max-h-[460px] overflow-y-auto">
