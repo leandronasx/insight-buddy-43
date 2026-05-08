@@ -53,7 +53,7 @@ function whatsappLink(telefone: string | null, mensagem: string) {
 }
 
 export default function Whatsapp() {
-  const { leads } = useLeads();
+  const { leads } = useLeads({ perPage: 1000 });
   const { empresa } = useEmpresa();
   const [search, setSearch] = useState('');
   const [selectedRegra, setSelectedRegra] = useState<string | null>(null);

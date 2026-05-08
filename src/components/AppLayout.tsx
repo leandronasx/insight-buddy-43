@@ -27,7 +27,7 @@ function BrandHeader({ logoUrl, name, compact = false }: { logoUrl?: string | nu
   }
   return (
     <h1 className={`font-display font-bold text-foreground tracking-tight ${compact ? 'text-lg' : 'text-xl'}`}>
-      💰 Higi$Controle
+      Higi$Controle
     </h1>
   );
 }
@@ -214,7 +214,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {["/", "/vendas", "/leads/kanban", "/admin/dashboard", "/setup"].includes(location.pathname) && (
+            {["/", "/vendas", , "/admin/dashboard", "/setup"].includes(location.pathname) && (
               <MonthSelector />
             )}
             <div className="hidden md:block">
