@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import { X, Download } from 'lucide-react';
 import { Button } from './ui/button';
-import { useEmpresa } from '@/hooks/useEmpresa';
-import { useApplyBranding } from '@/hooks/useApplyBranding';
+import { toast } from 'sonner';
 
 export function PWAInstallPrompt() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const { empresa } = useEmpresa();
-  useApplyBranding();
 
-  const appName = empresa?.nome_empresa || 'Higi$Controle';
-  const logoUrl = empresa?.logo_url || '/android-chrome-192x192.png';
+  const appName = 'Higi$Controle';
+  const logoUrl = '/android-chrome-192x192.png';
 
   useEffect(() => {
     if (localStorage.getItem('pwa-prompt-dismissed') === 'true') {
@@ -29,9 +26,21 @@ export function PWAInstallPrompt() {
       setDeferredPrompt(e);
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      toast.success('Aplicativo instalado com sucesso!', {
+        description: 'Você já pode acessar o sistema diretamente da tela inicial do seu dispositivo.',
+      });
+      setDeferredPrompt(null);
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstall = async () => {
