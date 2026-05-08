@@ -42,13 +42,13 @@ export const LEMBRETE_LABELS: Record<string, string> = {
   pos_venda:               'Pós-venda',
 };
 
-// VAPID Public Key - deve ser substituída pela chave real gerada no backend
-export const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuB-5a2L4gG41lA9sD8V7ZkZ8k';
+// VAPID Public Key - deve ser definida no .env local e nas variáveis do Vercel
+export const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);
@@ -76,11 +76,14 @@ export function useNotificacoes() {
 
       let subscription = await registration.pushManager.getSubscription();
 
-      if (!subscription) {
+      if (!subscription && VAPID_PUBLIC_KEY) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
+      } else if (!subscription && !VAPID_PUBLIC_KEY) {
+         console.warn('VITE_VAPID_PUBLIC_KEY is not defined. Cannot subscribe to push notifications.');
+         return;
       }
 
       const subJSON = subscription.toJSON();
