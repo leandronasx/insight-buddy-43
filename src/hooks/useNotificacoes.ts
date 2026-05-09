@@ -100,7 +100,7 @@ export function useNotificacoes() {
             endpoint: subJSON.endpoint,
             p256dh: subJSON.keys.p256dh,
             auth: subJSON.keys.auth
-          }, { onConflict: 'user_id, endpoint' });
+          }, { onConflict: 'user_id,endpoint' });
           
         if (error) {
            console.error('Error saving push subscription to Supabase:', error);
