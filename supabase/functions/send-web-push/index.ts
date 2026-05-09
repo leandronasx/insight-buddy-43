@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import webpush from 'https://esm.sh/web-push@3.6.6';
+import webpush from "npm:web-push@3.6.6";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,10 +73,10 @@ Deno.serve(async (req) => {
         },
       };
 
-      return webpush.sendNotification(pushSubscription, payload).catch((err) => {
+      return webpush.sendNotification(pushSubscription, payload).catch((err: unknown) => {
         console.error("Error sending push to endpoint", sub.endpoint, err);
         // Optional: Implement cleanup of expired/invalid subscriptions here (e.g. status code 410)
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        if (err instanceof Error && ("statusCode" in err) && (err.statusCode === 410 || err.statusCode === 404)) {
              console.log("Removing dead subscription:", sub.endpoint);
              return adminClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
         }
