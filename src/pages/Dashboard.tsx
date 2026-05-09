@@ -224,8 +224,8 @@ export default function Dashboard() {
         <h3 className="font-display text-lg font-semibold text-foreground mb-4">
           Faturamento Mensal — {year}
         </h3>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-64 min-h-[256px] w-full min-w-[200px]">
+          <ResponsiveContainer width="100%" height="100%" minHeight={256} minWidth={200}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="mes" className="fill-muted-foreground" fontSize={12} />
