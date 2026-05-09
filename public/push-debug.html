@@ -80,7 +80,7 @@
       }
 
       // 5. VAPID Key
-      if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === '"BAGOhK-3ROPpH8h0sdTzheIEcN7-zLztWGJiX2JJ_FV8nwQgr8NtRghP-d_Zaa-0NHFjmKFSNWOfWdFOo29qXD0"') {
+      if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'BAGOhK-3ROPpH8h0sdTzheIEcN7-zLztWGJiX2JJ_FV8nwQgr8NtRghP-d_Zaa-0NHFjmKFSNWOfWdFOo29qXD0') {
         log('VAPID_PUBLIC_KEY: NÃO CONFIGURADA — este arquivo precisa ser gerado pelo build', 'erro');
       } else {
         log('VAPID_PUBLIC_KEY: ' + VAPID_PUBLIC_KEY.substring(0, 20) + '...', 'ok');
