@@ -23,7 +23,7 @@ export function NotificacoesBell() {
   const [open, setOpen]   = useState(false);
   const [shown, setShown] = useState(false);
   const ref               = useRef<HTMLDivElement>(null);
-  const { data, isLoading, marcarDisparado, subscribeToPushNotifications, testPushNotification } = useNotificacoes();
+  const { data, isLoading, marcarDisparado, subscribeToPushNotifications} = useNotificacoes();
 
   const lembretes  = data?.lembretes ?? [];
   const total      = data?.totalAlertas ?? 0;  // apenas não lidos
@@ -52,7 +52,7 @@ export function NotificacoesBell() {
 
     const fire = () => {
       if (!('Notification' in window)) return;
-      
+
       // Request permission and subscribe if necessary
       if (Notification.permission === 'default') {
         Notification.requestPermission().then(permission => {
@@ -63,7 +63,7 @@ export function NotificacoesBell() {
       } else if (Notification.permission === 'granted') {
         // Already granted, ensure we are subscribed
         subscribeToPushNotifications();
-        
+
         // Show local notification for testing/immediate feedback
         const msg = `Você tem ${total} lembrete${total > 1 ? 's' : ''} de cadência para hoje. Não deixe esperando!`;
         if ('serviceWorker' in navigator) {
@@ -150,18 +150,9 @@ export function NotificacoesBell() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={testPushNotification} 
-                  className="text-xs text-primary hover:underline"
-                  title="Testar Push Background"
-                >
-                  Testar Push
-                </button>
-                <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             <div className="max-h-[460px] overflow-y-auto">

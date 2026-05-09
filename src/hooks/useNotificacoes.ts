@@ -123,14 +123,61 @@ export function useNotificacoes() {
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    supabase.rpc('gerar_lembretes_automacoes_v2', { 
+    supabase.rpc('gerar_lembretes_automacoes_v5', { 
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
-    }).then(() => {
+    }).then(async () => {
       sessionStorage.setItem('lembretes_gerados_v5', String(agora));
-      queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey });
     }).catch(() => {/* silencioso se não deployada */});
   }, [empresa, queryClient, queryKey]);
+
+  // 1.5 Lógica separada para disparar a notificação Web Push diária
+  useEffect(() => {
+    if (!empresa) return;
+    
+    const d = new Date();
+    const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
+    if (pushSentToday) return;
+
+    const checkAndSendPush = () => {
+      // Pequeno atraso para garantir que a RPC (se executada) terminou de gerar os lembretes do dia
+      setTimeout(async () => {
+        try {
+          const { data: lembretesData } = await supabase
+            .from('lembretes_automacoes')
+            .select('id')
+            .eq('id_empresa', empresa.id)
+            .eq('data_execucao', hojeStr)
+            .eq('disparado', false);
+            
+          if (lembretesData && lembretesData.length > 0) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await supabase.functions.invoke('send-web-push', {
+                body: {
+                  user_id: user.id,
+                  title: 'Higi$Controle - Clientes Esperando! 📬',
+                  body: `Você tem ${lembretesData.length} lembrete(s) de cadência para hoje. Abra o sistema para ver os leads pendentes!`,
+                  data: { url: '/whatsapp' }
+                }
+              });
+              localStorage.setItem(`push_sent_${hojeStr}`, 'true');
+            }
+          } else {
+             // Se não tiver lembretes, podemos marcar como "enviado" para não ficar checando atoa toda hora na mesma sessão
+             // No entanto, é melhor não setar se quisermos checar novamente ao longo do dia.
+          }
+        } catch (e) {
+          console.error('Error dispatching automated web push:', e);
+        }
+      }, 3000);
+    };
+
+    checkAndSendPush();
+  }, [empresa]);
 
   // 2. Lê lembretes de hoje não disparados
   const query = useQuery<NotificacoesData>({
@@ -174,25 +221,5 @@ export function useNotificacoes() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  const testPushNotification = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
-      const res = await supabase.functions.invoke('send-web-push', {
-        body: {
-          user_id: user.id,
-          title: 'Teste de Notificação',
-          body: 'Esta é uma notificação de teste disparada em background.',
-        }
-      });
-      
-      console.log('Teste de push finalizado:', res);
-      return res;
-    } catch (e) {
-      console.error('Erro ao testar push:', e);
-    }
-  };
-
-  return { ...query, marcarDisparado, subscribeToPushNotifications, testPushNotification };
+  return { ...query, marcarDisparado, subscribeToPushNotifications };
 }
