@@ -116,11 +116,11 @@ export function useNotificacoes() {
     if (Notification.permission !== 'granted') return;
 
     const key = `push_registered_${empresa.id}`;
-    if (sessionStorage.getItem(key)) return;
+    if (localStorage.getItem(key)) return;
 
     console.log('[Push] Boot: permissão granted, registrando subscription...');
     subscribeToPushNotifications().then(() => {
-      sessionStorage.setItem(key, '1');
+      localStorage.setItem(key, '1');
     });
   }, [empresa, subscribeToPushNotifications]);
 
