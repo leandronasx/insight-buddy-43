@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push Diagnóstico</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 16px; font-size: 14px; }
+    h2 { color: #7c3aed; }
+    .ok { color: #22c55e; }
+    .erro { color: #ef4444; }
+    .aviso { color: #f59e0b; }
+    .box { background: #1e1e1e; border-radius: 8px; padding: 12px; margin: 8px 0; word-break: break-all; }
+    button { background: #7c3aed; color: white; border: none; padding: 10px 16px; border-radius: 8px; margin: 4px; cursor: pointer; font-size: 14px; }
+    button:active { opacity: 0.7; }
+    #log { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>🔍 Push Diagnóstico</h2>
+  <div class="box" id="log">Carregando...</div>
+
+  <button onclick="testarSubscribe()">🔔 Forçar Subscribe</button>
+  <button onclick="limparLog()">🗑️ Limpar</button>
+
+  <script>
+    const VAPID_PUBLIC_KEY = '"BAGOhK-3ROPpH8h0sdTzheIEcN7-zLztWGJiX2JJ_FV8nwQgr8NtRghP-d_Zaa-0NHFjmKFSNWOfWdFOo29qXD0"';
+
+    function log(msg, tipo = '') {
+      const el = document.getElementById('log');
+      const prefix = tipo === 'ok' ? '✅ ' : tipo === 'erro' ? '❌ ' : tipo === 'aviso' ? '⚠️ ' : 'ℹ️ ';
+      el.innerHTML += prefix + msg + '\n';
+      console.log(msg);
+    }
+
+    function limparLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    async function diagnosticar() {
+      limparLog();
+      log('=== DIAGNÓSTICO ===');
+      log('User Agent: ' + navigator.userAgent);
+      log('');
+
+      // 1. Notification API
+      if (!('Notification' in window)) {
+        log('Notification API: NÃO SUPORTADA', 'erro'); return;
+      }
+      log('Notification API: OK', 'ok');
+      log('Permissão: ' + Notification.permission, Notification.permission === 'granted' ? 'ok' : 'aviso');
+
+      // 2. Service Worker
+      if (!('serviceWorker' in navigator)) {
+        log('Service Worker: NÃO SUPORTADO', 'erro'); return;
+      }
+      log('Service Worker: OK', 'ok');
+
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        log('SW Registration: NENHUMA', 'erro'); return;
+      }
+      log('SW Registration: OK', 'ok');
+      log('SW State: ' + (reg.active?.state || 'sem active'));
+      log('SW Scope: ' + reg.scope);
+
+      // 3. PushManager
+      if (!('PushManager' in window)) {
+        log('PushManager: NÃO SUPORTADO', 'erro'); return;
+      }
+      log('PushManager: OK', 'ok');
+
+      // 4. Subscription existente
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        log('Subscription existente: SIM', 'ok');
+        log('Endpoint: ' + sub.endpoint.substring(0, 60) + '...');
+      } else {
+        log('Subscription existente: NÃO', 'aviso');
+      }
+
+      // 5. VAPID Key
+      if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === '"BAGOhK-3ROPpH8h0sdTzheIEcN7-zLztWGJiX2JJ_FV8nwQgr8NtRghP-d_Zaa-0NHFjmKFSNWOfWdFOo29qXD0"') {
+        log('VAPID_PUBLIC_KEY: NÃO CONFIGURADA — este arquivo precisa ser gerado pelo build', 'erro');
+      } else {
+        log('VAPID_PUBLIC_KEY: ' + VAPID_PUBLIC_KEY.substring(0, 20) + '...', 'ok');
+      }
+
+      log('');
+      log('=== FIM ===');
+    }
+
+    async function testarSubscribe() {
+      log('\n--- Forçando subscribe ---');
+      try {
+        const permission = await Notification.requestPermission();
+        log('Permissão: ' + permission, permission === 'granted' ? 'ok' : 'erro');
+        if (permission !== 'granted') return;
+
+        const reg = await navigator.serviceWorker.ready;
+        log('SW ready: OK', 'ok');
+
+        const padding = '='.repeat((4 - VAPID_PUBLIC_KEY.length % 4) % 4);
+        const base64 = (VAPID_PUBLIC_KEY + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = window.atob(base64);
+        const key = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key
+        });
+
+        log('Subscribe: SUCESSO', 'ok');
+        log('Endpoint: ' + sub.endpoint.substring(0, 80) + '...');
+
+        const subJSON = sub.toJSON();
+        log('p256dh: ' + (subJSON.keys?.p256dh?.substring(0, 20) || 'N/A') + '...');
+        log('auth: ' + (subJSON.keys?.auth || 'N/A'));
+      } catch (e) {
+        log('Erro: ' + e.message, 'erro');
+      }
+    }
+
+    diagnosticar();
+  </script>
+</body>
+</html>
