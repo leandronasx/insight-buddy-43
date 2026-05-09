@@ -100,7 +100,7 @@ export function useNotificacoes() {
             endpoint: subJSON.endpoint,
             p256dh: subJSON.keys.p256dh,
             auth: subJSON.keys.auth
-          }, { onConflict: 'user_id,endpoint' });
+          }, { onConflict: 'user_id, endpoint' });
 
         if (error) {
            console.error('Error saving push subscription to Supabase:', error);
@@ -123,7 +123,7 @@ export function useNotificacoes() {
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    supabase.rpc('gerar_lembretes_automacoes_v5', { 
+    supabase.rpc('gerar_lembretes_automacoes_v2', {
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
     }).then(() => {
