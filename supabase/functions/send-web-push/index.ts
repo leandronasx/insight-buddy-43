@@ -73,10 +73,10 @@ Deno.serve(async (req) => {
         },
       };
 
-      return webpush.sendNotification(pushSubscription, payload).catch((err) => {
+      return webpush.sendNotification(pushSubscription, payload).catch((err: any) => {
         console.error("Error sending push to endpoint", sub.endpoint, err);
         // Optional: Implement cleanup of expired/invalid subscriptions here (e.g. status code 410)
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        if (err && err.statusCode === 410 || err.statusCode === 404) {
              console.log("Removing dead subscription:", sub.endpoint);
              return adminClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
         }
@@ -89,9 +89,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error sending web push:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err.message || String(err) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
