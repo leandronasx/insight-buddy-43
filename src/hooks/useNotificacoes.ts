@@ -17,17 +17,6 @@ export interface NotificacoesData {
   totalAlertas: number;
 }
 
-function isHoje(dateStr: string): boolean {
-  const hoje = new Date();
-  const d    = new Date(dateStr + 'T00:00:00');
-  return (
-    d.getFullYear() === hoje.getFullYear() &&
-    d.getMonth()    === hoje.getMonth() &&
-    d.getDate()     === hoje.getDate()
-  );
-}
-
-// Ícone por tipo
 export const LEMBRETE_ICONS: Record<string, string> = {
   follow_up_pre_orcamento: '💬',
   follow_up_pos_orcamento: '🔁',
@@ -42,21 +31,14 @@ export const LEMBRETE_LABELS: Record<string, string> = {
   pos_venda:               'Pós-venda',
 };
 
-// VAPID Public Key - deve ser definida no .env local e nas variáveis do Vercel
 export const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 }
 
@@ -67,119 +49,140 @@ export function useNotificacoes() {
 
   const subscribeToPushNotifications = useCallback(async () => {
     try {
+      console.log('[Push] Iniciando subscribe...');
+      console.log('[Push] VAPID_PUBLIC_KEY length:', VAPID_PUBLIC_KEY.length);
+      console.log('[Push] VAPID_PUBLIC_KEY preview:', VAPID_PUBLIC_KEY.substring(0, 10));
+
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Push notifications not supported by browser.');
+        console.warn('[Push] Não suportado pelo browser.');
+        return;
+      }
+
+      if (!VAPID_PUBLIC_KEY) {
+        console.error('[Push] VITE_VAPID_PUBLIC_KEY não definida!');
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      
+      console.log('[Push] SW ready, scope:', registration.scope);
+
       let subscription = await registration.pushManager.getSubscription();
-      
-      if (!subscription && VAPID_PUBLIC_KEY) {
+      console.log('[Push] Subscription existente:', !!subscription);
+
+      if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
-      } else if (!subscription && !VAPID_PUBLIC_KEY) {
-         console.warn('VITE_VAPID_PUBLIC_KEY is not defined. Cannot subscribe to push notifications.');
-         return;
+        console.log('[Push] Nova subscription criada:', subscription.endpoint.substring(0, 60));
       }
 
       const subJSON = subscription.toJSON();
-      
-      if (subJSON.endpoint && subJSON.keys) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        // Save subscription to Supabase
-        const { error } = await supabase
-          .from('push_subscriptions')
-          .upsert({
-            user_id: user.id,
-            endpoint: subJSON.endpoint,
-            p256dh: subJSON.keys.p256dh,
-            auth: subJSON.keys.auth
-          }, { onConflict: 'user_id,endpoint' });
-          
-        if (error) {
-           console.error('Error saving push subscription to Supabase:', error);
-           throw error;
-        }
+      if (!subJSON.endpoint || !subJSON.keys) {
+        console.error('[Push] subJSON inválido:', subJSON);
+        return;
       }
 
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[Push] User ID:', user?.id);
+      if (!user) {
+        console.error('[Push] Usuário não autenticado!');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: user.id,
+          endpoint: subJSON.endpoint,
+          p256dh: subJSON.keys.p256dh,
+          auth: subJSON.keys.auth
+        }, { onConflict: 'user_id,endpoint' });
+
+      if (error) {
+        console.error('[Push] ERRO ao salvar subscription:', JSON.stringify(error));
+      } else {
+        console.log('[Push] ✅ Subscription salva no Supabase para user:', user.id);
+      }
     } catch (error) {
-      console.error('Error subscribing to push notifications:', error);
+      console.error('[Push] Erro geral:', error);
     }
   }, []);
 
-  // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
+  // ── Boot: registrar push assim que empresa carregar e permissão já estiver granted ──
+  useEffect(() => {
+    if (!empresa) return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const key = `push_registered_${empresa.id}`;
+    if (sessionStorage.getItem(key)) return;
+
+    console.log('[Push] Boot: permissão granted, registrando subscription...');
+    subscribeToPushNotifications().then(() => {
+      sessionStorage.setItem(key, '1');
+    });
+  }, [empresa, subscribeToPushNotifications]);
+
+  // ── 1. Gerar lembretes (1x por sessão / 10 min) ──
   useEffect(() => {
     if (!empresa) return;
     const lastRun = sessionStorage.getItem('lembretes_gerados_v5');
     const agora   = Date.now();
-    if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return; // 10 min cooldown
+    if (lastRun && agora - Number(lastRun) < 10 * 60 * 1000) return;
 
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    supabase.rpc('gerar_lembretes_automacoes_v5', { 
+    supabase.rpc('gerar_lembretes_automacoes_v5', {
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
     }).then(async () => {
       sessionStorage.setItem('lembretes_gerados_v5', String(agora));
       await queryClient.invalidateQueries({ queryKey });
-    }).catch(() => {/* silencioso se não deployada */});
+    }).catch(() => {});
   }, [empresa, queryClient, queryKey]);
 
-  // 1.5 Lógica separada para disparar a notificação Web Push diária
+  // ── 1.5. Disparar web push diário ──
   useEffect(() => {
     if (!empresa) return;
-    
+
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    
+
     const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
     if (pushSentToday) return;
 
-    const checkAndSendPush = () => {
-      // Pequeno atraso para garantir que a RPC (se executada) terminou de gerar os lembretes do dia
-      setTimeout(async () => {
-        try {
-          const { data: lembretesData } = await supabase
-            .from('lembretes_automacoes')
-            .select('id')
-            .eq('id_empresa', empresa.id)
-            .eq('data_execucao', hojeStr)
-            .eq('disparado', false);
-            
-          if (lembretesData && lembretesData.length > 0) {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              await supabase.functions.invoke('send-web-push', {
-                body: {
-                  user_id: user.id,
-                  title: 'Higi$Controle - Clientes Esperando! 📬',
-                  body: `Você tem ${lembretesData.length} lembrete(s) de cadência para hoje. Abra o sistema para ver os leads pendentes!`,
-                  data: { url: '/whatsapp' }
-                }
-              });
-              localStorage.setItem(`push_sent_${hojeStr}`, 'true');
-            }
-          } else {
-             // Se não tiver lembretes, podemos marcar como "enviado" para não ficar checando atoa toda hora na mesma sessão
-             // No entanto, é melhor não setar se quisermos checar novamente ao longo do dia.
-          }
-        } catch (e) {
-          console.error('Error dispatching automated web push:', e);
-        }
-      }, 3000);
-    };
+    setTimeout(async () => {
+      try {
+        const { data: lembretesData } = await supabase
+          .from('lembretes_automacoes')
+          .select('id')
+          .eq('id_empresa', empresa.id)
+          .eq('data_execucao', hojeStr)
+          .eq('disparado', false);
 
-    checkAndSendPush();
+        if (lembretesData && lembretesData.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.functions.invoke('send-web-push', {
+              body: {
+                user_id: user.id,
+                title: 'Higi$Controle - Clientes Esperando! 📬',
+                body: `Você tem ${lembretesData.length} lembrete(s) de cadência para hoje. Abra o sistema!`,
+                data: { url: '/whatsapp' }
+              }
+            });
+            localStorage.setItem(`push_sent_${hojeStr}`, 'true');
+          }
+        }
+      } catch (e) {
+        console.error('[Push] Erro ao disparar push diário:', e);
+      }
+    }, 3000);
   }, [empresa]);
 
-  // 2. Lê lembretes de hoje não disparados
+  // ── 2. Ler lembretes de hoje ──
   const query = useQuery<NotificacoesData>({
     queryKey,
     queryFn: async (): Promise<NotificacoesData> => {
@@ -196,20 +199,16 @@ export function useNotificacoes() {
         .order('tipo_lembrete');
 
       const lembretes = (data ?? []) as LembreteNotificacao[];
-      // Badge só conta os não lidos, mas mostramos todos do dia
-      const naoLidos = lembretes.filter(l => !l.disparado);
+      const naoLidos  = lembretes.filter(l => !l.disparado);
 
-      return {
-        lembretes,          // todos do dia (para leitura no painel)
-        totalAlertas: naoLidos.length,  // badge só conta não lidos
-      };
+      return { lembretes, totalAlertas: naoLidos.length };
     },
     enabled: !!empresa,
     refetchInterval: 5 * 60 * 1000,
-    staleTime: 2 * 60 * 1000,
+    staleTime:       2 * 60 * 1000,
   });
 
-  // 3. Mutation para marcar como disparado
+  // ── 3. Marcar como disparado ──
   const marcarDisparado = useMutation({
     mutationFn: async (ids: string[]) => {
       if (ids.length === 0) return;
