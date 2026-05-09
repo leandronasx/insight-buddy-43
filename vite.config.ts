@@ -57,7 +57,8 @@ export default defineConfig(({ mode }) => ({
       },
       devOptions: {
         enabled: true,
-        suppressWarnings: true
+        suppressWarnings: true,
+        type: 'module',
       }
     })
   ].filter(Boolean),
