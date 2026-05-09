@@ -150,18 +150,9 @@ export function NotificacoesBell() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={testPushNotification}
-                  className="text-xs text-primary hover:underline"
-                  title="Testar Push Background"
-                >
-                  Testar Push
-                </button>
-                <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             <div className="max-h-[460px] overflow-y-auto">

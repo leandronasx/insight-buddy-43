@@ -126,9 +126,41 @@ export function useNotificacoes() {
     supabase.rpc('gerar_lembretes_automacoes_v2', {
       p_id_empresa: empresa.id,
       p_hoje: hojeStr
-    }).then(() => {
+    }).then(async () => {
       sessionStorage.setItem('lembretes_gerados_v5', String(agora));
-      queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey });
+
+      // After generating reminders, check if we should send a background push notification summary
+      // We only want to do this once per day when reminders are generated, so we check another session flag
+      const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
+      if (!pushSentToday) {
+        // Find if there are unread reminders for today
+        const { data: lembretesData } = await supabase
+          .from('lembretes_automacoes')
+          .select('id')
+          .eq('id_empresa', empresa.id)
+          .eq('data_execucao', hojeStr)
+          .eq('disparado', false);
+
+        if (lembretesData && lembretesData.length > 0) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await supabase.functions.invoke('send-web-push', {
+                body: {
+                  user_id: user.id,
+                  title: 'Higi$Controle - Clientes Esperando! 📬',
+                  body: `Você tem ${lembretesData.length} lembrete(s) de cadência para hoje. Abra o sistema para ver os leads pendentes!`,
+                  data: { url: '/whatsapp' }
+                }
+              });
+              localStorage.setItem(`push_sent_${hojeStr}`, 'true');
+            }
+          } catch (e) {
+            console.error('Error dispatching automated web push:', e);
+          }
+        }
+      }
     }).catch(() => {/* silencioso se não deployada */});
   }, [empresa, queryClient, queryKey]);
 
@@ -174,25 +206,5 @@ export function useNotificacoes() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  const testPushNotification = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const res = await supabase.functions.invoke('send-web-push', {
-        body: {
-          user_id: user.id,
-          title: 'Teste de Notificação',
-          body: 'Esta é uma notificação de teste disparada em background.',
-        }
-      });
-
-      console.log('Teste de push finalizado:', res);
-      return res;
-    } catch (e) {
-      console.error('Erro ao testar push:', e);
-    }
-  };
-
-  return { ...query, marcarDisparado, subscribeToPushNotifications, testPushNotification };
+  return { ...query, marcarDisparado, subscribeToPushNotifications };
 }
