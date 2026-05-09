@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 
@@ -65,7 +65,7 @@ export function useNotificacoes() {
   const queryClient = useQueryClient();
   const queryKey    = useMemo(() => ['notificacoes', empresa?.id], [empresa?.id]);
 
-  const subscribeToPushNotifications = async () => {
+  const subscribeToPushNotifications = useCallback(async () => {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Push notifications not supported by browser.');
@@ -100,7 +100,7 @@ export function useNotificacoes() {
             endpoint: subJSON.endpoint,
             p256dh: subJSON.keys.p256dh,
             auth: subJSON.keys.auth
-          }, { onConflict: 'user_id, endpoint' });
+          }, { onConflict: 'user_id,endpoint' });
 
         if (error) {
            console.error('Error saving push subscription to Supabase:', error);
@@ -111,7 +111,7 @@ export function useNotificacoes() {
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
     }
-  };
+  }, []);
 
   // 1. Dispara a edge function ao abrir o sistema (1x por sessão / 10 min)
   useEffect(() => {
