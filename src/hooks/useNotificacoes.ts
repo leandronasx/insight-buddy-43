@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
@@ -46,11 +46,9 @@ export function useNotificacoes() {
   const { empresa } = useEmpresa();
   const queryClient = useQueryClient();
   const queryKey    = useMemo(() => ['notificacoes', empresa?.id], [empresa?.id]);
-
-  // Refs para evitar disparos duplicados entre re-renders
-  const pushDiarioRef    = useRef(false);
   const pushRegistradoRef = useRef(false);
 
+  // ── Registrar subscription de push ──
   const subscribeToPushNotifications = useCallback(async () => {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -89,6 +87,8 @@ export function useNotificacoes() {
   }, []);
 
   // ── Boot: registrar subscription 1x por dispositivo ──
+  // O DISPARO do push é feito exclusivamente pelo cron job (send-web-push com cron:true)
+  // O frontend só registra a subscription e mostra notificação local quando o sistema está aberto
   useEffect(() => {
     if (!empresa) return;
     if (!('Notification' in window)) return;
@@ -122,50 +122,6 @@ export function useNotificacoes() {
       await queryClient.invalidateQueries({ queryKey });
     }).catch(() => {});
   }, [empresa, queryClient, queryKey]);
-
-  // ── 1.5. Disparar web push diário — apenas 1x por dia por dispositivo ──
-  useEffect(() => {
-    if (!empresa) return;
-    if (pushDiarioRef.current) return; // impede múltiplos renders
-
-    const d = new Date();
-    const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-    if (localStorage.getItem(`push_sent_${hojeStr}`)) return;
-
-    pushDiarioRef.current = true; // marca antes de disparar
-
-    const timer = setTimeout(async () => {
-      try {
-        const { data: lembretesData } = await supabase
-          .from('lembretes_automacoes')
-          .select('id')
-          .eq('id_empresa', empresa.id)
-          .eq('data_execucao', hojeStr)
-          .eq('disparado', false);
-
-        if (lembretesData && lembretesData.length > 0) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await supabase.functions.invoke('send-web-push', {
-              body: {
-                user_id: user.id,
-                title: 'Higi$Controle - Clientes Esperando! 📬',
-                body: `Você tem ${lembretesData.length} lembrete(s) de cadência para hoje. Abra o sistema!`,
-                data: { url: '/whatsapp' }
-              }
-            });
-            localStorage.setItem(`push_sent_${hojeStr}`, 'true');
-          }
-        }
-      } catch (e) {
-        console.error('[Push] Erro ao disparar push diário:', e);
-        pushDiarioRef.current = false; // permite retry em caso de erro
-      }
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [empresa]);
 
   // ── 2. Ler lembretes de hoje ──
   const query = useQuery<NotificacoesData>({
