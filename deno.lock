@@ -147,11 +147,11 @@
         "npm:vite@^5.4.19",
         "npm:vitest@^3.2.4",
         "npm:workbox-build@^7.4.0",
-        "npm:workbox-core@^7.4.1",
+        "npm:workbox-core@^7.4.0",
         "npm:workbox-expiration@^7.4.0",
-        "npm:workbox-precaching@^7.4.1",
-        "npm:workbox-routing@^7.4.1",
-        "npm:workbox-strategies@^7.4.1",
+        "npm:workbox-precaching@^7.4.0",
+        "npm:workbox-routing@^7.4.0",
+        "npm:workbox-strategies@^7.4.0",
         "npm:workbox-window@^7.4.0",
         "npm:zod@^3.25.76"
       ]
