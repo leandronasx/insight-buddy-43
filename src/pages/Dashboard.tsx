@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, DollarSign, Target, BarChart3, Wallet, Receipt, Tag, Trophy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import confetti from 'canvas-confetti';
 import { useEffect, useState } from 'react';
 import { useMonth } from '@/contexts/MonthContext';
 import { useDashboardData, useChartData } from '@/hooks/useDashboardData';
@@ -24,25 +23,44 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (metaBatida && !hasCelebrated) {
-      const duration = 3 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+      // Dinamicamente injeta o script do confetti para não depender da instalação local via npm/bun
+      // Isso evita erros 500 no Vite quando o node_modules não está sincronizado com o dev
+      const triggerConfetti = () => {
+        const duration = 3 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-      const interval: ReturnType<typeof setInterval> = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
+        const interval: ReturnType<typeof setInterval> = setInterval(function() {
+          const timeLeft = animationEnd - Date.now();
 
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
 
-        const particleCount = 50 * (timeLeft / duration);
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-      }, 250);
+          const particleCount = 50 * (timeLeft / duration);
+          // @ts-expect-error window.confetti is loaded dynamically
+          if (window.confetti) {
+            // @ts-expect-error window.confetti is loaded dynamically
+            window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            // @ts-expect-error window.confetti is loaded dynamically
+            window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+          }
+        }, 250);
 
-      setHasCelebrated(true);
+        setHasCelebrated(true);
+      };
+
+      // @ts-expect-error window.confetti is loaded dynamically
+      if (typeof window.confetti === 'function') {
+        triggerConfetti();
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+        script.onload = triggerConfetti;
+        document.head.appendChild(script);
+      }
     }
   }, [metaBatida, hasCelebrated]);
 
