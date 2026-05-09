@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 
@@ -47,48 +47,30 @@ export function useNotificacoes() {
   const queryClient = useQueryClient();
   const queryKey    = useMemo(() => ['notificacoes', empresa?.id], [empresa?.id]);
 
+  // Refs para evitar disparos duplicados entre re-renders
+  const pushDiarioRef    = useRef(false);
+  const pushRegistradoRef = useRef(false);
+
   const subscribeToPushNotifications = useCallback(async () => {
     try {
-      console.log('[Push] Iniciando subscribe...');
-      console.log('[Push] VAPID_PUBLIC_KEY length:', VAPID_PUBLIC_KEY.length);
-      console.log('[Push] VAPID_PUBLIC_KEY preview:', VAPID_PUBLIC_KEY.substring(0, 10));
-
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('[Push] Não suportado pelo browser.');
-        return;
-      }
-
-      if (!VAPID_PUBLIC_KEY) {
-        console.error('[Push] VITE_VAPID_PUBLIC_KEY não definida!');
-        return;
-      }
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (!VAPID_PUBLIC_KEY) return;
 
       const registration = await navigator.serviceWorker.ready;
-      console.log('[Push] SW ready, scope:', registration.scope);
-
       let subscription = await registration.pushManager.getSubscription();
-      console.log('[Push] Subscription existente:', !!subscription);
 
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
-        console.log('[Push] Nova subscription criada:', subscription.endpoint.substring(0, 60));
       }
 
       const subJSON = subscription.toJSON();
-      if (!subJSON.endpoint || !subJSON.keys) {
-        console.error('[Push] subJSON inválido:', subJSON);
-        return;
-      }
+      if (!subJSON.endpoint || !subJSON.keys) return;
 
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('[Push] User ID:', user?.id);
-      if (!user) {
-        console.error('[Push] Usuário não autenticado!');
-        return;
-      }
+      if (!user) return;
 
       const { error } = await supabase
         .from('push_subscriptions')
@@ -99,26 +81,24 @@ export function useNotificacoes() {
           auth: subJSON.keys.auth
         }, { onConflict: 'user_id,endpoint' });
 
-      if (error) {
-        console.error('[Push] ERRO ao salvar subscription:', JSON.stringify(error));
-      } else {
-        console.log('[Push] ✅ Subscription salva no Supabase para user:', user.id);
-      }
+      if (error) console.error('[Push] Erro ao salvar subscription:', error);
+
     } catch (error) {
-      console.error('[Push] Erro geral:', error);
+      console.error('[Push] Erro:', error);
     }
   }, []);
 
-  // ── Boot: registrar push assim que empresa carregar e permissão já estiver granted ──
+  // ── Boot: registrar subscription 1x por dispositivo ──
   useEffect(() => {
     if (!empresa) return;
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
+    if (pushRegistradoRef.current) return;
 
     const key = `push_registered_${empresa.id}`;
     if (localStorage.getItem(key)) return;
 
-    console.log('[Push] Boot: permissão granted, registrando subscription...');
+    pushRegistradoRef.current = true;
     subscribeToPushNotifications().then(() => {
       localStorage.setItem(key, '1');
     });
@@ -143,17 +123,19 @@ export function useNotificacoes() {
     }).catch(() => {});
   }, [empresa, queryClient, queryKey]);
 
-  // ── 1.5. Disparar web push diário ──
+  // ── 1.5. Disparar web push diário — apenas 1x por dia por dispositivo ──
   useEffect(() => {
     if (!empresa) return;
+    if (pushDiarioRef.current) return; // impede múltiplos renders
 
     const d = new Date();
     const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
-    if (pushSentToday) return;
+    if (localStorage.getItem(`push_sent_${hojeStr}`)) return;
 
-    setTimeout(async () => {
+    pushDiarioRef.current = true; // marca antes de disparar
+
+    const timer = setTimeout(async () => {
       try {
         const { data: lembretesData } = await supabase
           .from('lembretes_automacoes')
@@ -178,8 +160,11 @@ export function useNotificacoes() {
         }
       } catch (e) {
         console.error('[Push] Erro ao disparar push diário:', e);
+        pushDiarioRef.current = false; // permite retry em caso de erro
       }
     }, 3000);
+
+    return () => clearTimeout(timer);
   }, [empresa]);
 
   // ── 2. Ler lembretes de hoje ──
