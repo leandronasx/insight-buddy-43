@@ -129,21 +129,31 @@ export function useNotificacoes() {
     }).then(async () => {
       sessionStorage.setItem('lembretes_gerados_v5', String(agora));
       await queryClient.invalidateQueries({ queryKey });
+    }).catch(() => {/* silencioso se não deployada */});
+  }, [empresa, queryClient, queryKey]);
 
-      // After generating reminders, check if we should send a background push notification summary
-      // We only want to do this once per day when reminders are generated, so we check another session flag
-      const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
-      if (!pushSentToday) {
-        // Find if there are unread reminders for today
-        const { data: lembretesData } = await supabase
-          .from('lembretes_automacoes')
-          .select('id')
-          .eq('id_empresa', empresa.id)
-          .eq('data_execucao', hojeStr)
-          .eq('disparado', false);
+  // 1.5 Lógica separada para disparar a notificação Web Push diária
+  useEffect(() => {
+    if (!empresa) return;
 
-        if (lembretesData && lembretesData.length > 0) {
-          try {
+    const d = new Date();
+    const hojeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const pushSentToday = localStorage.getItem(`push_sent_${hojeStr}`);
+    if (pushSentToday) return;
+
+    const checkAndSendPush = () => {
+      // Pequeno atraso para garantir que a RPC (se executada) terminou de gerar os lembretes do dia
+      setTimeout(async () => {
+        try {
+          const { data: lembretesData } = await supabase
+            .from('lembretes_automacoes')
+            .select('id')
+            .eq('id_empresa', empresa.id)
+            .eq('data_execucao', hojeStr)
+            .eq('disparado', false);
+
+          if (lembretesData && lembretesData.length > 0) {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
               await supabase.functions.invoke('send-web-push', {
@@ -156,13 +166,18 @@ export function useNotificacoes() {
               });
               localStorage.setItem(`push_sent_${hojeStr}`, 'true');
             }
-          } catch (e) {
-            console.error('Error dispatching automated web push:', e);
+          } else {
+             // Se não tiver lembretes, podemos marcar como "enviado" para não ficar checando atoa toda hora na mesma sessão
+             // No entanto, é melhor não setar se quisermos checar novamente ao longo do dia.
           }
+        } catch (e) {
+          console.error('Error dispatching automated web push:', e);
         }
-      }
-    }).catch(() => {/* silencioso se não deployada */});
-  }, [empresa, queryClient, queryKey]);
+      }, 3000);
+    };
+
+    checkAndSendPush();
+  }, [empresa]);
 
   // 2. Lê lembretes de hoje não disparados
   const query = useQuery<NotificacoesData>({
