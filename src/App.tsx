@@ -32,6 +32,16 @@ const queryClient = new QueryClient({
   },
 });
 
+
+// Ouvir mensagem do service worker para navegar
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'NAVIGATE' && event.data?.url) {
+      window.location.href = event.data.url;
+    }
+  });
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -61,5 +71,7 @@ const App = () => (
     </AuthProvider>
   </QueryClientProvider>
 );
+
+
 
 export default App;
