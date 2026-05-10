@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/((?!push-debug.html).*)", "destination": "/index.html" }
+  ]
+}
