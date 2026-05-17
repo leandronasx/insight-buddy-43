@@ -8,10 +8,12 @@ const MAX_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 
 function LoginInner() {
-  const { signIn } = useAuth();
+  const { signIn, resetPassword } = useAuth();
+  const [isResetView, setIsResetView] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [cooldown, setCooldown] = useState(0);
@@ -36,18 +38,28 @@ function LoginInner() {
     if (cooldown > 0) return;
 
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
-    const result = await signIn(email, password);
-
-    if (result.error) {
-      const next = attempts + 1;
-      setAttempts(next);
-      if (next >= MAX_ATTEMPTS) {
-        setError(`Muitas tentativas. Aguarde ${COOLDOWN_SECONDS} segundos.`);
-        startCooldown();
+    if (isResetView) {
+      const result = await resetPassword(email);
+      if (result.error) {
+        setError(result.error.message);
       } else {
-        setError(`E-mail ou senha incorretos. Tentativa ${next} de ${MAX_ATTEMPTS}.`);
+        setSuccessMsg('Link de recuperação enviado para o seu e-mail.');
+      }
+    } else {
+      const result = await signIn(email, password);
+
+      if (result.error) {
+        const next = attempts + 1;
+        setAttempts(next);
+        if (next >= MAX_ATTEMPTS) {
+          setError(`Muitas tentativas. Aguarde ${COOLDOWN_SECONDS} segundos.`);
+          startCooldown();
+        } else {
+          setError(`E-mail ou senha incorretos. Tentativa ${next} de ${MAX_ATTEMPTS}.`);
+        }
       }
     }
 
@@ -83,19 +95,21 @@ function LoginInner() {
                 autoComplete="email"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">Senha</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                disabled={isBlocked}
-                className="bg-secondary border-border"
-                autoComplete="current-password"
-              />
-            </div>
+            {!isResetView && (
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Senha</label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={isBlocked}
+                  className="bg-secondary border-border"
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
 
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -108,13 +122,37 @@ function LoginInner() {
               </div>
             )}
 
+            {successMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <p className="text-emerald-500 text-sm">{successMsg}</p>
+              </div>
+            )}
+
             <Button
               type="submit"
               className="w-full"
               disabled={loading || isBlocked}
             >
-              {loading ? 'Entrando...' : isBlocked ? `Aguarde ${cooldown}s` : 'Entrar'}
+              {loading
+                ? (isResetView ? 'Enviando...' : 'Entrando...')
+                : isBlocked
+                  ? `Aguarde ${cooldown}s`
+                  : (isResetView ? 'Enviar link' : 'Entrar')}
             </Button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetView(!isResetView);
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isResetView ? 'Voltar para o login' : 'Primeiro acesso / Esqueci a senha'}
+              </button>
+            </div>
           </form>
         </div>
       </motion.div>
