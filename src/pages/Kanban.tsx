@@ -63,6 +63,14 @@ export default function Kanban() {
     if (!lead || lead.situacao_do_cliente === novoStatus) {
       setDragging(null); setDragOver(null); return;
     }
+
+    let novoMomentoFunil = lead.momento_funil;
+    if (novoStatus === 'Fechado') {
+      novoMomentoFunil = 'Pos Venda';
+    } else if (novoStatus === 'Agendado') {
+      novoMomentoFunil = 'Pos Orçamento';
+    }
+
     try {
       await saveLead.mutateAsync({
         id: lead.id,
@@ -72,7 +80,7 @@ export default function Kanban() {
         telefone: lead.telefone,
         email: lead.email,
         origem_lead: lead.origem_lead,
-        momento_funil: lead.momento_funil,
+        momento_funil: novoMomentoFunil,
         qualificacao: lead.qualificacao,
         robo_follow_ups: lead.robo_follow_ups,
         robo_atendimento: lead.robo_atendimento,
