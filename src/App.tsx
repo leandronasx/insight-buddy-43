@@ -16,6 +16,7 @@ import AgendaPage from "./pages/AgendaPage.tsx";
 import WhatsappPage from "./pages/WhatsappPage.tsx";
 import AutomacoesPage from "./pages/AutomacoesPage.tsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
+import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt.tsx";
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/minha-empresa" element={<MinhaEmpresaPage />} />
               <Route path="/admin" element={<AdminEmpresasPage />} />
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+              <Route path="/update-password" element={<UpdatePasswordPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PWAInstallPrompt />
