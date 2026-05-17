@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'placeholder.svg'],
+      includeAssets: ['favicon-32x32.png', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Higi$Controle',
         short_name: 'Higi$Controle',

@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'placeholder.svg'],
+      includeAssets: ['favicon-32x32.png', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Higi$Controle',
         short_name: 'Higi$Controle',
