@@ -1,278 +1,863 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Upload, Save, Building2, User, MapPin, FileText, Palette, AlertCircle, Phone } from 'lucide-react';
+import {
+  Plus, Edit, Trash2, Search, Building2, User,
+  Calendar, Phone, Mail, Lock, Eye, EyeOff,
+  CheckCircle2, XCircle, AlertTriangle, RefreshCw,
+  X, Shield, ClockAlert, LayoutGrid, List,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useEmpresa } from '@/hooks/useEmpresa';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ListSkeleton } from '@/components/LoadingSkeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { AdminSkeleton } from '@/components/LoadingSkeleton';
 
-export default function MinhaEmpresa() {
-  const { user } = useAuth();
-  const { empresa, loading, updateEmpresa } = useEmpresa();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState({
-    nome_empresa: '',
-    nome_dono: '',
-    telefone: '',
-    endereco: '',
-    cnpj_cpf: '',
-    cor_primaria: '#22c55e',
-    cor_secundaria: '#0f172a',
-  });
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (empresa) {
-      setForm({
-        nome_empresa: empresa.nome_empresa || '',
-        nome_dono: empresa.nome_dono || '',
-        telefone: empresa.telefone || '',
-        endereco: empresa.endereco || '',
-        cnpj_cpf: empresa.cnpj_cpf || '',
-        // Garante valor hex válido — nunca passa 'NULL' ou null para input[type=color]
-        cor_primaria: isValidHex(empresa.cor_primaria) ? empresa.cor_primaria! : '#22c55e',
-        cor_secundaria: isValidHex(empresa.cor_secundaria) ? empresa.cor_secundaria! : '#0f172a',
-      });
-      setLogoPreview(empresa.logo_url || null);
-    }
-  }, [empresa]);
+interface EmpresaRow {
+  id: string;
+  id_usuario: string;
+  nome_empresa: string;
+  nome_dono: string | null;
+  telefone: string | null;
+  cnpj_cpf: string | null;
+  endereco: string | null;
+  logo_url: string | null;
+  cor_primaria: string | null;
+  cor_secundaria: string | null;
+  data_inicio: string | null;
+  data_termino: string | null;
+  data_criacao: string;
+  data_atualizacao: string;
+}
 
-  function isValidHex(val: string | null | undefined): boolean {
-    return !!val && /^#[0-9A-Fa-f]{6}$/.test(val);
-  }
+interface UsuarioRow {
+  id: string;
+  email: string;
+  status: string;
+  permissao: string;
+}
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user || !empresa) return;
+interface EmpresaComUsuario extends EmpresaRow {
+  usuario: UsuarioRow | null;
+}
 
-    setUploadError('');
-    setUploading(true);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function diasParaVencer(dataTermino: string | null): number | null {
+  if (!dataTermino) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const termino = new Date(dataTermino + 'T00:00:00');
+  return Math.round((termino.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR');
+}
+
+function gerarSenha(length = 12): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789@#$!';
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+type StatusVencimento = 'ativo' | 'expirando' | 'expirado' | 'sem_termino';
+
+function getStatusVencimento(
+  usuarioStatus: string | undefined,
+  dataTermino: string | null,
+): StatusVencimento {
+  if (usuarioStatus === 'inativo') return 'expirado';
+  const dias = diasParaVencer(dataTermino);
+  if (dias === null) return 'sem_termino';
+  if (dias < 0) return 'expirado';
+  if (dias <= 7) return 'expirando';
+  return 'ativo';
+}
+
+const STATUS_CONFIG: Record<StatusVencimento, {
+  label: string;
+  badge: string;
+  dot: string;
+  icon: React.ElementType;
+}> = {
+  ativo:       { label: 'Ativo',       badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', icon: CheckCircle2 },
+  expirando:   { label: 'Expirando',   badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',       dot: 'bg-amber-400',   icon: AlertTriangle },
+  expirado:    { label: 'Inativo',     badge: 'bg-red-500/15 text-red-400 border-red-500/30',             dot: 'bg-red-400',     icon: XCircle },
+  sem_termino: { label: 'Sem término', badge: 'bg-muted text-muted-foreground border-border',             dot: 'bg-muted-foreground', icon: CheckCircle2 },
+};
+
+// ─── Formulário vazio para criação ────────────────────────────────────────────
+
+const EMPTY_CREATE = {
+  nome_empresa: '',
+  nome_dono: '',
+  telefone: '',
+  email: '',
+  password: '',
+  data_inicio: new Date().toISOString().split('T')[0],
+  data_termino: '',
+};
+
+const EMPTY_EDIT = {
+  nome_empresa: '',
+  nome_dono: '',
+  telefone: '',
+  data_inicio: '',
+  data_termino: '',
+  usuario_status: 'ativo' as 'ativo' | 'inativo',
+};
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
+export default function AdminEmpresas() {
+  const [empresas, setEmpresas] = useState<EmpresaComUsuario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState<StatusVencimento | 'todos'>('todos');
+
+  // Modais
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EmpresaComUsuario | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EmpresaComUsuario | null>(null);
+
+  // Formulários
+  const [createForm, setCreateForm] = useState(EMPTY_CREATE);
+  const [editForm, setEditForm] = useState(EMPTY_EDIT);
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // ─── Fetch ──────────────────────────────────────────────────────────────────
+
+  const fetchEmpresas = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
 
     try {
-      // Converte para base64 e salva via updateEmpresa como URL de dados temporária
-      // ou tenta o upload no storage
-      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
-      const filePath = `${user.id}/logo.${ext}`;
+      // Busca empresas e JOIN com usuarios para pegar email e status
+      const { data: empData, error } = await supabase
+        .from('empresas')
+        .select('*')
+        .order('data_criacao', { ascending: false });
 
-      // Tenta upload no bucket logos
-      const { error: uploadErr } = await supabase.storage
-        .from('logos')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
 
-      if (uploadErr) {
-        // Se falhar por política, converte para base64 e salva direto no banco
-        if (uploadErr.message.includes('policy') || uploadErr.message.includes('403') || uploadErr.message.includes('400')) {
-          console.warn('Storage policy bloqueou, usando base64:', uploadErr.message);
-          const base64 = await fileToBase64(file);
-          await updateEmpresa.mutateAsync({ logo_url: base64 });
-          setLogoPreview(base64);
-          toast.success('Logo salva!');
-          return;
-        }
-        throw uploadErr;
+      if (!empData || empData.length === 0) {
+        setEmpresas([]);
+        return;
       }
 
-      // Upload funcionou — pega URL pública
-      const { data: urlData } = supabase.storage.from('logos').getPublicUrl(filePath);
-      const logo_url = urlData.publicUrl + '?t=' + Date.now();
-      await updateEmpresa.mutateAsync({ logo_url });
-      setLogoPreview(logo_url);
-      toast.success('Logo atualizada!');
+      // Busca os usuários correspondentes
+      const usuarioIds = empData.map(e => e.id_usuario);
+      const { data: usrData } = await supabase
+        .from('usuarios')
+        .select('id, email, status, permissao')
+        .in('id', usuarioIds);
 
+      const usrMap = new Map((usrData ?? []).map(u => [u.id, u]));
+
+      const merged: EmpresaComUsuario[] = empData.map(e => ({
+        ...e,
+        usuario: usrMap.get(e.id_usuario) ?? null,
+      }));
+
+      setEmpresas(merged);
     } catch (err) {
-      console.error('Logo upload error:', err);
-      setUploadError('Erro ao enviar logo: ' + (err instanceof Error ? err.message : String(err)));
-      toast.error('Erro ao enviar logo');
+      toast.error('Erro ao carregar empresas: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
-      setUploading(false);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchEmpresas(); }, [fetchEmpresas]);
+
+  // ─── Filtros ─────────────────────────────────────────────────────────────────
+
+  const empresasFiltradas = empresas.filter(e => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      !q ||
+      e.nome_empresa.toLowerCase().includes(q) ||
+      (e.nome_dono ?? '').toLowerCase().includes(q) ||
+      (e.usuario?.email ?? '').toLowerCase().includes(q) ||
+      (e.telefone ?? '').includes(q);
+
+    const sv = getStatusVencimento(e.usuario?.status, e.data_termino);
+    const matchStatus = filtroStatus === 'todos' || sv === filtroStatus;
+
+    return matchSearch && matchStatus;
+  });
+
+  // ─── Stats ───────────────────────────────────────────────────────────────────
+
+  const stats = {
+    total:     empresas.length,
+    ativas:    empresas.filter(e => getStatusVencimento(e.usuario?.status, e.data_termino) === 'ativo').length,
+    expirando: empresas.filter(e => getStatusVencimento(e.usuario?.status, e.data_termino) === 'expirando').length,
+    inativas:  empresas.filter(e => getStatusVencimento(e.usuario?.status, e.data_termino) === 'expirado').length,
+  };
+
+  // ─── Criar empresa ────────────────────────────────────────────────────────────
+
+  const handleCreate = async () => {
+    if (!createForm.nome_empresa || !createForm.email || !createForm.password) {
+      toast.error('Nome, e-mail e senha são obrigatórios');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-empresa', {
+        body: {
+          email:        createForm.email,
+          password:     createForm.password,
+          nome_empresa: createForm.nome_empresa,
+          nome_dono:    createForm.nome_dono   || null,
+          telefone:     createForm.telefone    || null,
+          data_inicio:  createForm.data_inicio || null,
+          data_termino: createForm.data_termino || null,
+        },
+      });
+
+      if (error || data?.error) {
+        throw new Error(error?.message ?? data?.error ?? 'Erro ao criar empresa');
+      }
+
+      toast.success(`Empresa "${createForm.nome_empresa}" criada com sucesso!`);
+      setCreateOpen(false);
+      setCreateForm(EMPTY_CREATE);
+      fetchEmpresas(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
     }
   };
 
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
+  // ─── Abrir edição ─────────────────────────────────────────────────────────────
 
-  const handleSave = async () => {
-    if (!form.nome_empresa.trim()) {
+  const openEdit = (e: EmpresaComUsuario) => {
+    setEditTarget(e);
+    setEditForm({
+      nome_empresa:    e.nome_empresa,
+      nome_dono:       e.nome_dono    ?? '',
+      telefone:        e.telefone     ?? '',
+      data_inicio:     e.data_inicio  ?? '',
+      data_termino:    e.data_termino ?? '',
+      usuario_status:  (e.usuario?.status ?? 'ativo') as 'ativo' | 'inativo',
+    });
+  };
+
+  // ─── Salvar edição ────────────────────────────────────────────────────────────
+
+  const handleEdit = async () => {
+    if (!editTarget || !editForm.nome_empresa.trim()) {
       toast.error('Nome da empresa é obrigatório');
       return;
     }
+    setSaving(true);
     try {
-      await updateEmpresa.mutateAsync({
-        nome_empresa: form.nome_empresa,
-        nome_dono: form.nome_dono || null,
-        telefone: form.telefone || null,
-        endereco: form.endereco || null,
-        cnpj_cpf: form.cnpj_cpf || null,
-        cor_primaria: form.cor_primaria,
-        cor_secundaria: form.cor_secundaria,
+      // Atualiza campos da empresa + status do usuário via edge function
+      const { data, error } = await supabase.functions.invoke('update-empresa-status', {
+        body: {
+          empresa_id:      editTarget.id,
+          nome_empresa:    editForm.nome_empresa,
+          nome_dono:       editForm.nome_dono    || null,
+          telefone:        editForm.telefone     || null,
+          data_inicio:     editForm.data_inicio  || null,
+          data_termino:    editForm.data_termino || null,
+          usuario_status:  editForm.usuario_status, // ← campo adicionado na edge function
+        },
       });
-      toast.success('Dados salvos com sucesso!');
+
+      if (error || data?.error) {
+        throw new Error(error?.message ?? data?.error ?? 'Erro ao salvar');
+      }
+
+      toast.success('Empresa atualizada com sucesso!');
+      setEditTarget(null);
+      fetchEmpresas(true);
     } catch (err) {
-      toast.error('Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) return <ListSkeleton />;
+  // ─── Excluir empresa ──────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-empresa', {
+        body: { empresa_id: deleteTarget.id },
+      });
+
+      if (error || data?.error) {
+        throw new Error(error?.message ?? data?.error ?? 'Erro ao excluir');
+      }
+
+      toast.success(`Empresa "${deleteTarget.nome_empresa}" excluída!`);
+      setDeleteTarget(null);
+      fetchEmpresas(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ─── Loading ─────────────────────────────────────────────────────────────────
+
+  if (loading) return <AdminSkeleton />;
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h2 className="font-display text-xl font-bold text-foreground">Minha Empresa</h2>
+    <div className="space-y-6">
 
-      {/* Logo */}
-      <div className="metric-card flex items-center gap-6">
-        <div
-          className="w-20 h-20 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          {logoPreview ? (
-            <img
-              src={logoPreview}
-              alt="Logo"
-              className="w-full h-full object-contain"
-              onError={() => setLogoPreview(null)}
-            />
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-foreground">Gestão de Empresas</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Crie, edite e gerencie todas as empresas clientes
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fetchEmpresas(true)}
+            disabled={refreshing}
+            className="h-9 w-9"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Empresa
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total',     value: stats.total,     color: 'text-foreground',     filter: 'todos'     as const },
+          { label: 'Ativas',    value: stats.ativas,    color: 'text-emerald-400',    filter: 'ativo'     as const },
+          { label: 'Expirando', value: stats.expirando, color: 'text-amber-400',      filter: 'expirando' as const },
+          { label: 'Inativas',  value: stats.inativas,  color: 'text-red-400',        filter: 'expirado'  as const },
+        ].map(s => (
+          <button
+            key={s.label}
+            onClick={() => setFiltroStatus(prev => prev === s.filter ? 'todos' : s.filter)}
+            className={`metric-card text-left transition-all ${
+              filtroStatus === s.filter ? 'ring-2 ring-primary/50' : ''
+            }`}
+          >
+            <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+            <p className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, dono, e-mail ou telefone..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        {empresasFiltradas.length} empresa{empresasFiltradas.length !== 1 ? 's' : ''} encontrada{empresasFiltradas.length !== 1 ? 's' : ''}
+        {filtroStatus !== 'todos' && ` · filtrando por "${STATUS_CONFIG[filtroStatus].label}"`}
+      </p>
+
+      {/* Lista */}
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {empresasFiltradas.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="metric-card flex flex-col items-center justify-center py-16 text-center"
+            >
+              <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
+              <p className="font-medium text-foreground">Nenhuma empresa encontrada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {search ? 'Tente ajustar a busca' : 'Crie a primeira empresa clicando em "Nova Empresa"'}
+              </p>
+            </motion.div>
           ) : (
-            <Upload className="h-8 w-8 text-muted-foreground" />
+            empresasFiltradas.map((empresa, idx) => {
+              const sv = getStatusVencimento(empresa.usuario?.status, empresa.data_termino);
+              const cfg = STATUS_CONFIG[sv];
+              const StatusIcon = cfg.icon;
+              const dias = diasParaVencer(empresa.data_termino);
+
+              return (
+                <motion.div
+                  key={empresa.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ delay: idx * 0.03 }}
+                  className="metric-card"
+                >
+                  <div className="flex items-start gap-4">
+
+                    {/* Avatar */}
+                    <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ backgroundColor: empresa.cor_primaria ?? '#22c55e' }}
+                    >
+                      {empresa.nome_empresa.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <p className="font-semibold text-foreground">{empresa.nome_empresa}</p>
+                        <Badge variant="outline" className={`text-xs gap-1 ${cfg.badge}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </Badge>
+                        {sv === 'expirando' && dias !== null && (
+                          <Badge variant="outline" className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10">
+                            {dias}d restante{dias !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                        {sv === 'expirado' && empresa.data_termino && (
+                          <Badge variant="outline" className="text-xs text-red-400 border-red-500/30 bg-red-500/10">
+                            Venceu {formatDate(empresa.data_termino)}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {empresa.nome_dono && (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" /> {empresa.nome_dono}
+                          </span>
+                        )}
+                        {empresa.usuario?.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" /> {empresa.usuario.email}
+                          </span>
+                        )}
+                        {empresa.telefone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {empresa.telefone}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(empresa.data_inicio)}
+                          {empresa.data_termino ? ` → ${formatDate(empresa.data_termino)}` : ' · Sem término'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEdit(empresa)}
+                        title="Editar empresa"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(empresa)}
+                        title="Excluir empresa"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
           )}
-        </div>
-        <div className="flex-1">
-          <p className="font-medium text-foreground">Logo da Empresa</p>
-          <p className="text-sm text-muted-foreground">PNG, JPG ou SVG · Clique para enviar</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-            className="hidden"
-            onChange={handleLogoUpload}
-          />
-          {uploading && (
-            <p className="text-xs text-primary mt-1 animate-pulse">Enviando logo...</p>
-          )}
-          {uploadError && (
-            <div className="flex items-center gap-1 mt-1">
-              <AlertCircle className="h-3 w-3 text-destructive" />
-              <p className="text-xs text-destructive">{uploadError}</p>
-            </div>
-          )}
-        </div>
+        </AnimatePresence>
       </div>
 
-      {/* Form fields */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
-            </label>
-            <Input
-              value={form.nome_empresa}
-              onChange={e => setForm({ ...form, nome_empresa: e.target.value })}
-              className="bg-secondary border-border"
-              placeholder="Nome da empresa"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" /> Proprietário
-            </label>
-            <Input
-              value={form.nome_dono}
-              onChange={e => setForm({ ...form, nome_dono: e.target.value })}
-              className="bg-secondary border-border"
-              placeholder="Nome do dono"
-            />
-          </div>
-        </div>
+      {/* ─── FAB ─────────────────────────────────────────────────────────── */}
+      <button onClick={() => setCreateOpen(true)} className="fab-button">
+        <Plus className="h-6 w-6" />
+      </button>
 
-        <div>
-          <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-            <FileText className="h-3.5 w-3.5" /> CNPJ ou CPF
-          </label>
-          <Input
-            value={form.cnpj_cpf}
-            onChange={e => setForm({ ...form, cnpj_cpf: e.target.value })}
-            placeholder="00.000.000/0001-00"
-            className="bg-secondary border-border"
-          />
-        </div>
+      {/* ─── Modal: Criar ────────────────────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={o => { if (!o) { setCreateOpen(false); setCreateForm(EMPTY_CREATE); } }}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Nova Empresa
+            </DialogTitle>
+          </DialogHeader>
 
-        <div>
-          <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5" /> Telefone
-          </label>
-          <Input
-            type="tel"
-            value={form.telefone}
-            onChange={e => setForm({ ...form, telefone: e.target.value })}
-            placeholder="(11) 99999-9999"
-            className="bg-secondary border-border"
-          />
-        </div>
+          <div className="space-y-4 pt-1">
 
-        <div>
-          <label className="text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5" /> Endereço
-          </label>
-          <Input
-            value={form.endereco}
-            onChange={e => setForm({ ...form, endereco: e.target.value })}
-            placeholder="Rua, Número, Bairro, CEP, Cidade-UF"
-            className="bg-secondary border-border"
-          />
-        </div>
-
-        {/* Colors */}
-        <div>
-          <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
-            <Palette className="h-3.5 w-3.5" /> Cores da Marca
-          </label>
-          <div className="flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={form.cor_primaria}
-                onChange={e => setForm({ ...form, cor_primaria: e.target.value })}
-                className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+            {/* Nome */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
+              </label>
+              <Input
+                value={createForm.nome_empresa}
+                onChange={e => setCreateForm(p => ({ ...p, nome_empresa: e.target.value }))}
+                placeholder="Ex: Higienização Premium Ltda"
+                className="bg-secondary border-border"
               />
-              <div>
-                <p className="text-sm text-foreground">Cor Primária</p>
-                <p className="text-xs text-muted-foreground">Botões e destaques</p>
+            </div>
+
+            {/* Dono + Telefone */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" /> Nome do Dono
+                </label>
+                <Input
+                  value={createForm.nome_dono}
+                  onChange={e => setCreateForm(p => ({ ...p, nome_dono: e.target.value }))}
+                  placeholder="João Silva"
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5" /> Telefone
+                </label>
+                <Input
+                  type="tel"
+                  value={createForm.telefone}
+                  onChange={e => setCreateForm(p => ({ ...p, telefone: e.target.value }))}
+                  placeholder="(11) 99999-9999"
+                  className="bg-secondary border-border"
+                />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={form.cor_secundaria}
-                onChange={e => setForm({ ...form, cor_secundaria: e.target.value })}
-                className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
-              />
-              <div>
-                <p className="text-sm text-foreground">Cor Secundária</p>
-                <p className="text-xs text-muted-foreground">Fundo da sidebar</p>
+
+            {/* Divisor */}
+            <div className="border-t border-border pt-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5" /> Credenciais de Acesso
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" /> E-mail *
+                  </label>
+                  <Input
+                    type="email"
+                    value={createForm.email}
+                    onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                    placeholder="cliente@empresa.com"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5" /> Senha *
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={createForm.password}
+                      onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                      placeholder="Mínimo 8 caracteres"
+                      className="bg-secondary border-border pr-20"
+                    />
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(p => !p)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground"
+                        title={showPassword ? 'Ocultar' : 'Mostrar'}
+                      >
+                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm(p => ({ ...p, password: gerarSenha() }))}
+                        className="text-[10px] px-1.5 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
+                        title="Gerar senha aleatória"
+                      >
+                        Gerar
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      <Button
-        onClick={handleSave}
-        className="w-full"
-        disabled={updateEmpresa.isPending || !form.nome_empresa}
-      >
-        <Save className="h-4 w-4 mr-2" />
-        {updateEmpresa.isPending ? 'Salvando...' : 'Salvar Informações'}
-      </Button>
+            {/* Datas */}
+            <div className="border-t border-border pt-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" /> Período da Assinatura
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Data de Início</label>
+                  <Input
+                    type="date"
+                    value={createForm.data_inicio}
+                    onChange={e => setCreateForm(p => ({ ...p, data_inicio: e.target.value }))}
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Data de Término</label>
+                  <Input
+                    type="date"
+                    value={createForm.data_termino}
+                    onChange={e => setCreateForm(p => ({ ...p, data_termino: e.target.value }))}
+                    className="bg-secondary border-border"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleCreate}
+              className="w-full"
+              disabled={saving || !createForm.nome_empresa || !createForm.email || !createForm.password}
+            >
+              {saving ? 'Criando...' : 'Criar Empresa'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal: Editar ───────────────────────────────────────────────── */}
+      <Dialog open={!!editTarget} onOpenChange={o => { if (!o) setEditTarget(null); }}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Edit className="h-5 w-5 text-primary" />
+              Editar Empresa
+            </DialogTitle>
+          </DialogHeader>
+
+          {editTarget && (
+            <div className="space-y-4 pt-1">
+
+              {/* Info imutável */}
+              {editTarget.usuario?.email && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg border border-border">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground">Login:</span>
+                  <span className="text-sm font-mono text-foreground">{editTarget.usuario.email}</span>
+                </div>
+              )}
+
+              {/* Nome */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
+                </label>
+                <Input
+                  value={editForm.nome_empresa}
+                  onChange={e => setEditForm(p => ({ ...p, nome_empresa: e.target.value }))}
+                  className="bg-secondary border-border"
+                />
+              </div>
+
+              {/* Dono + Telefone */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" /> Nome do Dono
+                  </label>
+                  <Input
+                    value={editForm.nome_dono}
+                    onChange={e => setEditForm(p => ({ ...p, nome_dono: e.target.value }))}
+                    placeholder="João Silva"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" /> Telefone
+                  </label>
+                  <Input
+                    type="tel"
+                    value={editForm.telefone}
+                    onChange={e => setEditForm(p => ({ ...p, telefone: e.target.value }))}
+                    placeholder="(11) 99999-9999"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+              </div>
+
+              {/* Datas */}
+              <div className="border-t border-border pt-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" /> Período da Assinatura
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Data de Início</label>
+                    <Input
+                      type="date"
+                      value={editForm.data_inicio}
+                      onChange={e => setEditForm(p => ({ ...p, data_inicio: e.target.value }))}
+                      className="bg-secondary border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Data de Término</label>
+                    <Input
+                      type="date"
+                      value={editForm.data_termino}
+                      onChange={e => setEditForm(p => ({ ...p, data_termino: e.target.value }))}
+                      className="bg-secondary border-border"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="border-t border-border pt-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5" /> Status do Acesso
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditForm(p => ({ ...p, usuario_status: 'ativo' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                      editForm.usuario_status === 'ativo'
+                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Ativo
+                  </button>
+                  <button
+                    onClick={() => setEditForm(p => ({ ...p, usuario_status: 'inativo' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                      editForm.usuario_status === 'inativo'
+                        ? 'bg-red-500/15 border-red-500/50 text-red-400'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    <XCircle className="h-4 w-4" /> Inativo
+                  </button>
+                </div>
+                {editForm.usuario_status === 'inativo' && (
+                  <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Ao desativar, o cliente perde acesso imediatamente ao sistema.
+                  </p>
+                )}
+              </div>
+
+              {/* Ações */}
+              <div className="flex gap-2 pt-1">
+                <Button
+                  onClick={handleEdit}
+                  className="flex-1"
+                  disabled={saving || !editForm.nome_empresa.trim()}
+                >
+                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditTarget(null)}
+                  disabled={saving}
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              {/* Excluir */}
+              <div className="border-t border-border pt-3">
+                <Button
+                  variant="outline"
+                  className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => { setEditTarget(null); setDeleteTarget(editTarget); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Empresa Permanentemente
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal: Confirmar exclusão ───────────────────────────────────── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-destructive">
+              Excluir "{deleteTarget?.nome_empresa}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1">
+              <span className="block">
+                Esta ação é <strong>irreversível</strong>. Serão removidos permanentemente:
+              </span>
+              <span className="block text-muted-foreground text-xs mt-2 space-y-0.5">
+                <span className="block">• Conta de acesso do usuário</span>
+                <span className="block">• Todos os leads e histórico</span>
+                <span className="block">• Todas as vendas e itens</span>
+                <span className="block">• Dados financeiros e regras de automação</span>
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir Definitivamente'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
