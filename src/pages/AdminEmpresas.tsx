@@ -5,9 +5,10 @@ import {
   Plus, Edit, Trash2, Search, Building2, User,
   Calendar, Phone, Mail, Lock, Eye, EyeOff,
   CheckCircle2, XCircle, AlertTriangle, RefreshCw,
-  X, Shield, ClockAlert, LayoutGrid, List,
+  X, Shield,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AdminSkeleton } from '@/components/LoadingSkeleton';
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface EmpresaRow {
   id: string;
@@ -97,15 +98,14 @@ const STATUS_CONFIG: Record<StatusVencimento, {
   label: string;
   badge: string;
   dot: string;
-  icon: React.ElementType;
 }> = {
-  ativo:       { label: 'Ativo',       badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', icon: CheckCircle2 },
-  expirando:   { label: 'Expirando',   badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',       dot: 'bg-amber-400',   icon: AlertTriangle },
-  expirado:    { label: 'Inativo',     badge: 'bg-red-500/15 text-red-400 border-red-500/30',             dot: 'bg-red-400',     icon: XCircle },
-  sem_termino: { label: 'Sem término', badge: 'bg-muted text-muted-foreground border-border',             dot: 'bg-muted-foreground', icon: CheckCircle2 },
+  ativo:       { label: 'Ativo',       badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400'      },
+  expirando:   { label: 'Expirando',   badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',       dot: 'bg-amber-400'        },
+  expirado:    { label: 'Inativo',     badge: 'bg-red-500/15 text-red-400 border-red-500/30',             dot: 'bg-red-400'          },
+  sem_termino: { label: 'Sem término', badge: 'bg-muted text-muted-foreground border-border',             dot: 'bg-muted-foreground' },
 };
 
-// ─── Formulário vazio para criação ────────────────────────────────────────────
+// ─── Formulários padrão ───────────────────────────────────────────────────────
 
 const EMPTY_CREATE = {
   nome_empresa: '',
@@ -118,56 +118,57 @@ const EMPTY_CREATE = {
 };
 
 const EMPTY_EDIT = {
-  nome_empresa: '',
-  nome_dono: '',
-  telefone: '',
-  data_inicio: '',
-  data_termino: '',
+  nome_empresa:   '',
+  nome_dono:      '',
+  telefone:       '',
+  data_inicio:    '',
+  data_termino:   '',
   usuario_status: 'ativo' as 'ativo' | 'inativo',
 };
 
-// ─── Componente principal ─────────────────────────────────────────────────────
+// ─── Componente ───────────────────────────────────────────────────────────────
 
 export default function AdminEmpresas() {
-  const [empresas, setEmpresas] = useState<EmpresaComUsuario[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<StatusVencimento | 'todos'>('todos');
+  const { user } = useAuth();
 
-  // Modais
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<EmpresaComUsuario | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<EmpresaComUsuario | null>(null);
+  const [empresas, setEmpresas]           = useState<EmpresaComUsuario[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [refreshing, setRefreshing]       = useState(false);
+  const [search, setSearch]               = useState('');
+  const [filtroStatus, setFiltroStatus]   = useState<StatusVencimento | 'todos'>('todos');
 
-  // Formulários
-  const [createForm, setCreateForm] = useState(EMPTY_CREATE);
-  const [editForm, setEditForm] = useState(EMPTY_EDIT);
-  const [showPassword, setShowPassword] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [createOpen, setCreateOpen]       = useState(false);
+  const [editTarget, setEditTarget]       = useState<EmpresaComUsuario | null>(null);
+  const [deleteTarget, setDeleteTarget]   = useState<EmpresaComUsuario | null>(null);
 
-  // ─── Fetch ──────────────────────────────────────────────────────────────────
+  const [createForm, setCreateForm]       = useState(EMPTY_CREATE);
+  const [editForm, setEditForm]           = useState(EMPTY_EDIT);
+  const [showPassword, setShowPassword]   = useState(false);
+  const [saving, setSaving]               = useState(false);
+  const [deleting, setDeleting]           = useState(false);
+
+  // ─── Fetch ────────────────────────────────────────────────────────────────
+  // .neq('id_usuario', user.id) → exclui a empresa do próprio admin logado
 
   const fetchEmpresas = useCallback(async (silent = false) => {
+    if (!user) return;
     if (!silent) setLoading(true);
     else setRefreshing(true);
 
     try {
-      // Busca empresas e JOIN com usuarios para pegar email e status
       const { data: empData, error } = await supabase
         .from('empresas')
         .select('*')
+        .neq('id_usuario', user.id)
         .order('data_criacao', { ascending: false });
 
       if (error) throw error;
 
-      if (!empData || empData.length === 0) {
+      if (!empData?.length) {
         setEmpresas([]);
         return;
       }
 
-      // Busca os usuários correspondentes
       const usuarioIds = empData.map(e => e.id_usuario);
       const { data: usrData } = await supabase
         .from('usuarios')
@@ -176,23 +177,18 @@ export default function AdminEmpresas() {
 
       const usrMap = new Map((usrData ?? []).map(u => [u.id, u]));
 
-      const merged: EmpresaComUsuario[] = empData.map(e => ({
-        ...e,
-        usuario: usrMap.get(e.id_usuario) ?? null,
-      }));
-
-      setEmpresas(merged);
+      setEmpresas(empData.map(e => ({ ...e, usuario: usrMap.get(e.id_usuario) ?? null })));
     } catch (err) {
       toast.error('Erro ao carregar empresas: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => { fetchEmpresas(); }, [fetchEmpresas]);
 
-  // ─── Filtros ─────────────────────────────────────────────────────────────────
+  // ─── Filtros ──────────────────────────────────────────────────────────────
 
   const empresasFiltradas = empresas.filter(e => {
     const q = search.toLowerCase();
@@ -209,8 +205,6 @@ export default function AdminEmpresas() {
     return matchSearch && matchStatus;
   });
 
-  // ─── Stats ───────────────────────────────────────────────────────────────────
-
   const stats = {
     total:     empresas.length,
     ativas:    empresas.filter(e => getStatusVencimento(e.usuario?.status, e.data_termino) === 'ativo').length,
@@ -218,7 +212,9 @@ export default function AdminEmpresas() {
     inativas:  empresas.filter(e => getStatusVencimento(e.usuario?.status, e.data_termino) === 'expirado').length,
   };
 
-  // ─── Criar empresa ────────────────────────────────────────────────────────────
+  // ─── Criar ────────────────────────────────────────────────────────────────
+  // Fluxo completo via edge function create-empresa:
+  //   auth.users → (trigger) → public.usuarios → public.empresas → (trigger) → regras_automacoes
 
   const handleCreate = async () => {
     if (!createForm.nome_empresa || !createForm.email || !createForm.password) {
@@ -238,12 +234,8 @@ export default function AdminEmpresas() {
           data_termino: createForm.data_termino || null,
         },
       });
-
-      if (error || data?.error) {
-        throw new Error(error?.message ?? data?.error ?? 'Erro ao criar empresa');
-      }
-
-      toast.success(`Empresa "${createForm.nome_empresa}" criada com sucesso!`);
+      if (error || data?.error) throw new Error(error?.message ?? data?.error);
+      toast.success(`Empresa "${createForm.nome_empresa}" criada!`);
       setCreateOpen(false);
       setCreateForm(EMPTY_CREATE);
       fetchEmpresas(true);
@@ -254,21 +246,20 @@ export default function AdminEmpresas() {
     }
   };
 
-  // ─── Abrir edição ─────────────────────────────────────────────────────────────
+  // ─── Editar ───────────────────────────────────────────────────────────────
+  // Edita apenas public.empresas + public.usuarios.status via edge function
 
   const openEdit = (e: EmpresaComUsuario) => {
     setEditTarget(e);
     setEditForm({
-      nome_empresa:    e.nome_empresa,
-      nome_dono:       e.nome_dono    ?? '',
-      telefone:        e.telefone     ?? '',
-      data_inicio:     e.data_inicio  ?? '',
-      data_termino:    e.data_termino ?? '',
-      usuario_status:  (e.usuario?.status ?? 'ativo') as 'ativo' | 'inativo',
+      nome_empresa:   e.nome_empresa,
+      nome_dono:      e.nome_dono    ?? '',
+      telefone:       e.telefone     ?? '',
+      data_inicio:    e.data_inicio  ?? '',
+      data_termino:   e.data_termino ?? '',
+      usuario_status: e.usuario?.status === 'inativo' ? 'inativo' : 'ativo',
     });
   };
-
-  // ─── Salvar edição ────────────────────────────────────────────────────────────
 
   const handleEdit = async () => {
     if (!editTarget || !editForm.nome_empresa.trim()) {
@@ -277,24 +268,19 @@ export default function AdminEmpresas() {
     }
     setSaving(true);
     try {
-      // Atualiza campos da empresa + status do usuário via edge function
       const { data, error } = await supabase.functions.invoke('update-empresa-status', {
         body: {
-          empresa_id:      editTarget.id,
-          nome_empresa:    editForm.nome_empresa,
-          nome_dono:       editForm.nome_dono    || null,
-          telefone:        editForm.telefone     || null,
-          data_inicio:     editForm.data_inicio  || null,
-          data_termino:    editForm.data_termino || null,
-          usuario_status:  editForm.usuario_status, // ← campo adicionado na edge function
+          empresa_id:     editTarget.id,
+          nome_empresa:   editForm.nome_empresa,
+          nome_dono:      editForm.nome_dono    || null,
+          telefone:       editForm.telefone     || null,
+          data_inicio:    editForm.data_inicio  || null,
+          data_termino:   editForm.data_termino || null,
+          usuario_status: editForm.usuario_status,
         },
       });
-
-      if (error || data?.error) {
-        throw new Error(error?.message ?? data?.error ?? 'Erro ao salvar');
-      }
-
-      toast.success('Empresa atualizada com sucesso!');
+      if (error || data?.error) throw new Error(error?.message ?? data?.error);
+      toast.success('Empresa atualizada!');
       setEditTarget(null);
       fetchEmpresas(true);
     } catch (err) {
@@ -304,7 +290,9 @@ export default function AdminEmpresas() {
     }
   };
 
-  // ─── Excluir empresa ──────────────────────────────────────────────────────────
+  // ─── Excluir ──────────────────────────────────────────────────────────────
+  // Edge function delete-empresa:
+  //   public.empresas (CASCADE) → auth.users
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -313,11 +301,7 @@ export default function AdminEmpresas() {
       const { data, error } = await supabase.functions.invoke('delete-empresa', {
         body: { empresa_id: deleteTarget.id },
       });
-
-      if (error || data?.error) {
-        throw new Error(error?.message ?? data?.error ?? 'Erro ao excluir');
-      }
-
+      if (error || data?.error) throw new Error(error?.message ?? data?.error);
       toast.success(`Empresa "${deleteTarget.nome_empresa}" excluída!`);
       setDeleteTarget(null);
       fetchEmpresas(true);
@@ -328,11 +312,9 @@ export default function AdminEmpresas() {
     }
   };
 
-  // ─── Loading ─────────────────────────────────────────────────────────────────
-
   if (loading) return <AdminSkeleton />;
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -347,8 +329,7 @@ export default function AdminEmpresas() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="icon"
+            variant="outline" size="icon"
             onClick={() => fetchEmpresas(true)}
             disabled={refreshing}
             className="h-9 w-9"
@@ -356,26 +337,23 @@ export default function AdminEmpresas() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nova Empresa
+            <Plus className="h-4 w-4" /> Nova Empresa
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats como filtros */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Total',     value: stats.total,     color: 'text-foreground',     filter: 'todos'     as const },
-          { label: 'Ativas',    value: stats.ativas,    color: 'text-emerald-400',    filter: 'ativo'     as const },
-          { label: 'Expirando', value: stats.expirando, color: 'text-amber-400',      filter: 'expirando' as const },
-          { label: 'Inativas',  value: stats.inativas,  color: 'text-red-400',        filter: 'expirado'  as const },
-        ].map(s => (
+        {([
+          { label: 'Total',     value: stats.total,     color: 'text-foreground',  filter: 'todos'     },
+          { label: 'Ativas',    value: stats.ativas,    color: 'text-emerald-400', filter: 'ativo'     },
+          { label: 'Expirando', value: stats.expirando, color: 'text-amber-400',   filter: 'expirando' },
+          { label: 'Inativas',  value: stats.inativas,  color: 'text-red-400',     filter: 'expirado'  },
+        ] as const).map(s => (
           <button
             key={s.label}
             onClick={() => setFiltroStatus(prev => prev === s.filter ? 'todos' : s.filter)}
-            className={`metric-card text-left transition-all ${
-              filtroStatus === s.filter ? 'ring-2 ring-primary/50' : ''
-            }`}
+            className={`metric-card text-left transition-all ${filtroStatus === s.filter ? 'ring-2 ring-primary/50' : ''}`}
           >
             <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
             <p className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</p>
@@ -383,7 +361,7 @@ export default function AdminEmpresas() {
         ))}
       </div>
 
-      {/* Search */}
+      {/* Busca */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -393,10 +371,7 @@ export default function AdminEmpresas() {
           className="pl-9"
         />
         {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         )}
@@ -404,16 +379,14 @@ export default function AdminEmpresas() {
 
       <p className="text-xs text-muted-foreground">
         {empresasFiltradas.length} empresa{empresasFiltradas.length !== 1 ? 's' : ''} encontrada{empresasFiltradas.length !== 1 ? 's' : ''}
-        {filtroStatus !== 'todos' && ` · filtrando por "${STATUS_CONFIG[filtroStatus].label}"`}
+        {filtroStatus !== 'todos' && ` · filtrando por "${STATUS_CONFIG[filtroStatus as StatusVencimento].label}"`}
       </p>
 
       {/* Lista */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {empresasFiltradas.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="metric-card flex flex-col items-center justify-center py-16 text-center"
             >
               <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
@@ -424,25 +397,21 @@ export default function AdminEmpresas() {
             </motion.div>
           ) : (
             empresasFiltradas.map((empresa, idx) => {
-              const sv = getStatusVencimento(empresa.usuario?.status, empresa.data_termino);
-              const cfg = STATUS_CONFIG[sv];
-              const StatusIcon = cfg.icon;
+              const sv   = getStatusVencimento(empresa.usuario?.status, empresa.data_termino);
+              const cfg  = STATUS_CONFIG[sv];
               const dias = diasParaVencer(empresa.data_termino);
 
               return (
                 <motion.div
-                  key={empresa.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ delay: idx * 0.03 }}
+                  key={empresa.id} layout
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }} transition={{ delay: idx * 0.03 }}
                   className="metric-card"
                 >
                   <div className="flex items-start gap-4">
-
                     {/* Avatar */}
-                    <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                    <div
+                      className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
                       style={{ backgroundColor: empresa.cor_primaria ?? '#22c55e' }}
                     >
                       {empresa.nome_empresa.charAt(0).toUpperCase()}
@@ -467,22 +436,15 @@ export default function AdminEmpresas() {
                           </Badge>
                         )}
                       </div>
-
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {empresa.nome_dono && (
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" /> {empresa.nome_dono}
-                          </span>
+                          <span className="flex items-center gap-1"><User className="h-3 w-3" />{empresa.nome_dono}</span>
                         )}
                         {empresa.usuario?.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" /> {empresa.usuario.email}
-                          </span>
+                          <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{empresa.usuario.email}</span>
                         )}
                         {empresa.telefone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" /> {empresa.telefone}
-                          </span>
+                          <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{empresa.telefone}</span>
                         )}
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
@@ -492,23 +454,15 @@ export default function AdminEmpresas() {
                       </div>
                     </div>
 
-                    {/* Ações */}
+                    {/* Botões */}
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEdit(empresa)}
-                        title="Editar empresa"
-                      >
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(empresa)}>
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
                       <Button
-                        size="icon"
-                        variant="ghost"
+                        size="icon" variant="ghost"
                         className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteTarget(empresa)}
-                        title="Excluir empresa"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -521,168 +475,129 @@ export default function AdminEmpresas() {
         </AnimatePresence>
       </div>
 
-      {/* ─── FAB ─────────────────────────────────────────────────────────── */}
+      {/* FAB */}
       <button onClick={() => setCreateOpen(true)} className="fab-button">
         <Plus className="h-6 w-6" />
       </button>
 
-      {/* ─── Modal: Criar ────────────────────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={o => { if (!o) { setCreateOpen(false); setCreateForm(EMPTY_CREATE); } }}>
+      {/* ─── Modal Criar ──────────────────────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={o => { if (!o) { setCreateOpen(false); setCreateForm(EMPTY_CREATE); setShowPassword(false); } }}>
         <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" />
-              Nova Empresa
+              <Plus className="h-5 w-5 text-primary" /> Nova Empresa
             </DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 pt-1">
 
-            {/* Nome */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
               </label>
-              <Input
-                value={createForm.nome_empresa}
-                onChange={e => setCreateForm(p => ({ ...p, nome_empresa: e.target.value }))}
-                placeholder="Ex: Higienização Premium Ltda"
-                className="bg-secondary border-border"
-              />
+              <Input value={createForm.nome_empresa} onChange={e => setCreateForm(p => ({ ...p, nome_empresa: e.target.value }))}
+                placeholder="Ex: Higienização Premium" className="bg-secondary border-border" />
             </div>
 
-            {/* Dono + Telefone */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5" /> Nome do Dono
                 </label>
-                <Input
-                  value={createForm.nome_dono}
-                  onChange={e => setCreateForm(p => ({ ...p, nome_dono: e.target.value }))}
-                  placeholder="João Silva"
-                  className="bg-secondary border-border"
-                />
+                <Input value={createForm.nome_dono} onChange={e => setCreateForm(p => ({ ...p, nome_dono: e.target.value }))}
+                  placeholder="João Silva" className="bg-secondary border-border" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5" /> Telefone
                 </label>
-                <Input
-                  type="tel"
-                  value={createForm.telefone}
-                  onChange={e => setCreateForm(p => ({ ...p, telefone: e.target.value }))}
-                  placeholder="(11) 99999-9999"
-                  className="bg-secondary border-border"
-                />
+                <Input type="tel" value={createForm.telefone} onChange={e => setCreateForm(p => ({ ...p, telefone: e.target.value }))}
+                  placeholder="(11) 99999-9999" className="bg-secondary border-border" />
               </div>
             </div>
 
-            {/* Divisor */}
-            <div className="border-t border-border pt-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <div className="border-t border-border pt-3 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5" /> Credenciais de Acesso
               </p>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" /> E-mail *
-                  </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" /> E-mail *
+                </label>
+                <Input type="email" value={createForm.email} onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                  placeholder="cliente@empresa.com" className="bg-secondary border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" /> Senha *
+                </label>
+                <div className="relative">
                   <Input
-                    type="email"
-                    value={createForm.email}
-                    onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="cliente@empresa.com"
-                    className="bg-secondary border-border"
+                    type={showPassword ? 'text' : 'password'}
+                    value={createForm.password}
+                    onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                    placeholder="Mínimo 8 caracteres"
+                    className="bg-secondary border-border pr-24"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Lock className="h-3.5 w-3.5" /> Senha *
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={createForm.password}
-                      onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
-                      placeholder="Mínimo 8 caracteres"
-                      className="bg-secondary border-border pr-20"
-                    />
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(p => !p)}
-                        className="p-1.5 text-muted-foreground hover:text-foreground"
-                        title={showPassword ? 'Ocultar' : 'Mostrar'}
-                      >
-                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreateForm(p => ({ ...p, password: gerarSenha() }))}
-                        className="text-[10px] px-1.5 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
-                        title="Gerar senha aleatória"
-                      >
-                        Gerar
-                      </button>
-                    </div>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 items-center">
+                    <button type="button" onClick={() => setShowPassword(p => !p)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground">
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                    <button type="button" onClick={() => setCreateForm(p => ({ ...p, password: gerarSenha() }))}
+                      className="text-[10px] px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors">
+                      Gerar
+                    </button>
                   </div>
                 </div>
+                {createForm.password && (
+                  <p className="text-[10px] text-muted-foreground font-mono bg-secondary/50 px-2 py-1 rounded break-all">
+                    {showPassword ? createForm.password : '••••••••••••'}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Datas */}
-            <div className="border-t border-border pt-1">
+            <div className="border-t border-border pt-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" /> Período da Assinatura
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Data de Início</label>
-                  <Input
-                    type="date"
-                    value={createForm.data_inicio}
+                  <Input type="date" value={createForm.data_inicio}
                     onChange={e => setCreateForm(p => ({ ...p, data_inicio: e.target.value }))}
-                    className="bg-secondary border-border"
-                  />
+                    className="bg-secondary border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Data de Término</label>
-                  <Input
-                    type="date"
-                    value={createForm.data_termino}
+                  <Input type="date" value={createForm.data_termino}
                     onChange={e => setCreateForm(p => ({ ...p, data_termino: e.target.value }))}
-                    className="bg-secondary border-border"
-                  />
+                    className="bg-secondary border-border" />
                 </div>
               </div>
             </div>
 
-            <Button
-              onClick={handleCreate}
-              className="w-full"
-              disabled={saving || !createForm.nome_empresa || !createForm.email || !createForm.password}
-            >
+            <Button onClick={handleCreate} className="w-full"
+              disabled={saving || !createForm.nome_empresa || !createForm.email || !createForm.password}>
               {saving ? 'Criando...' : 'Criar Empresa'}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ─── Modal: Editar ───────────────────────────────────────────────── */}
+      {/* ─── Modal Editar ─────────────────────────────────────────────────── */}
       <Dialog open={!!editTarget} onOpenChange={o => { if (!o) setEditTarget(null); }}>
         <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <Edit className="h-5 w-5 text-primary" />
-              Editar Empresa
+              <Edit className="h-5 w-5 text-primary" /> Editar Empresa
             </DialogTitle>
           </DialogHeader>
 
           {editTarget && (
             <div className="space-y-4 pt-1">
 
-              {/* Info imutável */}
+              {/* E-mail — somente leitura */}
               {editTarget.usuario?.email && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg border border-border">
                   <Mail className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -691,134 +606,97 @@ export default function AdminEmpresas() {
                 </div>
               )}
 
-              {/* Nome */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Building2 className="h-3.5 w-3.5" /> Nome da Empresa *
                 </label>
-                <Input
-                  value={editForm.nome_empresa}
-                  onChange={e => setEditForm(p => ({ ...p, nome_empresa: e.target.value }))}
-                  className="bg-secondary border-border"
-                />
+                <Input value={editForm.nome_empresa} onChange={e => setEditForm(p => ({ ...p, nome_empresa: e.target.value }))}
+                  className="bg-secondary border-border" />
               </div>
 
-              {/* Dono + Telefone */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5" /> Nome do Dono
                   </label>
-                  <Input
-                    value={editForm.nome_dono}
-                    onChange={e => setEditForm(p => ({ ...p, nome_dono: e.target.value }))}
-                    placeholder="João Silva"
-                    className="bg-secondary border-border"
-                  />
+                  <Input value={editForm.nome_dono} onChange={e => setEditForm(p => ({ ...p, nome_dono: e.target.value }))}
+                    placeholder="João Silva" className="bg-secondary border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Phone className="h-3.5 w-3.5" /> Telefone
                   </label>
-                  <Input
-                    type="tel"
-                    value={editForm.telefone}
-                    onChange={e => setEditForm(p => ({ ...p, telefone: e.target.value }))}
-                    placeholder="(11) 99999-9999"
-                    className="bg-secondary border-border"
-                  />
+                  <Input type="tel" value={editForm.telefone} onChange={e => setEditForm(p => ({ ...p, telefone: e.target.value }))}
+                    placeholder="(11) 99999-9999" className="bg-secondary border-border" />
                 </div>
               </div>
 
-              {/* Datas */}
-              <div className="border-t border-border pt-1">
+              <div className="border-t border-border pt-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" /> Período da Assinatura
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Data de Início</label>
-                    <Input
-                      type="date"
-                      value={editForm.data_inicio}
+                    <Input type="date" value={editForm.data_inicio}
                       onChange={e => setEditForm(p => ({ ...p, data_inicio: e.target.value }))}
-                      className="bg-secondary border-border"
-                    />
+                      className="bg-secondary border-border" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Data de Término</label>
-                    <Input
-                      type="date"
-                      value={editForm.data_termino}
+                    <Input type="date" value={editForm.data_termino}
                       onChange={e => setEditForm(p => ({ ...p, data_termino: e.target.value }))}
-                      className="bg-secondary border-border"
-                    />
+                      className="bg-secondary border-border" />
                   </div>
                 </div>
               </div>
 
               {/* Status */}
-              <div className="border-t border-border pt-1">
+              <div className="border-t border-border pt-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5" /> Status do Acesso
                 </p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditForm(p => ({ ...p, usuario_status: 'ativo' }))}
+                  <button onClick={() => setEditForm(p => ({ ...p, usuario_status: 'ativo' }))}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
                       editForm.usuario_status === 'ativo'
                         ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-400'
                         : 'border-border text-muted-foreground hover:bg-secondary'
-                    }`}
-                  >
+                    }`}>
                     <CheckCircle2 className="h-4 w-4" /> Ativo
                   </button>
-                  <button
-                    onClick={() => setEditForm(p => ({ ...p, usuario_status: 'inativo' }))}
+                  <button onClick={() => setEditForm(p => ({ ...p, usuario_status: 'inativo' }))}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-all ${
                       editForm.usuario_status === 'inativo'
                         ? 'bg-red-500/15 border-red-500/50 text-red-400'
                         : 'border-border text-muted-foreground hover:bg-secondary'
-                    }`}
-                  >
+                    }`}>
                     <XCircle className="h-4 w-4" /> Inativo
                   </button>
                 </div>
                 {editForm.usuario_status === 'inativo' && (
                   <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
+                    <AlertTriangle className="h-3 w-3 flex-shrink-0" />
                     Ao desativar, o cliente perde acesso imediatamente ao sistema.
                   </p>
                 )}
               </div>
 
-              {/* Ações */}
               <div className="flex gap-2 pt-1">
-                <Button
-                  onClick={handleEdit}
-                  className="flex-1"
-                  disabled={saving || !editForm.nome_empresa.trim()}
-                >
+                <Button onClick={handleEdit} className="flex-1" disabled={saving || !editForm.nome_empresa.trim()}>
                   {saving ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setEditTarget(null)}
-                  disabled={saving}
-                >
+                <Button variant="outline" onClick={() => setEditTarget(null)} disabled={saving}>
                   Cancelar
                 </Button>
               </div>
 
-              {/* Excluir */}
               <div className="border-t border-border pt-3">
-                <Button
-                  variant="outline"
+                <Button variant="outline"
                   className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
                   onClick={() => { setEditTarget(null); setDeleteTarget(editTarget); }}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir Empresa Permanentemente
+                  disabled={saving}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir Empresa Permanentemente
                 </Button>
               </div>
             </div>
@@ -826,20 +704,20 @@ export default function AdminEmpresas() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Modal: Confirmar exclusão ───────────────────────────────────── */}
+      {/* ─── Modal Confirmar Exclusão ──────────────────────────────────────── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-destructive">
               Excluir "{deleteTarget?.nome_empresa}"?
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-1">
-              <span className="block">
+            <AlertDialogDescription>
+              <span className="block mb-2">
                 Esta ação é <strong>irreversível</strong>. Serão removidos permanentemente:
               </span>
-              <span className="block text-muted-foreground text-xs mt-2 space-y-0.5">
-                <span className="block">• Conta de acesso do usuário</span>
-                <span className="block">• Todos os leads e histórico</span>
+              <span className="block text-xs text-muted-foreground space-y-0.5">
+                <span className="block">• Conta de acesso (auth.users + public.usuarios)</span>
+                <span className="block">• Todos os leads e histórico de atendimento</span>
                 <span className="block">• Todas as vendas e itens</span>
                 <span className="block">• Dados financeiros e regras de automação</span>
               </span>
@@ -847,11 +725,8 @@ export default function AdminEmpresas() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting ? 'Excluindo...' : 'Excluir Definitivamente'}
             </AlertDialogAction>
           </AlertDialogFooter>
