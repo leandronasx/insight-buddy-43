@@ -47,8 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    // Definimos a URL de redirecionamento dinamicamente a partir do meta.env se existir, ou do window.location.origin
+    const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: `${siteUrl}/update-password`,
     });
     return { error };
   };
