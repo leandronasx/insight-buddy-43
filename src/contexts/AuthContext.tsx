@@ -47,8 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    // Usamos sempre a origem de onde o usuário está acessando, tornando o código agnóstico a ambiente/deploy
+    // IMPORTANTE: A URL base (ex: https://insight-buddy-43.vercel.app) DEVE estar autorizada
+    // no painel do Supabase em Authentication > URL Configuration > Redirect URLs
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/update-password`,
     });
     return { error };
   };
