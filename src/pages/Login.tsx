@@ -46,7 +46,7 @@ function LoginInner() {
       if (result.error) {
         setError(result.error.message);
       } else {
-        setSuccessMsg('Link de recuperação enviado para o seu e-mail se existe uma conta.');
+        setSuccessMsg('Link de recuperação enviado para o seu e-mail.');
       }
     } else {
       const result = await signIn(email, password);

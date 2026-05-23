@@ -19,7 +19,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // 1) Set up listener FIRST (sync only — no async work inside callback)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Redirecionar para a página de atualização de senha após clicar no link do email
+        window.location.href = '/update-password';
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -44,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
+      redirectTo: window.location.origin,
     });
     return { error };
   };
