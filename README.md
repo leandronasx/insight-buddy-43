@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Higi$Controle
 
-TODO: Document your project here
+Higi$Controle Gestão Comercial
