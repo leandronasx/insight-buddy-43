@@ -24,6 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Redirecionar para a página de atualização de senha após clicar no link do email
         window.location.href = '/update-password';
       }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Se a senha for atualizada ou o usuário logar em outra aba, verificamos
+        // se a aba atual está presa na tela de login ou update-password
+        // para redirecioná-la ao painel principal e não ficar travada
+        if (window.location.pathname === '/update-password' || window.location.pathname === '/login') {
+            window.location.href = '/';
+        }
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
