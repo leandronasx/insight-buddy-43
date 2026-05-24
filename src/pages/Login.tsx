@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 
 const MAX_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
@@ -12,6 +13,7 @@ function LoginInner() {
   const [isResetView, setIsResetView] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ function LoginInner() {
       if (result.error) {
         setError(result.error.message);
       } else {
-        setSuccessMsg('Link de recuperação enviado para o seu e-mail se caso tenha conta.');
+        setSuccessMsg('Link de recuperação enviado para o seu e-mail.');
       }
     } else {
       const result = await signIn(email, password);
@@ -98,16 +100,25 @@ function LoginInner() {
             {!isResetView && (
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Senha</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  disabled={isBlocked}
-                  className="bg-secondary border-border"
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    disabled={isBlocked}
+                    className="bg-secondary border-border pr-10"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             )}
 
