@@ -32,6 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.location.href = '/';
         }
       }
+      if (event === 'SIGNED_OUT') {
+        // Se deslogar estando numa rota protegida (como /setup), volta para a index para renderizar o login
+        if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+          window.location.href = '/';
+        }
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
