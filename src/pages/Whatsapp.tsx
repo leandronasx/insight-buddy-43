@@ -77,6 +77,7 @@ function isRegraMatch(
     const getDiffDias = (dataStr: string | null) => {
       if (!dataStr) return -1;
       const [year, month, day] = dataStr.split('-');
+      if (!year || !month || !day) return -1;
       // Cria a data local exata (sem timezone offset issues)
       const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       d.setHours(0, 0, 0, 0);
@@ -89,27 +90,23 @@ function isRegraMatch(
     } else if (regra.tipo_lembrete === 'follow_up_pos_orcamento') {
       diasDiferenca = getDiffDias(lead.data_orcamento);
     }
-    // Obs: 'pos_venda' e 'lembrete_agendamento' dependem de data_servico (que fica em vendas).
-    // Como no cache legado só tínhamos lead_id e não as vendas, vamos confiar na mensagem
-    // se o regex funcionar para essas, ou se diasDiferenca bater.
 
-    // Se conseguimos calcular os dias pelo lead:
-    if (diasDiferenca > 0) {
-      if (diasDiferenca === regra.cadencia_envio || diasDiferenca % regra.cadencia_envio === 0) {
-        // Agora precisamos ver se não há outra regra mais próxima ou se é ela mesma.
-        // O banco legado só retorna UMA cadencia por tipo. Se os dias baterem com esta regra,
-        // mas houver outra regra igual onde os dias tbm batem?
-        // Na prática, se diasDiferenca % cadencia_envio == 0, ela é elegível.
-        // Se a cadencia gerada pelo backend TEM '{dias}' substituido por '1' (bug antigo do backend legado),
-        // o frontend não tem como diferenciar além do tipo.
-        // Vamos checar o regex primeiro, se falhar ou se for 1, usamos diasDiferenca.
+    // Para follow up, a regra de ouro é a exata contagem de dias (sem modulo).
+    if (regra.tipo_lembrete === 'follow_up_pre_orcamento' || regra.tipo_lembrete === 'follow_up_pos_orcamento') {
+      if (diasDiferenca === regra.cadencia_envio) {
+        return true;
+      }
+      // Se diasDiferenca puder ser validado, e não bateu estritamente com os dias da cadencia,
+      // então essa regra não aplica para este lead, impedindo match genérico com tipo.
+      if (diasDiferenca >= 0) {
+        return false;
       }
     }
   }
 
-  // Fallback 1: Tenta fazer match pela mensagem se tivermos o template
-  // O backend legado substitui {dias} por '1', então regex não distingue 2d e 5d no legado!
-  // Mas se o backend foi corrigido para usar dias_diferenca, ele distingue.
+  // Fallback 1: Tenta fazer match pela mensagem se tivermos o template.
+  // Para pos_venda e lembrete_agendamento onde não temos as datas diretamente no Lead
+  // (dependem de 'vendas'), tentamos pelo regex.
   if (regra.template_mensagem && cadencia.mensagem) {
     try {
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -133,31 +130,10 @@ function isRegraMatch(
       regexStrBugado = regexStrBugado.replace(/\s+/g, '\\s*');
       const regexBugado = new RegExp(`^\\s*${regexStrBugado}\\s*$`, 'i');
       if (regexBugado.test(cadencia.mensagem)) {
-        // Se a mensagem bate com a versão onde {dias} = '1', precisamos da validação de data!
-        if (lead) {
-          const hoje = new Date();
-          hoje.setHours(0, 0, 0, 0);
-
-          const getDiffDias = (dataStr: string | null) => {
-            if (!dataStr) return -1;
-            const [year, month, day] = dataStr.split('-');
-            if (!year || !month || !day) return -1;
-            const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            d.setHours(0, 0, 0, 0);
-            return Math.round((hoje.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-          };
-
-          let dias = -1;
-          if (regra.tipo_lembrete === 'follow_up_pre_orcamento') dias = getDiffDias(lead.data_contato);
-          if (regra.tipo_lembrete === 'follow_up_pos_orcamento') dias = getDiffDias(lead.data_orcamento);
-
-          if (dias > 0 && dias % regra.cadencia_envio === 0) {
-            return true;
-          }
-        }
+        return true;
       }
 
-      // Se tentamos validar por regex e falhou, então sabemos que NÃO é esta regra
+      // Se tentamos validar por regex (houve template customizado) e falhou, NÃO é esta regra.
       return false;
     } catch (e) {
       console.error('Regex match error no fallback', e);
