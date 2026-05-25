@@ -53,26 +53,72 @@ function whatsappLink(telefone: string | null, mensagem: string) {
 }
 
 // Helper para verificar se a cadência gerada pelo backend corresponde à regra específica.
-// Usamos o regra_id retornado pelo backend (se disponível) ou fallback para o tipo.
-function isRegraMatch(cadencia: CadenciaMensagem | null | undefined, regra: Regra) {
+// Usamos o regra_id retornado pelo backend (se disponível) ou recalculamos os dias de diferença
+// usando os dados reais do lead (caso regra_id não exista no DB legado).
+function isRegraMatch(
+  cadencia: CadenciaMensagem | null | undefined,
+  regra: Regra,
+  lead?: import('@/hooks/useLeads').Lead
+) {
   if (!cadencia) return false;
+  if (cadencia.tipo !== regra.tipo_lembrete) return false;
 
   // Se o backend retornou o ID da regra que gerou a cadência (melhor abordagem)
   if (cadencia.regra_id) {
     return cadencia.regra_id === regra.id;
   }
 
+  // Fallback definitivo: recalcula a diferença de dias no frontend
+  // se ainda estivermos rodando no banco legado (sem regra_id)
+  if (lead) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const getDiffDias = (dataStr: string | null) => {
+      if (!dataStr) return -1;
+      const [year, month, day] = dataStr.split('-');
+      // Cria a data local exata (sem timezone offset issues)
+      const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      d.setHours(0, 0, 0, 0);
+      return Math.round((hoje.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    };
+
+    let diasDiferenca = -1;
+    if (regra.tipo_lembrete === 'follow_up_pre_orcamento') {
+      diasDiferenca = getDiffDias(lead.data_contato);
+    } else if (regra.tipo_lembrete === 'follow_up_pos_orcamento') {
+      diasDiferenca = getDiffDias(lead.data_orcamento);
+    }
+    // Obs: 'pos_venda' e 'lembrete_agendamento' dependem de data_servico (que fica em vendas).
+    // Como no cache legado só tínhamos lead_id e não as vendas, vamos confiar na mensagem
+    // se o regex funcionar para essas, ou se diasDiferenca bater.
+
+    // Se conseguimos calcular os dias pelo lead:
+    if (diasDiferenca > 0) {
+      if (diasDiferenca === regra.cadencia_envio || diasDiferenca % regra.cadencia_envio === 0) {
+        // Agora precisamos ver se não há outra regra mais próxima ou se é ela mesma.
+        // O banco legado só retorna UMA cadencia por tipo. Se os dias baterem com esta regra,
+        // mas houver outra regra igual onde os dias tbm batem?
+        // Na prática, se diasDiferenca % cadencia_envio == 0, ela é elegível.
+        // Se a cadencia gerada pelo backend TEM '{dias}' substituido por '1' (bug antigo do backend legado),
+        // o frontend não tem como diferenciar além do tipo.
+        // Vamos checar o regex primeiro, se falhar ou se for 1, usamos diasDiferenca.
+      }
+    }
+  }
+
   // Fallback 1: Tenta fazer match pela mensagem se tivermos o template
-  // Isso resolve o problema no ambiente de produção onde a migration do regra_id
-  // pode não ter sido aplicada ainda.
-  if (cadencia.tipo === regra.tipo_lembrete && regra.template_mensagem && cadencia.mensagem) {
+  // O backend legado substitui {dias} por '1', então regex não distingue 2d e 5d no legado!
+  // Mas se o backend foi corrigido para usar dias_diferenca, ele distingue.
+  if (regra.template_mensagem && cadencia.mensagem) {
     try {
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Montamos o regex substituindo {nome} e flexibilizando {dias} para o valor da regra
       let regexStr = escapeRegExp(regra.template_mensagem)
         .replace(/\\\{nome\\\}/gi, '.*?')
         .replace(/\\\{dias\\\}/gi, regra.cadencia_envio.toString());
 
-      // Permite variações de espaçamento/quebra de linha
       regexStr = regexStr.replace(/\s+/g, '\\s*');
 
       const regex = new RegExp(`^\\s*${regexStr}\\s*$`, 'i');
@@ -80,16 +126,45 @@ function isRegraMatch(cadencia: CadenciaMensagem | null | undefined, regra: Regr
         return true;
       }
 
+      // Hack para produção legado onde o backend SEMPRE bota '1' no lugar de {dias}
+      let regexStrBugado = escapeRegExp(regra.template_mensagem)
+        .replace(/\\\{nome\\\}/gi, '.*?')
+        .replace(/\\\{dias\\\}/gi, '1');
+      regexStrBugado = regexStrBugado.replace(/\s+/g, '\\s*');
+      const regexBugado = new RegExp(`^\\s*${regexStrBugado}\\s*$`, 'i');
+      if (regexBugado.test(cadencia.mensagem)) {
+        // Se a mensagem bate com a versão onde {dias} = '1', precisamos da validação de data!
+        if (lead) {
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+
+          const getDiffDias = (dataStr: string | null) => {
+            if (!dataStr) return -1;
+            const [year, month, day] = dataStr.split('-');
+            if (!year || !month || !day) return -1;
+            const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            d.setHours(0, 0, 0, 0);
+            return Math.round((hoje.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+          };
+
+          let dias = -1;
+          if (regra.tipo_lembrete === 'follow_up_pre_orcamento') dias = getDiffDias(lead.data_contato);
+          if (regra.tipo_lembrete === 'follow_up_pos_orcamento') dias = getDiffDias(lead.data_orcamento);
+
+          if (dias > 0 && dias % regra.cadencia_envio === 0) {
+            return true;
+          }
+        }
+      }
+
       // Se tentamos validar por regex e falhou, então sabemos que NÃO é esta regra
-      // (evita que todas do mesmo tipo retornem true no fallback 2)
       return false;
     } catch (e) {
       console.error('Regex match error no fallback', e);
     }
   }
 
-  // Fallback 2: se não houver regra_id nem template, faz match apenas pelo tipo
-  // (pode agrupar indevidamente se houver várias regras do mesmo tipo sem template).
+  // Fallback 2: se não houver regra_id nem template, e não tem como validar datas
   return cadencia.tipo === regra.tipo_lembrete;
 }
 
@@ -143,7 +218,7 @@ export default function Whatsapp() {
     return regras.map(r => {
       if (!leadAtual) return { regra: r, ativa: true };
       const cadencia = cadenciaMap.get(leadAtual.id);
-      const ativa = isRegraMatch(cadencia, r);
+      const ativa = isRegraMatch(cadencia, r, leadAtual);
       return { regra: r, ativa };
     });
   }, [regras, leadAtual, cadenciaMap]);
@@ -160,13 +235,13 @@ export default function Whatsapp() {
     if (!regraAtual) return lista.slice(0, 8);
     // Com regra selecionada: filtra leads que têm cadência ativa do mesmo tipo
     return lista
-      .filter(l => isRegraMatch(cadenciaMap.get(l.id), regraAtual))
+      .filter(l => isRegraMatch(cadenciaMap.get(l.id), regraAtual, l))
       .slice(0, 8);
   }, [leads, search, regraAtual, cadenciaMap]);
 
   // Mensagem final: só gera se a regra se aplica ao lead HOJE
   const cadenciaDoLead = leadAtual ? cadenciaMap.get(leadAtual.id) : null;
-  const regraAplicavel = regraAtual && leadAtual ? isRegraMatch(cadenciaDoLead, regraAtual) : false;
+  const regraAplicavel = regraAtual && leadAtual ? isRegraMatch(cadenciaDoLead, regraAtual, leadAtual) : false;
   const mensagem = regraAplicavel && leadAtual ? cadenciaDoLead!.mensagem : null;
 
   // Limpa seleção de lead ao trocar regra
@@ -190,7 +265,7 @@ export default function Whatsapp() {
     regras.forEach(r => {
       map[r.id] = leads.filter(l => {
         const cadencia = cadenciaMap.get(l.id);
-        return isRegraMatch(cadencia, r);
+        return isRegraMatch(cadencia, r, l);
       }).length;
     });
     return map;
