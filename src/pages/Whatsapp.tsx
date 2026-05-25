@@ -62,8 +62,34 @@ function isRegraMatch(cadencia: CadenciaMensagem | null | undefined, regra: Regr
     return cadencia.regra_id === regra.id;
   }
 
-  // Fallback: se não houver regra_id, faz match apenas pelo tipo (como era antes,
-  // mas pode agrupar indevidamente se houver várias regras do mesmo tipo).
+  // Fallback 1: Tenta fazer match pela mensagem se tivermos o template
+  // Isso resolve o problema no ambiente de produção onde a migration do regra_id
+  // pode não ter sido aplicada ainda.
+  if (cadencia.tipo === regra.tipo_lembrete && regra.template_mensagem && cadencia.mensagem) {
+    try {
+      const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let regexStr = escapeRegExp(regra.template_mensagem)
+        .replace(/\\\{nome\\\}/gi, '.*?')
+        .replace(/\\\{dias\\\}/gi, regra.cadencia_envio.toString());
+
+      // Permite variações de espaçamento/quebra de linha
+      regexStr = regexStr.replace(/\s+/g, '\\s*');
+
+      const regex = new RegExp(`^\\s*${regexStr}\\s*$`, 'i');
+      if (regex.test(cadencia.mensagem)) {
+        return true;
+      }
+
+      // Se tentamos validar por regex e falhou, então sabemos que NÃO é esta regra
+      // (evita que todas do mesmo tipo retornem true no fallback 2)
+      return false;
+    } catch (e) {
+      console.error('Regex match error no fallback', e);
+    }
+  }
+
+  // Fallback 2: se não houver regra_id nem template, faz match apenas pelo tipo
+  // (pode agrupar indevidamente se houver várias regras do mesmo tipo sem template).
   return cadencia.tipo === regra.tipo_lembrete;
 }
 
