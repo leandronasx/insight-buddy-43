@@ -1,4 +1,4 @@
-  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
@@ -42,6 +42,13 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+// Gera uma chave estável baseada no endpoint do dispositivo
+// Assim celular e notebook têm chaves diferentes, mas o mesmo
+// dispositivo nunca re-registra mesmo que a empresa mude
+function deviceKey(endpoint: string): string {
+  return `push_endpoint_${btoa(endpoint).slice(-24)}`;
+}
+
 export function useNotificacoes() {
   const { empresa } = useEmpresa();
   const queryClient = useQueryClient();
@@ -67,6 +74,10 @@ export function useNotificacoes() {
       const subJSON = subscription.toJSON();
       if (!subJSON.endpoint || !subJSON.keys) return;
 
+      // Se este endpoint já foi salvo neste dispositivo, não faz nada
+      const key = deviceKey(subJSON.endpoint);
+      if (localStorage.getItem(key)) return;
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -77,9 +88,15 @@ export function useNotificacoes() {
           endpoint: subJSON.endpoint,
           p256dh: subJSON.keys.p256dh,
           auth: subJSON.keys.auth
-        }, { onConflict: 'user_id,endpoint' });
+        }, { onConflict: 'user_id,endpoint' }); // par correto: permite multi-device
 
-      if (error) console.error('[Push] Erro ao salvar subscription:', error);
+      if (error) {
+        console.error('[Push] Erro ao salvar subscription:', error);
+        return;
+      }
+
+      // Marca como registrado só após salvar com sucesso
+      localStorage.setItem(key, '1');
 
     } catch (error) {
       console.error('[Push] Erro:', error);
@@ -95,13 +112,8 @@ export function useNotificacoes() {
     if (Notification.permission !== 'granted') return;
     if (pushRegistradoRef.current) return;
 
-    const key = `push_registered_${empresa.id}`;
-    if (localStorage.getItem(key)) return;
-
     pushRegistradoRef.current = true;
-    subscribeToPushNotifications().then(() => {
-      localStorage.setItem(key, '1');
-    });
+    subscribeToPushNotifications();
   }, [empresa, subscribeToPushNotifications]);
 
   // ── 1. Gerar lembretes (1x por sessão / 10 min) ──
