@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLeads } from '@/hooks/useLeads';
 import { useEmpresa } from '@/hooks/useEmpresa';
-import { useCadenciaLeads } from '@/hooks/useCadenciaLeads';
+import { useCadenciaLeads, type CadenciaMensagem } from '@/hooks/useCadenciaLeads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +50,21 @@ interface Regra {
 function whatsappLink(telefone: string | null, mensagem: string) {
   const num = (telefone || '').replace(/\D/g, '');
   return `https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`;
+}
+
+// Helper para verificar se a cadência gerada pelo backend corresponde à regra específica.
+// Usamos o regra_id retornado pelo backend (se disponível) ou fallback para o tipo.
+function isRegraMatch(cadencia: CadenciaMensagem | null | undefined, regra: Regra) {
+  if (!cadencia) return false;
+  
+  // Se o backend retornou o ID da regra que gerou a cadência (melhor abordagem)
+  if (cadencia.regra_id) {
+    return cadencia.regra_id === regra.id;
+  }
+  
+  // Fallback: se não houver regra_id, faz match apenas pelo tipo (como era antes, 
+  // mas pode agrupar indevidamente se houver várias regras do mesmo tipo).
+  return cadencia.tipo === regra.tipo_lembrete;
 }
 
 export default function Whatsapp() {
@@ -102,7 +117,7 @@ export default function Whatsapp() {
     return regras.map(r => {
       if (!leadAtual) return { regra: r, ativa: true };
       const cadencia = cadenciaMap.get(leadAtual.id);
-      const ativa = !!cadencia && cadencia.tipo === r.tipo_lembrete;
+      const ativa = isRegraMatch(cadencia, r);
       return { regra: r, ativa };
     });
   }, [regras, leadAtual, cadenciaMap]);
@@ -119,13 +134,13 @@ export default function Whatsapp() {
     if (!regraAtual) return lista.slice(0, 8);
     // Com regra selecionada: filtra leads que têm cadência ativa do mesmo tipo
     return lista
-      .filter(l => cadenciaMap.get(l.id)?.tipo === regraAtual.tipo_lembrete)
+      .filter(l => isRegraMatch(cadenciaMap.get(l.id), regraAtual))
       .slice(0, 8);
   }, [leads, search, regraAtual, cadenciaMap]);
 
   // Mensagem final: só gera se a regra se aplica ao lead HOJE
   const cadenciaDoLead = leadAtual ? cadenciaMap.get(leadAtual.id) : null;
-  const regraAplicavel = regraAtual && cadenciaDoLead?.tipo === regraAtual.tipo_lembrete;
+  const regraAplicavel = regraAtual && leadAtual ? isRegraMatch(cadenciaDoLead, regraAtual) : false;
   const mensagem = regraAplicavel && leadAtual ? cadenciaDoLead!.mensagem : null;
 
   // Limpa seleção de lead ao trocar regra
@@ -147,7 +162,10 @@ export default function Whatsapp() {
   const elegibilidadePorRegra = useMemo(() => {
     const map: Record<string, number> = {};
     regras.forEach(r => {
-      map[r.id] = leads.filter(l => cadenciaMap.get(l.id)?.tipo === r.tipo_lembrete).length;
+      map[r.id] = leads.filter(l => {
+        const cadencia = cadenciaMap.get(l.id);
+        return isRegraMatch(cadencia, r);
+      }).length;
     });
     return map;
   }, [regras, leads, cadenciaMap]);

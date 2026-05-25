@@ -24,6 +24,7 @@ export interface CadenciaMensagem {
   tipo: string;
   label: string;
   leadId: string;
+  regra_id?: string;
 }
 
 const TIPO_LABELS: Record<string, string> = {
