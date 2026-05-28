@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from './useEmpresa';
 
 // Valores conforme o novo schema (TEXT livre)
-export const ORIGENS_LEAD = ['Tráfego', 'Orgânico', 'Indicação', 'WhatsApp', 'Referência'] as const;
+export const ORIGENS_LEAD = ['Tráfego', 'Orgânico', 'Indicação'] as const;
 export const SITUACOES_CLIENTE = ['Agendado', 'Fechado', 'Reabordar', 'Sem Interesse', 'Interesse Futuro'] as const;
 export const MOMENTOS_FUNIL = ['Pre Orçamento', 'Pos Orçamento', 'Pos Venda'] as const;
 export const QUALIFICACOES = ['Sim', 'Não'] as const;
