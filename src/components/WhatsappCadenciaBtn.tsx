@@ -35,6 +35,7 @@ export function WhatsappCadenciaBtn({ telefone, cadencia, size = 'md' }: Props) 
         id_leads: cadencia.leadId,
         tipo: cadencia.tipo,
         mensagem: cadencia.mensagem,
+        remetente: 'atendente',
       });
       if (error) throw error;
     },

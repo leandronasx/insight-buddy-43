@@ -153,6 +153,7 @@ export type Database = {
           id_leads: string
           mensagem: string | null
           tipo: string
+          remetente: string
         }
         Insert: {
           data_atualizacao?: string
@@ -162,6 +163,7 @@ export type Database = {
           id_leads: string
           mensagem?: string | null
           tipo: string
+          remetente: string
         }
         Update: {
           data_atualizacao?: string
@@ -171,6 +173,7 @@ export type Database = {
           id_leads?: string
           mensagem?: string | null
           tipo?: string
+          remetente?: string
         }
         Relationships: [
           {

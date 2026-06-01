@@ -156,7 +156,7 @@ export default function Whatsapp() {
   const queryClient = useQueryClient();
 
   const registrarHistorico = useMutation({
-    mutationFn: async (payload: { id_leads: string; tipo: string; mensagem: string }) => {
+    mutationFn: async (payload: { id_leads: string; tipo: string; mensagem: string; remetente: string }) => {
       const { error } = await supabase.from('historico_atendimento').insert(payload);
       if (error) throw error;
     },
