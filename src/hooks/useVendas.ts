@@ -43,15 +43,16 @@ export interface UseVendasParams {
   page?: number;
   perPage?: number;
   search?: string;
+  filterBy?: 'data_venda' | 'data_servico';
 }
 
 export function useVendas(params: UseVendasParams = {}) {
   const { empresa } = useEmpresa();
   const { month, year } = useMonth();
   const queryClient = useQueryClient();
-  const { page = 1, perPage = 10, search = '' } = params;
+  const { page = 1, perPage = 10, search = '', filterBy = 'data_venda' } = params;
 
-  const queryKey = ['vendas', empresa?.id, month, year, page, perPage, search];
+  const queryKey = ['vendas', empresa?.id, month, year, page, perPage, search, filterBy];
 
   // Busca vendas via leads da empresa
   const { data: vendasData, isLoading } = useQuery({
@@ -65,8 +66,8 @@ export function useVendas(params: UseVendasParams = {}) {
         .from('vendas')
         .select('*, leads!inner(id_empresa)', { count: 'exact' })
         .eq('leads.id_empresa', empresa.id)
-        .gte('data_venda', start)
-        .lt('data_venda', end);
+        .gte(filterBy, start)
+        .lt(filterBy, end);
         
       if (search.trim()) {
         const safeSearch = search.trim().replace(/"/g, '');

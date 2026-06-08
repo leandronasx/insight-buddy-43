@@ -12,6 +12,7 @@ import { useApplyBranding } from '@/hooks/useApplyBranding';
 import { useNotificacoes } from '@/hooks/useNotificacoes';
 import { MonthSelector } from './MonthSelector';
 import { NotificacoesBell } from './NotificacoesBell';
+import { Zap } from 'lucide-react';
 
 function BrandHeader({ logoUrl, name, compact = false }: { logoUrl?: string | null; name?: string | null; compact?: boolean }) {
   if (logoUrl) {
@@ -53,6 +54,7 @@ const navGroups = [
       { to: '/agenda', icon: CalendarDays, label: 'Agenda', badge: null as 'alert' | 'warn' | null },
       { to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', badge: null as 'alert' | 'warn' | null },
       { to: '/automacoes', icon: RotateCcw, label: 'Regras de Cadência', badge: null as 'alert' | 'warn' | null },
+      { to: '/disparo', icon: Zap, label: 'Disparo em Massa', badge: null },
     ],
   },
   {

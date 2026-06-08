@@ -24,7 +24,7 @@ export default function Agenda() {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
-  const { vendas: vendasComItens, leadOptions, isLoading } = useVendas();
+  const { vendas: vendasComItens, leadOptions, isLoading } = useVendas({ filterBy: 'data_servico' });
 
   const vendas = vendasComItens.filter(v => v.data_servico);
 

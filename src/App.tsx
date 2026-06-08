@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MonthProvider } from "@/contexts/MonthContext";
+
+
 import Index from "./pages/Index.tsx";
 import LeadsPage from "./pages/LeadsPage.tsx";
 import VendasPage from "./pages/VendasPage.tsx";
@@ -18,6 +20,7 @@ import AutomacoesPage from "./pages/AutomacoesPage.tsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.tsx";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import DisparoEmMassaPage from './pages/DisparoEmMassaPage.tsx';
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt.tsx";
 
 const queryClient = new QueryClient({
@@ -64,6 +67,7 @@ const App = () => (
               <Route path="/admin" element={<AdminEmpresasPage />} />
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route path="/update-password" element={<UpdatePasswordPage />} />
+              <Route path="/disparo" element={<DisparoEmMassaPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PWAInstallPrompt />
