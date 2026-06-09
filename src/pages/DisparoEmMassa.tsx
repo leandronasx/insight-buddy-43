@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   MessageCircle, Upload, Image, Video, Music, Paperclip,
-  Play, Pause, Square, Clock, Users, Phone, AlertTriangle,
-  CheckCircle2, FileSpreadsheet, Tag, Filter, X, ChevronRight,
-  Zap, Timer, SkipForward, Info,
+  Clock, Users, Phone, AlertTriangle,
+  CheckCircle2, FileSpreadsheet, Tag, Filter, X,
+  Zap, Timer, Info, Send, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -17,7 +17,7 @@ import { ListSkeleton } from '@/components/LoadingSkeleton';
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Fonte = 'funil' | 'etiqueta' | 'planilha';
-type StatusDisparo = 'idle' | 'running' | 'paused' | 'done';
+type StatusDisparo = 'idle' | 'loading' | 'aceito' | 'recusado';
 type TipoMedia = 'imagem' | 'video' | 'audio' | 'arquivo';
 
 interface LeadDisparo {
@@ -44,14 +44,13 @@ const TIPO_MEDIA_CONFIG: Record<TipoMedia, { icon: React.ElementType; label: str
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function randomDelay(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 function estimarTempo(total: number, min: number, max: number): string {
@@ -59,11 +58,6 @@ function estimarTempo(total: number, min: number, max: number): string {
   const media = (min + max) / 2;
   const totalSec = Math.round(total * media);
   return formatTime(totalSec);
-}
-
-function whatsappLink(telefone: string, mensagem: string): string {
-  const num = telefone.replace(/\D/g, '');
-  return `https://wa.me/55${num}?text=${encodeURIComponent(mensagem)}`;
 }
 
 // ─── Parser CSV simples ───────────────────────────────────────────────────────
@@ -95,7 +89,6 @@ export default function DisparoEmMassa() {
   // ── Fonte ──
   const [fonte, setFonte] = useState<Fonte>('funil');
   const [filtroFunil, setFiltroFunil] = useState<string[]>([]);
-  const [filtroEtiqueta, setFiltroEtiqueta] = useState('');
   const [csvLeads, setCsvLeads] = useState<LeadDisparo[]>([]);
   const [waLeads, setWaLeads] = useState<LeadDisparo[]>([]);
   const [loadingWa, setLoadingWa] = useState(false);
@@ -116,15 +109,9 @@ export default function DisparoEmMassa() {
   const [minDelay, setMinDelay] = useState(60);
   const [maxDelay, setMaxDelay] = useState(120);
 
-  // ── Disparo ──
-  const [status, setStatus]         = useState<StatusDisparo>('idle');
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [countdown, setCountdown]   = useState(0);
-  const [enviados, setEnviados]     = useState(0);
-  const [pulados, setPulados]       = useState(0);
-  const nextDelayRef = useRef(0);
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const skipRef      = useRef(false);
+  // ── Status do disparo ──
+  const [status, setStatus] = useState<StatusDisparo>('idle');
+  const [mensagemRetorno, setMensagemRetorno] = useState<string>('');
 
   // ── Leads calculados ──────────────────────────────────────────────────────
 
@@ -139,9 +126,9 @@ export default function DisparoEmMassa() {
         return true;
       });
 
-  const leadsComTelefone    = leads.filter(l => l.telefone);
-  const leadsSemTelefone    = leads.filter(l => !l.telefone);
-  const totalEstimado       = estimarTempo(leadsComTelefone.length, minDelay, maxDelay);
+  const leadsComTelefone = leads.filter(l => l.telefone);
+  const leadsSemTelefone = leads.filter(l => !l.telefone);
+  const totalEstimado    = estimarTempo(leadsComTelefone.length, minDelay, maxDelay);
 
   // ── Fetch contatos WhatsApp via webhook ───────────────────────────────────
 
@@ -160,12 +147,10 @@ export default function DisparoEmMassa() {
         }),
       });
       const json = await res.json();
-      // Se retornar mensagem de erro (não é Pro)
       if (json?.erro || json?.message || typeof json === 'string') {
         setWaError(json?.erro ?? json?.message ?? String(json));
         setWaLeads([]);
       } else {
-        // Espera array de { nome, telefone }
         const lista: LeadDisparo[] = (Array.isArray(json) ? json : json?.contatos ?? []).map((c: any, i: number) => ({
           id: `wa-${i}`,
           nome: c.nome ?? c.name ?? '',
@@ -174,7 +159,7 @@ export default function DisparoEmMassa() {
         })).filter((l: LeadDisparo) => l.nome);
         setWaLeads(lista);
       }
-    } catch (err) {
+    } catch {
       setWaError('Não foi possível conectar ao servidor. Verifique sua conexão.');
     } finally {
       setLoadingWa(false);
@@ -184,41 +169,38 @@ export default function DisparoEmMassa() {
   // ── Download contatos WhatsApp ────────────────────────────────────────────
 
   const downloadWaContatos = useCallback(async () => {
-  if (!empresa) return;
-  setDownloadingWa(true);
-  try {
-    // IMPORTANTE: Use a Production URL do Webhook, não a URL de test
-    const res = await fetch('https://n8n-latest-phwy.onrender.com/webhook/a34ef39a-c8cb-40ef-827e-2d8df9eb4ab2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome_empresa: empresa.nome_empresa,
-        id_empresa: empresa.id,
-        telefone_empresa: empresa.telefone ?? null,
-      }),
-    });
+    if (!empresa) return;
+    setDownloadingWa(true);
+    try {
+      const res = await fetch('https://n8n-latest-phwy.onrender.com/webhook/a34ef39a-c8cb-40ef-827e-2d8df9eb4ab2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome_empresa: empresa.nome_empresa,
+          id_empresa: empresa.id,
+          telefone_empresa: empresa.telefone ?? null,
+        }),
+      });
 
-    if (!res.ok) throw new Error('Falha na resposta do servidor');
+      if (!res.ok) throw new Error('Falha na resposta do servidor');
 
-    const blob = await res.blob();
-    // Força o download automático usando a API de Blob do navegador
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    // O nome do arquivo será definido pelo cabeçalho Content-Disposition do n8n
-    a.download = `contatos-${empresa.nome_empresa}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Download iniciado!');
-  } catch (err) {
-    toast.error('Erro ao fazer download.');
-  } finally {
-    setDownloadingWa(false);
-  }
-}, [empresa]);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `contatos-${empresa.nome_empresa}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Download iniciado!');
+    } catch {
+      toast.error('Erro ao fazer download.');
+    } finally {
+      setDownloadingWa(false);
+    }
+  }, [empresa]);
 
   // ── Fetch leads do banco ──────────────────────────────────────────────────
 
@@ -264,98 +246,64 @@ export default function DisparoEmMassa() {
 
   // ── Validações ────────────────────────────────────────────────────────────
 
-  const minValido  = minDelay >= 60;
-  const maxValido  = maxDelay >= minDelay;
+  const minValido   = minDelay >= 60;
+  const maxValido   = maxDelay >= minDelay;
   const podeComecar = leadsComTelefone.length > 0 && mensagem.trim().length > 0 && minValido && maxValido && status === 'idle';
 
   // ── Lógica de disparo ─────────────────────────────────────────────────────
 
-  const avancarLead = useCallback(() => {
-    setCurrentIdx(prev => {
-      const next = prev + 1;
-      if (next >= leadsComTelefone.length) {
-        setStatus('done');
-        return prev;
-      }
-      const delay = randomDelay(minDelay, maxDelay);
-      nextDelayRef.current = delay;
-      setCountdown(delay);
-      skipRef.current = false;
-      return next;
-    });
-  }, [leadsComTelefone.length, minDelay, maxDelay]);
-
-  useEffect(() => {
-    if (status !== 'running') {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      if (skipRef.current) {
-        skipRef.current = false;
-        setPulados(p => p + 1);
-        avancarLead();
-        return;
-      }
-      setCountdown(prev => {
-        if (prev <= 1) {
-          setEnviados(e => e + 1);
-          avancarLead();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [status, avancarLead]);
-
   const iniciarDisparo = async () => {
-    setCurrentIdx(0);
-    setEnviados(0);
-    setPulados(0);
-    setStatus('running');
-    setCountdown(randomDelay(minDelay, maxDelay));
-    skipRef.current = false;
+    if (!empresa) return;
 
-    if (empresa) {
-      try {
-        // 1. CRIA O FORM DATA (Isso é obrigatório para enviar arquivos)
-        const formData = new FormData();
-        formData.append('nome_empresa', empresa.nome_empresa);
-        formData.append('id_empresa', empresa.id);
-        formData.append('telefone_empresa', empresa.telefone ?? '');
-        formData.append('mensagem', mensagem);
-        // Enviando a lista de contatos como string para ser parseada no n8n
-        formData.append('contatos', JSON.stringify(leadsComTelefone));
-        formData.append('minDelay', minDelay.toString());
-        formData.append('maxDelay', maxDelay.toString());
-        
-        // 2. SE TIVER MÍDIA, ADICIONA AO FORM DATA
-        if (mediaAnexo) {
-          formData.append('anexo', mediaAnexo.arquivo);
-          formData.append('legenda', legenda);
-        }
+    setStatus('loading');
+    setMensagemRetorno('');
 
-        // 3. FETCH SEM O HEADER "Content-Type"
-        // O navegador detecta o FormData e coloca o "multipart/form-data" sozinho
-        await fetch('https://n8n-latest-phwy.onrender.com/webhook-test/2fda6587-3087-4d16-a5eb-424cb3b39542', {
-          method: 'POST',
-          body: formData 
-        });
-        
-        console.log("Disparo enviado com sucesso!");
-      } catch (err) {
-        console.error("Erro no disparo:", err);
+    try {
+      const formData = new FormData();
+      formData.append('nome_empresa', empresa.nome_empresa);
+      formData.append('id_empresa', empresa.id);
+      formData.append('telefone_empresa', empresa.telefone ?? '');
+      formData.append('mensagem', mensagem);
+      formData.append('contatos', JSON.stringify(leadsComTelefone));
+      formData.append('minDelay', minDelay.toString());
+      formData.append('maxDelay', maxDelay.toString());
+
+      if (mediaAnexo) {
+        formData.append('anexo', mediaAnexo.arquivo);
+        formData.append('legenda', legenda);
       }
+
+      const res = await fetch('https://n8n-latest-phwy.onrender.com/webhook-test/2fda6587-3087-4d16-a5eb-424cb3b39542', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json().catch(() => null);
+
+      // O back retorna se foi aceito ou recusado
+      const aceito = json?.aceito ?? json?.success ?? json?.ok ?? res.ok;
+      const msg = json?.mensagem ?? json?.message ?? json?.motivo ?? '';
+
+      if (aceito) {
+        setStatus('aceito');
+        setMensagemRetorno(msg || `Disparo iniciado para ${leadsComTelefone.length} contato${leadsComTelefone.length !== 1 ? 's' : ''}.`);
+        toast.success('Disparo aceito pelo servidor!');
+      } else {
+        setStatus('recusado');
+        setMensagemRetorno(msg || 'Seu plano não permite disparos em massa. Faça upgrade para o plano Pro.');
+        toast.error('Disparo não autorizado.');
+      }
+    } catch (err) {
+      setStatus('recusado');
+      setMensagemRetorno('Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.');
+      toast.error('Erro ao enviar disparo.');
     }
   };
 
-  const pausarDisparo  = () => setStatus('paused');
-  const retomarDisparo = () => setStatus('running');
-  const pararDisparo   = () => { setStatus('idle'); setCurrentIdx(0); setCountdown(0); };
-  const pularLead      = () => { skipRef.current = true; };
-
-  const leadAtual = leadsComTelefone[currentIdx];
+  const novoDisparo = () => {
+    setStatus('idle');
+    setMensagemRetorno('');
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -363,7 +311,7 @@ export default function DisparoEmMassa() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
             <Zap className="h-6 w-6 text-green-400" />
@@ -373,7 +321,7 @@ export default function DisparoEmMassa() {
             Envie mensagens para múltiplos contatos com intervalo aleatório seguro
           </p>
         </div>
-        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 gap-1">
+        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 gap-1 shrink-0">
           <MessageCircle className="h-3 w-3" /> WhatsApp Manual
         </Badge>
       </div>
@@ -386,27 +334,27 @@ export default function DisparoEmMassa() {
           {/* ── PASSO 1: Fonte ────────────────────────────────────────────── */}
           <div className="metric-card space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">1</div>
+              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">1</div>
               <h3 className="font-display font-semibold text-foreground">Fonte dos Contatos</h3>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-secondary rounded-lg w-fit">
+            {/* Tabs — empilhadas no mobile */}
+            <div className="flex flex-col sm:flex-row gap-1 p-1 bg-secondary rounded-lg w-full sm:w-fit">
               {([
                 { id: 'funil',    label: 'Funil Higi$Controle', icon: Filter },
-                { id: 'etiqueta', label: 'Contato WhatsApp',   icon: Tag },
-                { id: 'planilha', label: 'Planilha',       icon: FileSpreadsheet },
+                { id: 'etiqueta', label: 'Contato WhatsApp',    icon: Tag },
+                { id: 'planilha', label: 'Planilha',            icon: FileSpreadsheet },
               ] as const).map(t => (
                 <button
                   key={t.id}
                   onClick={() => setFonte(t.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all text-left ${
                     fonte === t.id
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <t.icon className="h-3.5 w-3.5" />
+                  <t.icon className="h-3.5 w-3.5 shrink-0" />
                   {t.label}
                 </button>
               ))}
@@ -416,20 +364,23 @@ export default function DisparoEmMassa() {
             {fonte === 'funil' && (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Selecione os momentos do funil (vazio = todos):</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2">
                   {MOMENTOS_FUNIL.map(m => (
                     <button
                       key={m}
                       onClick={() => setFiltroFunil(prev =>
                         prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
                       )}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all text-left ${
                         filtroFunil.includes(m)
                           ? 'bg-primary/15 border-primary/50 text-primary'
                           : 'border-border text-muted-foreground hover:bg-secondary'
                       }`}
                     >
-                      {filtroFunil.includes(m) && <CheckCircle2 className="h-3 w-3 inline mr-1" />}
+                      {filtroFunil.includes(m)
+                        ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        : <div className="h-3.5 w-3.5 rounded-full border border-border shrink-0" />
+                      }
                       {m}
                     </button>
                   ))}
@@ -441,23 +392,20 @@ export default function DisparoEmMassa() {
             {/* Contato WhatsApp */}
             {fonte === 'etiqueta' && (
               <div className="space-y-4">
-                {/* Aviso anti-banimento */}
                 <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/25 rounded-xl">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-amber-400">⚠️ Práticas Anti-Banimento</p>
                     <ul className="text-xs text-amber-300/80 space-y-1 list-disc list-inside">
-                      <li>Acima de 300 contatos, <strong className="text-amber-400">use o download em lotes</strong> para evitar ban</li>
-                      <li>Envie no máximo 150–200 mensagens por dia por número</li>
-                      <li>Prefira intervalos maiores (acima de 90s) para listas grandes</li>
-                      <li>Varie o texto da mensagem entre lotes diferentes</li>
-                      <li>Use o arquivo baixado na aba <strong className="text-amber-400">Planilha</strong> para fatiar e enviar por partes</li>
+                      <li>Acima de 300 contatos, <strong className="text-amber-400">use o download em lotes</strong></li>
+                      <li>Máximo de 150–200 mensagens por dia por número</li>
+                      <li>Prefira intervalos acima de 90s para listas grandes</li>
+                      <li>Varie o texto entre lotes diferentes</li>
                     </ul>
                   </div>
                 </div>
 
-                {/* Botões de ação */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
                     className="flex-1 gap-2 border-primary/40 text-primary hover:bg-primary/10"
@@ -486,20 +434,18 @@ export default function DisparoEmMassa() {
                   </Button>
                 </div>
 
-                {/* Erro / mensagem Pro */}
                 {waError && (
                   <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                     <p className="text-xs text-destructive">{waError}</p>
                   </div>
                 )}
 
-                {/* Dica de download */}
                 {waLeads.length > 200 && (
                   <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/25 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-red-400">
-                      <strong>{waLeads.length} contatos detectados.</strong> Recomendamos fazer o <strong>Download CSV</strong>, fatiar a lista em partes de até 200 e enviar cada parte pela aba <strong>Planilha</strong> em dias diferentes.
+                      <strong>{waLeads.length} contatos detectados.</strong> Recomendamos fazer o <strong>Download CSV</strong> e enviar em partes de até 200 pela aba <strong>Planilha</strong>.
                     </p>
                   </div>
                 )}
@@ -544,7 +490,7 @@ export default function DisparoEmMassa() {
           {/* ── PASSO 2: Mensagem ─────────────────────────────────────────── */}
           <div className="metric-card space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">2</div>
+              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">2</div>
               <h3 className="font-display font-semibold text-foreground">Mensagem</h3>
             </div>
 
@@ -557,7 +503,7 @@ export default function DisparoEmMassa() {
                 value={mensagem}
                 onChange={e => setMensagem(e.target.value)}
                 rows={5}
-                placeholder="Olá {nome}! 👋&#10;&#10;Use {nome} para personalizar com o nome do contato."
+                placeholder={'Olá {nome}! 👋\n\nUse {nome} para personalizar com o nome do contato.'}
                 className="w-full px-3 py-2.5 text-sm rounded-lg border border-input bg-secondary text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="text-[10px] text-muted-foreground">
@@ -572,8 +518,7 @@ export default function DisparoEmMassa() {
                 <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/40">Requer WA API Pro</Badge>
               </label>
 
-              {/* Tipo de mídia */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(Object.entries(TIPO_MEDIA_CONFIG) as [TipoMedia, typeof TIPO_MEDIA_CONFIG[TipoMedia]][]).map(([tipo, cfg]) => {
                   const Icon = cfg.icon;
                   return (
@@ -593,13 +538,12 @@ export default function DisparoEmMassa() {
                 })}
               </div>
 
-              {/* Upload da mídia */}
               {mediaAnexo ? (
                 <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg border border-border">
                   {mediaAnexo.preview ? (
-                    <img src={mediaAnexo.preview} alt="preview" className="h-12 w-12 rounded object-cover flex-shrink-0" />
+                    <img src={mediaAnexo.preview} alt="preview" className="h-12 w-12 rounded object-cover shrink-0" />
                   ) : (
-                    <div className={`h-12 w-12 rounded flex items-center justify-center flex-shrink-0 ${TIPO_MEDIA_CONFIG[mediaAnexo.tipo].color}`}>
+                    <div className={`h-12 w-12 rounded flex items-center justify-center shrink-0 ${TIPO_MEDIA_CONFIG[mediaAnexo.tipo].color}`}>
                       {(() => { const Icon = TIPO_MEDIA_CONFIG[mediaAnexo.tipo].icon; return <Icon className="h-5 w-5" />; })()}
                     </div>
                   )}
@@ -609,7 +553,7 @@ export default function DisparoEmMassa() {
                       {(mediaAnexo.arquivo.size / 1024 / 1024).toFixed(1)} MB
                     </p>
                   </div>
-                  <button onClick={() => setMediaAnexo(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                  <button onClick={() => setMediaAnexo(null)} className="text-muted-foreground hover:text-foreground shrink-0">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -630,7 +574,6 @@ export default function DisparoEmMassa() {
                 onChange={e => e.target.files?.[0] && handleMedia(e.target.files[0])}
               />
 
-              {/* Legenda */}
               {mediaAnexo && (
                 <div className="space-y-1.5">
                   <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Legenda</label>
@@ -648,7 +591,7 @@ export default function DisparoEmMassa() {
           {/* ── PASSO 3: Timing ───────────────────────────────────────────── */}
           <div className="metric-card space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">3</div>
+              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">3</div>
               <h3 className="font-display font-semibold text-foreground">Intervalo entre Envios</h3>
             </div>
 
@@ -690,14 +633,14 @@ export default function DisparoEmMassa() {
             </div>
 
             <div className="flex items-center gap-3 px-4 py-3 bg-secondary/50 rounded-lg">
-              <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">
                   Intervalo aleatório entre <strong className="text-foreground">{formatTime(minDelay)}</strong> e <strong className="text-foreground">{formatTime(maxDelay)}</strong> por mensagem
                 </p>
                 {leadsComTelefone.length > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Tempo total estimado para {leadsComTelefone.length} contatos: <strong className="text-primary">{totalEstimado}</strong>
+                    Tempo total estimado para {leadsComTelefone.length} contato{leadsComTelefone.length !== 1 ? 's' : ''}: <strong className="text-primary">{totalEstimado}</strong>
                   </p>
                 )}
               </div>
@@ -705,7 +648,7 @@ export default function DisparoEmMassa() {
           </div>
         </div>
 
-        {/* ─── COLUNA DIREITA (preview + controle) ─────────────────────────── */}
+        {/* ─── COLUNA DIREITA (preview + disparo) ──────────────────────────── */}
         <div className="space-y-4">
 
           {/* Preview de contatos */}
@@ -722,7 +665,7 @@ export default function DisparoEmMassa() {
 
             {leadsSemTelefone.length > 0 && (
               <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                 <p className="text-xs text-amber-400">
                   {leadsSemTelefone.length} contato{leadsSemTelefone.length !== 1 ? 's' : ''} sem telefone serão ignorados
                 </p>
@@ -746,23 +689,9 @@ export default function DisparoEmMassa() {
                     initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i * 0.02, 0.3) }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      status === 'running' && i === currentIdx
-                        ? 'bg-green-500/15 border border-green-500/30'
-                        : status !== 'idle' && i < currentIdx
-                        ? 'opacity-40'
-                        : 'bg-secondary/50'
-                    }`}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-secondary/50"
                   >
-                    {status !== 'idle' && i < currentIdx && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
-                    )}
-                    {status === 'running' && i === currentIdx && (
-                      <div className="h-3.5 w-3.5 rounded-full border-2 border-green-400 border-t-transparent animate-spin flex-shrink-0" />
-                    )}
-                    {(status === 'idle' || (status !== 'idle' && i > currentIdx)) && (
-                      <div className="h-3.5 w-3.5 rounded-full bg-border flex-shrink-0" />
-                    )}
+                    <div className="h-3.5 w-3.5 rounded-full bg-border shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">{l.nome}</p>
                       <p className="text-muted-foreground flex items-center gap-1">
@@ -775,142 +704,119 @@ export default function DisparoEmMassa() {
             )}
           </div>
 
-          {/* ── Controle de Disparo ─────────────────────────────────────── */}
+          {/* ── Disparo ─────────────────────────────────────────────────────── */}
           <div className="metric-card space-y-4">
             <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-green-400" />
-              Controle de Disparo
+              <Send className="h-4 w-4 text-green-400" />
+              Disparo
             </h3>
 
             {/* Idle */}
             {status === 'idle' && (
               <div className="space-y-3">
                 {!mensagem.trim() && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 text-amber-400" /> Escreva a mensagem antes de iniciar
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" /> Escreva a mensagem antes de iniciar
                   </p>
                 )}
                 {leadsComTelefone.length === 0 && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 text-amber-400" /> Selecione contatos com telefone
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" /> Selecione contatos com telefone
                   </p>
                 )}
+
+                {leadsComTelefone.length > 0 && mensagem.trim() && (
+                  <div className="px-3 py-2.5 bg-secondary/50 rounded-lg space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      <strong className="text-foreground">{leadsComTelefone.length}</strong> contato{leadsComTelefone.length !== 1 ? 's' : ''} serão disparados
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      Estimativa: <strong className="text-primary ml-1">{totalEstimado}</strong>
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   className="w-full gap-2 bg-green-500 hover:bg-green-400 text-black font-semibold"
                   onClick={iniciarDisparo}
                   disabled={!podeComecar}
                 >
-                  <Play className="h-4 w-4" />
+                  <Send className="h-4 w-4" />
                   Iniciar Disparo ({leadsComTelefone.length} contatos)
                 </Button>
               </div>
             )}
 
-            {/* Running / Paused */}
-            {(status === 'running' || status === 'paused') && (
-              <div className="space-y-4">
-                {/* Lead atual */}
-                {leadAtual && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Enviando para</p>
-                    <p className="font-semibold text-foreground">{leadAtual.nome}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Phone className="h-3 w-3" /> {leadAtual.telefone}
+            {/* Loading */}
+            {status === 'loading' && (
+              <div className="flex flex-col items-center py-6 text-center gap-3">
+                <div className="h-10 w-10 rounded-full border-2 border-green-400 border-t-transparent animate-spin" />
+                <p className="text-sm text-muted-foreground">Enviando para o servidor...</p>
+              </div>
+            )}
+
+            {/* Aceito */}
+            <AnimatePresence>
+              {status === 'aceito' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="space-y-4"
+                >
+                  <div className="flex flex-col items-center py-4 text-center gap-2">
+                    <div className="h-14 w-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-8 w-8 text-green-400" />
+                    </div>
+                    <p className="font-display font-bold text-foreground text-lg">Disparo iniciado!</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                      {mensagemRetorno}
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      Estimativa: <strong className="text-primary ml-1">{totalEstimado}</strong>
                     </p>
                   </div>
-                )}
-
-                {/* Progresso */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{currentIdx + 1} de {leadsComTelefone.length}</span>
-                    <span>{Math.round(((currentIdx) / leadsComTelefone.length) * 100)}%</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-green-500 rounded-full"
-                      animate={{ width: `${(currentIdx / leadsComTelefone.length) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                </div>
-
-                {/* Countdown */}
-                {status === 'running' && (
-                  <div className="flex items-center justify-center gap-2 py-2 bg-secondary rounded-lg">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <span className="font-mono text-xl font-bold text-foreground tabular-nums">
-                      {formatTime(countdown)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">próximo envio</span>
-                  </div>
-                )}
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="bg-secondary/50 rounded-lg py-2">
-                    <p className="font-bold text-green-400 text-lg">{enviados}</p>
-                    <p className="text-[10px] text-muted-foreground">Enviados</p>
-                  </div>
-                  <div className="bg-secondary/50 rounded-lg py-2">
-                    <p className="font-bold text-amber-400 text-lg">{pulados}</p>
-                    <p className="text-[10px] text-muted-foreground">Pulados</p>
-                  </div>
-                </div>
-
-                {/* Botões */}
-                <div className="flex gap-2">
-                  {status === 'running' ? (
-                    <Button variant="outline" className="flex-1 gap-1.5" onClick={pausarDisparo}>
-                      <Pause className="h-4 w-4" /> Pausar
-                    </Button>
-                  ) : (
-                    <Button className="flex-1 gap-1.5 bg-green-500 hover:bg-green-400 text-black" onClick={retomarDisparo}>
-                      <Play className="h-4 w-4" /> Retomar
-                    </Button>
-                  )}
-                  <Button variant="outline" size="icon" onClick={pularLead} title="Pular este contato">
-                    <SkipForward className="h-4 w-4" />
+                  <Button variant="outline" className="w-full" onClick={novoDisparo}>
+                    Novo Disparo
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={pararDisparo}
-                    title="Parar disparo"
-                  >
-                    <Square className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Done */}
-            {status === 'done' && (
-              <div className="space-y-4">
-                <div className="flex flex-col items-center py-4 text-center">
-                  <div className="h-14 w-14 rounded-full bg-green-500/20 flex items-center justify-center mb-3">
-                    <CheckCircle2 className="h-8 w-8 text-green-400" />
+            {/* Recusado */}
+            <AnimatePresence>
+              {status === 'recusado' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="space-y-4"
+                >
+                  <div className="flex flex-col items-center py-4 text-center gap-2">
+                    <div className="h-14 w-14 rounded-full bg-destructive/15 flex items-center justify-center">
+                      <XCircle className="h-8 w-8 text-destructive" />
+                    </div>
+                    <p className="font-display font-bold text-foreground text-lg">Disparo recusado</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                      {mensagemRetorno}
+                    </p>
                   </div>
-                  <p className="font-display font-bold text-foreground text-lg">Disparo concluído!</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {enviados} enviados · {pulados} pulados
-                  </p>
-                </div>
-                <Button variant="outline" className="w-full" onClick={pararDisparo}>
-                  Novo Disparo
-                </Button>
-              </div>
-            )}
+                  <Button variant="outline" className="w-full" onClick={novoDisparo}>
+                    Tentar Novamente
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Aviso de responsabilidade */}
           <div className="flex items-start gap-2 p-3 bg-secondary/50 rounded-lg border border-border">
-            <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-[10px] text-muted-foreground leading-relaxed">
-              O sistema abre o WhatsApp para cada contato com o intervalo configurado.
-              O envio da mensagem é manual por segurança. Intervalo mínimo de 60s reduz
-              risco de bloqueio pelo WhatsApp.
+              O disparo é processado pelo servidor com intervalo configurado entre cada mensagem.
+              Intervalo mínimo de 60s reduz risco de bloqueio pelo WhatsApp.
             </p>
           </div>
 
