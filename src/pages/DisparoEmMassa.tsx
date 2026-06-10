@@ -273,7 +273,7 @@ export default function DisparoEmMassa() {
         formData.append('legenda', legenda);
       }
 
-      const res = await fetch('https://n8n-latest-phwy.onrender.com/webhook-test/2fda6587-3087-4d16-a5eb-424cb3b39542', {
+      const res = await fetch('https://n8n-latest-phwy.onrender.com/webhook/2fda6587-3087-4d16-a5eb-424cb3b39542', {
         method: 'POST',
         body: formData,
       });
